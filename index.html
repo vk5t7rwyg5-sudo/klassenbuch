@@ -122,9 +122,10 @@ button:disabled{opacity:.4;cursor:default}
 .gn summary b{white-space:nowrap}.gn summary span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gn[open] summary span{display:none}
 .gn summary::before{content:"▸";color:var(--tx3)}.gn[open] summary::before{content:"▾"}
 .gn textarea{display:block;margin:0 14px 14px;width:calc(100% - 28px);font-size:16px;line-height:1.5}
-.gm{display:grid;gap:8px}.gm-r{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2fr) auto;gap:6px;align-items:center}
+.gm{display:grid;gap:8px}.gm-r{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) minmax(0,1.6fr) auto;gap:6px;align-items:center}
 .gm-h{font-size:12px;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
-@media (max-width:700px){.gm-r{grid-template-columns:minmax(0,1fr) auto;padding-bottom:8px;border-bottom:1px solid var(--bd)}.gm-r>:nth-child(2),.gm-r>:nth-child(3){grid-column:1}.gm-r>:nth-child(4){grid-row:1;grid-column:2}.gm-h{display:none}}
+@media (max-width:900px){.gm-r{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;padding-bottom:8px;border-bottom:1px solid var(--bd)}.gm-r>:nth-child(1){grid-column:1/3}.gm-r>:nth-child(6){grid-row:1;grid-column:3}.gm-r>:nth-child(2),.gm-r>:nth-child(4){grid-column:1}.gm-r>:nth-child(3),.gm-r>:nth-child(5){grid-column:2}.gm-h{display:none}}
+@media (max-width:520px){.gm-r{grid-template-columns:minmax(0,1fr) auto}.gm-r>:nth-child(1){grid-column:1}.gm-r>:nth-child(6){grid-column:2}.gm-r>:nth-child(n+2):nth-child(-n+5){grid-column:1/3}}
 .gl{margin-top:6px;display:grid;gap:2px}.gl div{display:flex;gap:8px;min-width:0}.gl b{font-weight:500;white-space:nowrap}.gl span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sl{display:grid;gap:6px;max-width:420px}.sl .row{flex-wrap:nowrap}
 .pv-pg canvas{display:block;max-width:none}#pvC{background:var(--paper)}
@@ -554,7 +555,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2120 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2127 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -643,29 +644,41 @@ function schulenCard(){
     <div class="row"><input id="schulNeu" placeholder="Neue Schule, z. B. Musikschule Appenzell" style="flex:1;min-width:0"><button data-a="schulAdd">Hinzufügen</button></div>
   </div><p class="tiny" style="margin-bottom:0">Umbenennen ändert die Schule auch bei allen SuS. Ferien gelten nur für eine Schule, wenn ihr Name beim Termin unter «Ort» steht.</p></div>`;
 }
+function kParse(str){
+  str = String(str || ""); const mail = (str.match(/[^\s,;·|<>]+@[^\s,;·|<>]+\.[a-z]{2,}/i) || [""])[0];
+  let rest = mail ? str.replace(mail, " ") : str; const tels = rest.match(/\+?\d[\d ]{6,}\d/g) || [];
+  tels.forEach(x => rest = rest.replace(x, " "));
+  const adresse = rest.split(/\s*[·,;|]\s*/).map(x => x.trim()).filter(Boolean).join(", ");
+  return {tel: tels.map(x => x.trim()).join(", "), mail, adresse};
+}
+const kOwn = x => x.tel !== undefined || x.mail !== undefined || x.adresse !== undefined;
+function kOf(x){ if (!kOwn(x) && x.kontakt) Object.assign(x, kParse(x.kontakt)); return {tel: x.tel || "", mail: x.mail || "", adresse: x.adresse || ""}; }
+const kJoin = x => [x.tel, x.mail, x.adresse].filter(Boolean).join(" · ");
 function gMembers(s){
-  if (Array.isArray(s.members)) return s.members;
+  if (Array.isArray(s.members)){ s.members.forEach(kOf); return s.members; }
   const names = String(s.mitglieder || "").split(/\s*(?:,|;|\/|\bund\b|&)\s*/).map(x => x.trim()).filter(Boolean);
   const parts = String(s.kontakt || "").split(/\s*\|\s*/);
   const byName = {}; parts.forEach(p => { const m = p.match(/^([^:]{2,60}):\s*(.*)$/); if (m) byName[m[1].trim()] = m[2]; });
-  return names.map(n => { const r = byName[n] || "", bits = r.split(" · "); const eltern = bits.length > 1 && !/\d|@/.test(bits[0]) ? bits.shift() : ""; return {name: n, eltern, kontakt: bits.join(" · ")}; });
+  return names.map(n => { const r = byName[n] || "", bits = r.split(" · "); const eltern = bits.length > 1 && !/\d|@/.test(bits[0]) ? bits.shift() : ""; const m = {name: n, eltern, kontakt: bits.join(" · ")}; kOf(m); return m; });
 }
 function gruppeCard(s){
   const m = gMembers(s);
   return `<h3>Mitglieder <span class="muted num" style="text-transform:none;letter-spacing:0">(${m.length})</span></h3><div class="card"><div class="gm">
-    <div class="gm-r gm-h"><span>Kind</span><span>Eltern</span><span>Telefon, E-Mail, Adresse</span><span></span></div>
+    <div class="gm-r gm-h"><span>Kind</span><span>Eltern</span><span>Telefon</span><span>E-Mail</span><span>Adresse</span><span></span></div>
     ${m.map((x, i) => `<div class="gm-r">
       <input data-gm="${i}:name" value="${esc(x.name)}" placeholder="Name" aria-label="Name">
       <input data-gm="${i}:eltern" value="${esc(x.eltern)}" placeholder="Eltern" aria-label="Eltern">
-      <input data-gm="${i}:kontakt" value="${esc(x.kontakt)}" placeholder="079 … · mail@… · Adresse" aria-label="Kontakt">
+      <input data-gm="${i}:tel" type="tel" value="${esc(x.tel)}" placeholder="079 123 45 67" aria-label="Telefon">
+      <input data-gm="${i}:mail" type="email" value="${esc(x.mail)}" placeholder="name@mail.ch" aria-label="E-Mail">
+      <input data-gm="${i}:adresse" value="${esc(x.adresse)}" placeholder="Strasse, PLZ Ort" aria-label="Adresse">
       <button class="ghost del" data-a="gmDel" data-i="${i}" aria-label="Mitglied entfernen">×</button></div>`).join("")}
   </div><div class="row" style="margin-top:10px"><button data-a="gmAdd">Kind hinzufügen</button></div></div>`;
 }
 function gList(s){
   const m = gMembers(s); if (!m.length) return "";
-  return `<div class="gl small">${m.map(x => `<div><b>${esc(x.name)}</b>${x.eltern || x.kontakt ? `<span class="muted">${esc([x.eltern, x.kontakt.split(" · ")[0]].filter(Boolean).join(" · "))}</span>` : ""}</div>`).join("")}</div>`;
+  return `<div class="gl small">${m.map(x => `<div><b>${esc(x.name)}</b>${x.eltern || x.tel ? `<span class="muted">${esc([x.eltern, (x.tel || "").split(",")[0]].filter(Boolean).join(" · "))}</span>` : ""}</div>`).join("")}</div>`;
 }
-function gHasOwn(s){ const m = gMembers(s); return m.some(x => x.kontakt || x.eltern); }
+function gHasOwn(s){ const m = gMembers(s); return m.some(x => x.tel || x.mail || x.adresse || x.eltern); }
 let lpStufe = "Unterstufe";
 let calYear = (() => { const d = new Date(); return d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear()-1; })();
 let editEv = null, detailStufe = null;
@@ -827,7 +840,9 @@ function vDetail(id){
     <div><label for="sf-stufe">Förderstufe</label><select id="sf-stufe" data-sf="stufe" data-rr>${STUFEN.map(k=>`<option ${s.stufe===k?"selected":""}>${k}</option>`).join("")}</select></div>
     <div><label for="sf-seit">Unterricht seit</label><input id="sf-seit" data-sf="seit" value="${esc(s.seit)}" placeholder="2023"></div>
     ${s.typ==="Gruppe" && gHasOwn(s) ? "" : `<div><label for="sf-eltern">${s.typ==="Gruppe"?"Eltern (für alle)":"Eltern"}</label><input id="sf-eltern" data-sf="eltern" value="${esc(s.eltern)}"></div>
-    <div><label for="sf-kontakt">${s.typ==="Gruppe"?"Kontakt (für alle)":"Kontakt"}</label><input id="sf-kontakt" data-sf="kontakt" value="${esc(s.kontakt)}" placeholder="079 123 45 67"></div>`}
+    ${(k => `<div><label for="sf-tel">Telefon${s.typ==="Gruppe"?" (für alle)":""}</label><input id="sf-tel" type="tel" data-sf="tel" value="${esc(k.tel)}" placeholder="079 123 45 67"></div>
+    <div><label for="sf-mail">E-Mail${s.typ==="Gruppe"?" (für alle)":""}</label><input id="sf-mail" type="email" data-sf="mail" value="${esc(k.mail)}" placeholder="name@mail.ch"></div>
+    <div style="grid-column:span 2"><label for="sf-adresse">Adresse${s.typ==="Gruppe"?" (für alle)":""}</label><input id="sf-adresse" data-sf="adresse" value="${esc(k.adresse)}" placeholder="Strasse, PLZ Ort"></div>`)(kOf(s))}`}
     <div style="grid-column:1/-1"><label for="sf-bemerkung">Bemerkung</label><input id="sf-bemerkung" data-sf="bemerkung" value="${esc(s.bemerkung)}"></div>
   </div>
   <div style="margin-top:10px"><label>Instrumente / Bereiche</label><div class="row">${INSTR.map(k => `<button class="chip ${(s.instrumente||[]).includes(k)?"on":""}" data-a="instr" data-v="${k}">${k}</button>`).join("")}</div></div>
@@ -1022,7 +1037,7 @@ document.addEventListener("click", ev => {
     case "schulDel": { const l = schulen(), k = l[+b.dataset.i], n = db.students.filter(s => s.schule === k).length;
       if (n){ toast(`${k} ist noch bei ${n} SuS eingetragen. Ändere zuerst dort die Schule.`); return; }
       l.splice(+b.dataset.i, 1); db.schulen = l; if (filt.schule === k) filt.schule = "Alle"; save(); render(); break; }
-    case "gmAdd": { const m = gMembers(s); m.push({name:"", eltern:"", kontakt:""}); s.members = m; save(); render(); setTimeout(() => app.querySelector(`[data-gm="${m.length-1}:name"]`)?.focus(), 0); break; }
+    case "gmAdd": { const m = gMembers(s); m.push({name:"", eltern:"", tel:"", mail:"", adresse:""}); s.members = m; save(); render(); setTimeout(() => app.querySelector(`[data-gm="${m.length-1}:name"]`)?.focus(), 0); break; }
     case "gmDel": { const m = gMembers(s), x = m[+b.dataset.i]; ask(`${x && x.name ? x.name : "Dieses Mitglied"} aus der Gruppe entfernen?`, "Entfernen", () => { m.splice(+b.dataset.i, 1); s.members = m; s.mitglieder = m.map(y => y.name).filter(Boolean).join(", "); save(); render(); }); break; }
     case "newS": { const n = {id:uid(), name:"Neue Person", schule:schulen()[0] || "", typ:"Einzel", mitglieder:"", tag:0, zeit:"", dauer:30, stufe:"Unterstufe", instrumente:["Snare Drum"], seit:"", eltern:"", kontakt:"", bemerkung:"", lp:{}, aktiv:true}; db.students.push(n); save(); location.hash = "s-"+n.id; break; }
     case "lps": lpStufe = b.dataset.v; render(); break;
@@ -1074,14 +1089,14 @@ document.getElementById("fileIn").onchange = e => {
 document.addEventListener("input", ev => {
   const t = ev.target; if (t.tagName === "TEXTAREA") autosize(t);
   if ("gn" in t.dataset){ db.notiz = t.value; save(); return; }
-  if (t.dataset.gm){ const s = S(t.closest("[data-sid]")?.dataset.sid); if (!s) return; const [i, f] = t.dataset.gm.split(":"); const m = gMembers(s); if (m[+i]){ m[+i][f] = t.value; s.members = m; s.mitglieder = m.map(x => x.name).filter(Boolean).join(", "); save(); } return; }
+  if (t.dataset.gm){ const s = S(t.closest("[data-sid]")?.dataset.sid); if (!s) return; const [i, f] = t.dataset.gm.split(":"); const m = gMembers(s); if (m[+i]){ m[+i][f] = t.value; m[+i].kontakt = kJoin(m[+i]); s.members = m; s.mitglieder = m.map(x => x.name).filter(Boolean).join(", "); save(); } return; }
   if (t.dataset.sn){ const i = +t.dataset.sn, list = schulen(), alt = list[i], neu = t.value.trim(); if (!neu || alt === undefined || list.includes(neu)) return; list[i] = neu; db.schulen = list; db.students.forEach(s => { if (s.schule === alt) s.schule = neu; }); if (filt.schule === alt) filt.schule = neu; save(); return; }
   const card = t.closest("[data-sid]"); if (!card) return;
   const s = S(card.dataset.sid); if (!s) return;
   if (t.dataset.f){ const l = getLesson(s.id, card.dataset.d, true); l[t.dataset.f] = t.value; saveL(l.id); }
   if (t.dataset.sb){ (s.stammblatt ||= {})[t.dataset.sb] = t.value; save(); const c = document.getElementById("sbCount"); if (c){ const n = sbDone(s); c.textContent = n + " von " + SBN + " ausgefüllt"; c.className = "badge " + (n === SBN ? "b-ok" : "b-wa"); } const ao = document.getElementById("ageOut"); if (ao) ao.textContent = alter(s) !== null ? alter(s) + " Jahre" : ""; }
   if (t.dataset.lit){ const x = (s.lit || []).find(y => y.id === t.dataset.lit); if (x){ x.seite = +t.value || 1; save(); } }
-  if (t.dataset.sf){ s[t.dataset.sf] = "num" in t.dataset ? +t.value : t.value; save(); if ("rr" in t.dataset){ detailStufe = null; render(); } }
+  if (t.dataset.sf){ if (/^(tel|mail|adresse)$/.test(t.dataset.sf)){ kOf(s); s[t.dataset.sf] = t.value; s.kontakt = kJoin(s); save(); return; } s[t.dataset.sf] = "num" in t.dataset ? +t.value : t.value; save(); if ("rr" in t.dataset){ detailStufe = null; render(); } }
 });
 window.addEventListener("beforeunload", () => { if (mode === "local") flush(); });
 /* ---------- Literatur: Katalog (eigenes Dokument), Zuweisungen pro SuS (s.lit), Notenviewer ---------- */
