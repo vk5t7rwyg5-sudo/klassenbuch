@@ -128,6 +128,7 @@ button:disabled{opacity:.4;cursor:default}
 @media (max-width:520px){.gm-r{grid-template-columns:minmax(0,1fr) auto}.gm-r>:nth-child(1){grid-column:1}.gm-r>:nth-child(6){grid-column:2}.gm-r>:nth-child(n+2):nth-child(-n+5){grid-column:1/3}}
 .gl{margin-top:6px;display:grid;gap:2px}.gl div{display:flex;gap:8px;min-width:0}.gl b{font-weight:500;white-space:nowrap}.gl span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sl{display:grid;gap:6px;max-width:420px}.sl .row{flex-wrap:nowrap}
+.gsb{display:grid;gap:12px}
 .sl-prev{margin-bottom:18px;border-color:var(--ac)}.sl-file{border-top:1px solid var(--bd);padding-top:10px;margin-top:10px}
 .sl-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bd)}
 .sl-act{display:flex;gap:6px;align-items:center}.sl-act select{width:auto;max-width:260px}
@@ -559,7 +560,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2133 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2147 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -631,11 +632,32 @@ function getLesson(sid, datum, create){ let l = db.lessons.find(x => x.sid === s
 
 const SB = [["familie","Familiärer Hintergrund","Geschwister, Eltern, wer bringt/holt ab, Sprache zuhause …"],["instrumente","Instrumente zuhause","Drumset, Pad, Xylophon, Platz zum Üben, Lärmsituation …"],["schule","Schulsituation","Klasse, Schulhaus, Belastung, andere Hobbys …"],["charakter","Charaktereigenschaften","Wie lernt die Person, was motiviert, worauf achten …"],["sonstiges","Sonstiges","Gesundheit, Ensembles, Absprachen …"]];
 const SBN = SB.length + 1;
-const sbDone = s => [["geburt"], ...SB].filter(([k]) => ((s.stammblatt||{})[k]||"").trim()).length;
+const sbDone = s => s.typ === "Gruppe" ? (((s.stammblatt||{}).gruppe||"").trim() ? 1 : 0) + gMembers(s).filter(x => (x.info||"").trim()).length
+  : [["geburt"], ...SB].filter(([k]) => ((s.stammblatt||{})[k]||"").trim()).length;
+const sbN = s => s.typ === "Gruppe" ? 1 + gMembers(s).length : SBN;
+function ageOf(g){ if (!/^\d{4}-\d{2}-\d{2}$/.test(g||"")) return null; const n = new Date(), b = new Date(g+"T00:00"); let a = n.getFullYear() - b.getFullYear();
+  if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--; return a >= 0 && a < 120 ? a : null; }
+function gStamm(s){
+  const sb = s.stammblatt ||= {};
+  if (!(sb.gruppe||"").trim() && SB.some(([k]) => (sb[k]||"").trim())){
+    sb.gruppe = SB.filter(([k]) => (sb[k]||"").trim()).map(([k, lab]) => lab + ": " + sb[k].trim()).join("\n");
+    SB.forEach(([k]) => delete sb[k]); save();
+  }
+  const m = gMembers(s);
+  return `<h3>Beschreibung <span class="badge ${sbDone(s)===sbN(s)?"b-ok":"b-wa"}" style="text-transform:none;letter-spacing:0">${sbDone(s)} von ${sbN(s)} ausgefüllt</span></h3>
+  <div class="card"><div class="gsb">
+    <div><label for="sb-gruppe">Gruppe und Gruppendynamik</label><textarea id="sb-gruppe" data-sb="gruppe" rows="3" placeholder="Wie arbeitet die Gruppe zusammen? Rollen, Stimmung, was gut funktioniert, worauf achten …">${esc(sb.gruppe)}</textarea></div>
+    ${m.map((x, i) => { const a = ageOf(x.geburt); return `<div><label for="gmi-${i}">${esc(x.name || "Kind " + (i+1))}${a !== null ? ` <span class="num" style="text-transform:none">· ${a} J.</span>` : ""}</label><textarea id="gmi-${i}" data-gm="${i}:info" rows="2" placeholder="Kurz: Stärken, Charakter, worauf achten …">${esc(x.info)}</textarea></div>`; }).join("")}
+  </div><p class="tiny" style="margin:8px 0 0">Nur für dich. Die Beschreibung erscheint nicht im Elternbericht.</p></div>`;
+}
 function alter(s){ const g = (s.stammblatt||{}).geburt||""; if (!/^\d{4}-\d{2}-\d{2}$/.test(g)) return null;
   const n = new Date(), b = new Date(g+"T00:00"); let a = n.getFullYear() - b.getFullYear();
   if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--; return a >= 0 && a < 120 ? a : null; }
-function alterTxt(s){ const a = alter(s); if (a !== null) return a + " J."; return s.typ === "Gruppe" ? ((s.stammblatt||{}).geburt||"").trim() : ""; }
+function alterTxt(s){ const a = alter(s); if (a !== null) return a + " J.";
+  if (s.typ !== "Gruppe") return "";
+  const ages = gMembers(s).map(x => ageOf(x.geburt)).filter(x => x !== null);
+  if (ages.length){ const lo = Math.min(...ages), hi = Math.max(...ages); return (lo === hi ? lo : lo + "–" + hi) + " J."; }
+  return ((s.stammblatt||{}).geburt||"").trim(); }
 let weekStart = monday(new Date());
 let filt = {schule:"Alle", q:""};
 function schulen(){ return db.schulen && db.schulen.length ? db.schulen.slice() : [...new Set(db.students.map(s => s.schule).filter(Boolean))]; }
@@ -993,7 +1015,7 @@ function vSus(){
       <div class="small muted num">Lehrplan ${p.pct} % (${p.done}/${p.total}) · Präsenz ${a.n?a.a+"/"+a.n:"–"}${a.u?` · <span style="color:var(--da)">${a.u} unentsch.</span>`:""}</div>
       ${last ? `<div class="tiny" style="margin-top:4px">Aufgaben: ${esc(last.aufgaben)}</div>` : ""}
       ${ne ? `<div style="margin-top:6px"><span class="badge ${EVTYP[ne.typ]}">${esc(ne.typ)} ${fmt(ne.datum)}</span></div>` : ""}
-      ${sbDone(s) < SBN ? `<div style="margin-top:6px"><span class="badge b-wa">Stammblatt ${sbDone(s)}/${SBN}</span></div>` : ""}
+      ${sbDone(s) < sbN(s) ? `<div style="margin-top:6px"><span class="badge b-wa">${s.typ==="Gruppe"?"Beschreibung":"Stammblatt"} ${sbDone(s)}/${sbN(s)}</span></div>` : ""}
     </a>`;
   });
   html += `</div>`;
@@ -1034,11 +1056,9 @@ function vDetail(id){
     <button class="ghost small" data-a="toggleAktiv">${s.aktiv===false?"Wieder aktiv setzen":"Als ehemalig markieren"}</button><button class="ghost del small" data-a="delS">Löschen</button></div></div>
 
   ${s.typ==="Gruppe" ? gruppeCard(s) : ""}
-  <h3>Stammblatt <span id="sbCount" class="badge ${sbDone(s)===SBN?"b-ok":"b-wa"}" style="text-transform:none;letter-spacing:0">${sbDone(s)} von ${SBN} ausgefüllt</span></h3>
-  <div class="card"><div class="sb">${s.typ==="Gruppe"
-    ? `<div><label for="sb-geburt">Alter / Jahrgänge</label><input id="sb-geburt" data-sb="geburt" value="${esc((s.stammblatt||{}).geburt)}" placeholder="z. B. 9–11 J. oder 2015/2016"></div>`
-    : `<div><label for="sb-geburt">Geburtsdatum</label><div class="row" style="flex-wrap:nowrap"><input id="sb-geburt" type="date" data-sb="geburt" value="${esc((s.stammblatt||{}).geburt)}" style="flex:1;min-width:0"><b id="ageOut" class="num" style="white-space:nowrap">${alter(s)!==null?alter(s)+" Jahre":""}</b></div></div>`}${SB.map(([k,lab,ph]) => `<div><label for="sb-${k}">${lab}</label><textarea id="sb-${k}" data-sb="${k}" rows="3" placeholder="${ph}">${esc((s.stammblatt||{})[k])}</textarea></div>`).join("")}</div>
-  <p class="tiny" style="margin:8px 0 0">Nur für dich. Das Stammblatt erscheint nicht im Elternbericht.</p></div>
+  ${s.typ==="Gruppe" ? gStamm(s) : `<h3>Stammblatt <span id="sbCount" class="badge ${sbDone(s)===SBN?"b-ok":"b-wa"}" style="text-transform:none;letter-spacing:0">${sbDone(s)} von ${SBN} ausgefüllt</span></h3>
+  <div class="card"><div class="sb"><div><label for="sb-geburt">Geburtsdatum</label><div class="row" style="flex-wrap:nowrap"><input id="sb-geburt" type="date" data-sb="geburt" value="${esc((s.stammblatt||{}).geburt)}" style="flex:1;min-width:0"><b id="ageOut" class="num" style="white-space:nowrap">${alter(s)!==null?alter(s)+" Jahre":""}</b></div></div>${SB.map(([k,lab,ph]) => `<div><label for="sb-${k}">${lab}</label><textarea id="sb-${k}" data-sb="${k}" rows="3" placeholder="${ph}">${esc((s.stammblatt||{})[k])}</textarea></div>`).join("")}</div>
+  <p class="tiny" style="margin:8px 0 0">Nur für dich. Das Stammblatt erscheint nicht im Elternbericht.</p></div>`}
 
   ${litSection(s)}
 
