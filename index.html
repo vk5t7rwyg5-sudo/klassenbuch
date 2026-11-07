@@ -166,6 +166,8 @@ button:disabled{opacity:.4;cursor:default}
 .stk{display:inline-flex;gap:2px}.stk abbr{text-decoration:none;font-size:11px;font-weight:600;min-width:22px;text-align:center;padding:1px 4px;border-radius:4px;background:var(--wabg);color:var(--wa)}
 .lit-t tr.lit-g th{background:var(--soft);color:var(--tx);font-size:12px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;padding:6px 10px}
 .lit-t tr.lit-g:hover{background:none}
+.lit-t tr.lit-v .lit-open::before{content:"▸ ";color:var(--tx3)}.lit-t tr.lit-v.open .lit-open::before{content:"▾ "}
+.lit-t tr.lit-sub td.c-t{padding-left:30px}.lit-t tr.lit-sub .lit-open{font-weight:500}
 @media (max-width:760px){.lit-t .c-a,.lit-t .c-b,.lit-t .c-s,.lit-t .c-k,.lit-t .c-st{display:none}.m-only{display:block}.lit-t th,.lit-t td{padding:8px 8px}}
 </style>
 <script>(function(){var t="dark",z="1";try{t=localStorage.getItem("kb-theme")||"dark";z=localStorage.getItem("kb-zoom")||"1";}catch(e){}var r=document.documentElement;if(t!=="system")r.setAttribute("data-theme",t);r.style.setProperty("--z",z);})();</script>
@@ -579,7 +581,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2216 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2221 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1396,6 +1398,7 @@ document.addEventListener("click", ev => {
     case "litKat": litF.kat = b.dataset.v; render(); break;
     case "litSort": litF.sort = b.dataset.v; render(); break;
     case "litGrp": litF.group = !!b.dataset.v; render(); break;
+    case "litVg": { const k = b.dataset.v; litOpenV.has(k) ? litOpenV.delete(k) : litOpenV.add(k); render(); break; }
     case "litUp": document.getElementById("pdfIn").click(); break;
     case "bkOpen": openPdf(b.dataset.v, +b.dataset.p || 1); break;
     case "bkEdit": editBook = b.dataset.v; render(); document.getElementById("bkEdit")?.scrollIntoView({block:"nearest"}); break;
@@ -1480,6 +1483,19 @@ function litChips(s){
 }
 function litReport(s){ return curLit(s).map(x => { const b = bookById(x.b); return (x.stueck ? x.stueck + " – " : "") + (b ? b.titel + (b.autor ? " (" + b.autor + ")" : "") : ""); }).filter(Boolean); }
 
+let litOpenV = new Set();
+/* Stimmen/Teile eines Stücks («Titel – Stimme») automatisch zu einem Ordner zusammenfassen */
+const VSPLIT = /^(.+?)\s+[–—-]\s+(.+)$/;
+function litVoices(arr){
+  const by = {}; arr.forEach(b => { const m = (b.titel || "").match(VSPLIT); if (m) (by[m[1].trim().toLowerCase()] ||= []).push(b); });
+  const out = [], seen = new Set();
+  for (const b of arr){
+    const m = (b.titel || "").match(VSPLIT), k = m && m[1].trim().toLowerCase();
+    if (k && by[k].length > 1){ if (!seen.has(k)){ seen.add(k); out.push({key: k, base: m[1].trim(), items: by[k]}); } }
+    else out.push({b});
+  }
+  return out;
+}
 function vLiteratur(){
   const q = litF.q.trim().toLowerCase();
   const list = books.filter(b => (litF.kat === "Alle" || b.kat === litF.kat) && (!litF.instr || (b.instr||[]).includes(litF.instr)) && (!litF.stufe || (litF.stufe === "-" ? !(b.stufen||[]).length : (b.stufen||[]).includes(litF.stufe)))
@@ -1500,12 +1516,28 @@ function vLiteratur(){
   else if (!list.length) html += `<p class="muted">Nichts gefunden.</p>`;
   else html += `<div class="card lit-card"><table class="lit-t"><thead><tr>${th("titel","Titel")}${th("autor","Autor","c-a")}${litF.kat==="Alle"?th("kat","Kategorie","c-k"):""}<th class="c-b">Bereiche</th><th class="c-st">Stufe</th>${th("seiten","Seiten","c-s num")}${th("sus","SuS")}<th></th></tr></thead><tbody>
     ${(() => { const cols = litF.kat === "Alle" ? 8 : 7;
-      if (!litF.group) return list.map(row).join("");
+      const rows = arr => litVoices(arr).map(x => x.b ? row(x.b) : vrow(x)).join("");
+      if (!litF.group) return rows(list);
       const g = {}; list.forEach(b => (g[b.ordner || "Ohne Ordner"] ||= []).push(b));
-      return Object.keys(g).sort((a, b) => a.localeCompare(b, "de")).map(o => `<tr class="lit-g"><th colspan="${cols}">${esc(o)} <span class="tiny num">${g[o].length}</span></th></tr>` + g[o].map(row).join("")).join(""); })()}
+      return Object.keys(g).sort((a, b) => a.localeCompare(b, "de")).map(o => `<tr class="lit-g"><th colspan="${cols}">${esc(o)} <span class="tiny num">${g[o].length}</span></th></tr>` + rows(g[o])).join(""); })()}
     </tbody></table></div>
     <p class="tiny">${list.length} von ${books.length} · Titel antippen öffnet die Noten.</p>`;
-  function row(b){
+  function vrow(x){
+      const it = x.items, open = litOpenV.has(x.key) || !!q, b0 = it[0];
+      const instr = [...new Set(it.flatMap(b => b.instr || []))], st = STUFEN.filter(s => it.some(b => (b.stufen || []).includes(s)));
+      const us = [...new Map(it.flatMap(b => bookUsers(b.id)).map(s => [s.id, s])).values()], kat = b0.kat;
+      const names = it.map(b => (b.titel.match(VSPLIT) || [])[2] || b.titel);
+      return `<tr class="lit-v ${open ? "open" : ""}">
+        <td class="c-t"><button class="lit-open" data-a="litVg" data-v="${esc(x.key)}" aria-expanded="${open}">${esc(x.base)}</button><div class="tiny">${it.length} ${it.every(b => b.kat === "Stücke") || it.some(b => /partitur/i.test(b.titel)) ? "Stimmen" : "Teile"}: ${esc(names.join(", "))}</div></td>
+        <td class="c-a small muted">${esc((a => a.length > 1 ? "Verschiedene" : a[0] || "")([...new Set(it.map(b => b.autor).filter(Boolean))]))}</td>
+        ${litF.kat==="Alle" ? `<td class="c-k"><span class="badge ${{Lehrmittel:"b-ac","Stücke":"b-pu","Unterrichtsblätter":"b-te"}[kat]||"b-gr"}">${esc(kat)}</span></td>` : ""}
+        <td class="c-b tiny">${esc(instr.join(", "))}</td>
+        <td class="c-st"><span class="stk">${st.map(s => `<abbr title="${s}">${STK[s]}</abbr>`).join("")}</span></td>
+        <td class="c-s small num muted">${it.length} ×</td>
+        <td>${us.map(s => `<a class="badge b-ac" href="#s-${s.id}" style="text-decoration:none">${esc(s.name.split(" ")[0])}</a>`).join(" ")}</td>
+        <td></td></tr>` + (open ? it.map(b => row(b, (b.titel.match(VSPLIT) || [])[2])).join("") : "");
+  }
+  function row(b, voice){
       const us = bookUsers(b.id), meta = [b.autor, (b.stufen||[]).map(s => STK[s]).join("/"), b.seiten + " S."].filter(Boolean).join(" · ");
       if (editBook === b.id) return `<tr><td colspan="8"><div id="bkEdit"><div class="f">
         <div style="grid-column:1/-1"><label for="be-titel">Titel</label><input id="be-titel" value="${esc(b.titel)}"></div>
@@ -1516,8 +1548,8 @@ function vLiteratur(){
         <label style="margin-top:8px">Stufen</label><div class="row" id="be-stufen">${STUFEN.map(k => `<button class="chip ${(b.stufen||[]).includes(k)?"on":""}" data-a="evs" data-v="${k}">${k}</button>`).join("")}</div>
         <label style="margin-top:8px">Bereiche</label><div class="row" id="be-instr">${INSTR.map(k => `<button class="chip ${(b.instr||[]).includes(k)?"on":""}" data-a="evs" data-v="${k}">${k}</button>`).join("")}</div>
         <div class="row" style="margin-top:10px"><button class="pri" data-a="bkSave" data-v="${b.id}">Speichern</button><button data-a="bkCancel">Abbrechen</button><span class="sp"></span><button class="del" data-a="bkDel" data-v="${b.id}">Aus Katalog entfernen</button></div></div></td></tr>`;
-      return `<tr>
-        <td class="c-t"><button class="lit-open" data-a="bkOpen" data-v="${b.id}">${esc(b.titel)}</button><div class="tiny m-only">${esc(meta)}</div>
+      return `<tr class="${voice ? "lit-sub" : ""}">
+        <td class="c-t"><button class="lit-open" data-a="bkOpen" data-v="${b.id}">${esc(voice || b.titel)}</button><div class="tiny m-only">${esc(meta)}</div>
           ${(b.marks||[]).length ? `<div class="lit-marks">${b.marks.slice().sort((x,y) => x.p - y.p).map(m => `<button class="chip" data-a="bkOpen" data-v="${b.id}" data-p="${m.p}">${esc(m.t)} · S. ${m.p - (b.off||0)}</button>`).join("")}</div>` : ""}</td>
         <td class="c-a small muted">${esc(b.autor)}</td>
         ${litF.kat==="Alle" ? `<td class="c-k"><span class="badge ${{Lehrmittel:"b-ac","Stücke":"b-pu","Unterrichtsblätter":"b-te"}[b.kat]||"b-gr"}">${esc(b.kat)}</span></td>` : ""}
