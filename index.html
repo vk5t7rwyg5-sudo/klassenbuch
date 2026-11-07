@@ -224,12 +224,27 @@ const te = new TextEncoder(), td = new TextDecoder();
 const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
 function b64(u8){ let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); }
 function unb64(s){ const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
-async function derive(email, pw){
-  const salt = te.encode("klassenbuch-v1:" + email.trim().toLowerCase());
-  const base = await crypto.subtle.importKey("raw", te.encode(pw), "PBKDF2", false, ["deriveBits"]);
-  const bits = new Uint8Array(await crypto.subtle.deriveBits({name:"PBKDF2", hash:"SHA-256", salt, iterations:600000}, base, 512));
-  return {email: email.trim().toLowerCase(), acct: hex(await crypto.subtle.digest("SHA-256", salt)).slice(0, 40), auth: hex(bits.slice(0, 32)), raw: b64(bits.slice(32))};
+// Passwort → Anmeldewert (auth) + Schlüssel zum Öffnen der Schlüsselhülle (kek).
+// Die Daten selbst sind mit einem zufälligen Datenschlüssel (dek) verschlüsselt, der in zwei Hüllen
+// auf dem Server liegt: eine für das Passwort, eine für den Wiederherstellungsschlüssel.
+async function kdf(secret, saltText, iterations){
+  const base = await crypto.subtle.importKey("raw", te.encode(secret), "PBKDF2", false, ["deriveBits"]);
+  return new Uint8Array(await crypto.subtle.deriveBits({name:"PBKDF2", hash:"SHA-256", salt: te.encode(saltText), iterations}, base, 512));
 }
+async function derive(email, pw){
+  email = email.trim().toLowerCase();
+  const bits = await kdf(pw, "klassenbuch-v1:" + email, 600000);
+  return {email, acct: hex(await crypto.subtle.digest("SHA-256", te.encode("klassenbuch-v1:" + email))).slice(0, 40), auth: hex(bits.slice(0, 32)), kek: bits.slice(32)};
+}
+async function deriveRk(email, rk){
+  const bits = await kdf(rk, "klassenbuch-rk-v1:" + email.trim().toLowerCase(), 100000);
+  return {rauth: hex(bits.slice(0, 32)), kek: bits.slice(32)};
+}
+async function wrapKey(dek, kek){ const k = await crypto.subtle.importKey("raw", kek, "AES-GCM", false, ["encrypt"]); const iv = crypto.getRandomValues(new Uint8Array(12)); const c = new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv}, k, dek)); const o = new Uint8Array(12 + c.length); o.set(iv); o.set(c, 12); return b64(o); }
+async function unwrapKey(w, kek){ const k = await crypto.subtle.importKey("raw", kek, "AES-GCM", false, ["decrypt"]); const u = unb64(w); return new Uint8Array(await crypto.subtle.decrypt({name:"AES-GCM", iv: u.subarray(0, 12)}, k, u.subarray(12))); }
+const RKA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function genRk(){ const b = crypto.getRandomValues(new Uint8Array(32)); const s = [...b].map(x => RKA[x & 31]).join(""); return "KB-" + s.match(/.{4}/g).join("-"); }
+function normRk(s){ s = String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); if (s.length === 34 && s.startsWith("KB")) s = s.slice(2); return s.length === 32 ? s : null; }
 async function useAcc(a){ acc = {...a, key: await crypto.subtle.importKey("raw", unb64(a.raw), "AES-GCM", false, ["encrypt","decrypt"])}; }
 async function encBytes(u8){ const iv = crypto.getRandomValues(new Uint8Array(12)); const c = new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv}, acc.key, u8)); const o = new Uint8Array(12 + c.length); o.set(iv); o.set(c, 12); return o; }
 async function decBytes(u8){ return new Uint8Array(await crypto.subtle.decrypt({name:"AES-GCM", iv: u8.subarray(0, 12)}, acc.key, u8.subarray(12))); }
@@ -397,23 +412,55 @@ async function startApp(){
   }).catch(() => {});
 }
 
-/* --- Konto --- */
-async function signIn(email, pw, invite, keepLocal){
-  const a = await derive(email, pw);
-  if (invite) await api("register", {acct: a.acct, auth: a.auth, invite});
-  else await api("login", {acct: a.acct, auth: a.auth});
+
+/* --- Konto: anlegen, anmelden, Passwort vergessen/ändern, Wiederherstellungsschlüssel --- */
+let rkShow = null, acctView = "in";
+
+async function finishSignIn(a, keepLocal){
   await idbPut("cfg", "account", a); await useAcc(a);
   cfg = {since:0, outbox:[], uploads:[]};
   if (keepLocal){
     const all = await idbAll("rec");
     cfg.outbox = Object.keys(all).filter(k => !k.startsWith("pdf:") || !all[k].v.pending);
     cfg.uploads = Object.keys(all).filter(k => k.startsWith("pdf:") && all[k].v.pending).map(k => k.slice(4));
-    Object.keys(all).filter(k => k.startsWith("pdf:") && !all[k].v.pending).forEach(k => cfg.outbox.includes(k) || cfg.outbox.push(k));
   } else {
     await tx("rec", "readwrite", s => s.clear()); await tx("pdf", "readwrite", s => s.clear());
     db = {students:[], lessons:[], events:[], lastBackup:null}; books = [];
   }
   await saveCfg(); render(); await sync();
+}
+async function signUp(email, pw, invite){
+  const d = await derive(email, pw), dek = crypto.getRandomValues(new Uint8Array(32)), rk = genRk(), r = await deriveRk(email, normRk(rk));
+  await api("register", {acct: d.acct, auth: d.auth, rauth: r.rauth, wrapPw: await wrapKey(dek, d.kek), wrapRk: await wrapKey(dek, r.kek), invite});
+  rkShow = rk;
+  await finishSignIn({email: d.email, acct: d.acct, auth: d.auth, raw: b64(dek)}, true);
+}
+async function logIn(email, pw, keepLocal){
+  const d = await derive(email, pw);
+  const j = await api("login", {acct: d.acct, auth: d.auth});
+  if (!j.wrapPw){ const e = new Error("old"); e.code = "old"; throw e; }
+  const dek = await unwrapKey(j.wrapPw, d.kek);
+  await finishSignIn({email: d.email, acct: d.acct, auth: d.auth, raw: b64(dek)}, keepLocal);
+}
+async function recoverAcc(email, rk, newPw, keepLocal){
+  const n = normRk(rk); if (!n){ const e = new Error("rk"); e.code = "rk"; throw e; }
+  const d = await derive(email, newPw), r = await deriveRk(email, n);
+  const j = await api("recover", {acct: d.acct, rauth: r.rauth});
+  const dek = await unwrapKey(j.wrapRk, r.kek);
+  await api("rekey", {acct: d.acct, rauth: r.rauth, newAuth: d.auth, newWrapPw: await wrapKey(dek, d.kek)});
+  await finishSignIn({email: d.email, acct: d.acct, auth: d.auth, raw: b64(dek)}, keepLocal);
+}
+async function changePw(oldPw, newPw){
+  const o = await derive(acc.email, oldPw); if (o.auth !== acc.auth){ const e = new Error("auth"); e.code = "auth"; throw e; }
+  const n = await derive(acc.email, newPw);
+  await api("rekey", {acct: acc.acct, auth: o.auth, newAuth: n.auth, newWrapPw: await wrapKey(unb64(acc.raw), n.kek)});
+  const a = {email: acc.email, acct: acc.acct, auth: n.auth, raw: acc.raw}; await idbPut("cfg", "account", a); await useAcc(a);
+}
+async function newRecoveryKey(pw){
+  const o = await derive(acc.email, pw); if (o.auth !== acc.auth){ const e = new Error("auth"); e.code = "auth"; throw e; }
+  const rk = genRk(), r = await deriveRk(acc.email, normRk(rk));
+  await api("rekey", {acct: acc.acct, auth: o.auth, newRauth: r.rauth, newWrapRk: await wrapKey(unb64(acc.raw), r.kek)});
+  rkShow = rk;
 }
 async function signOut(wipe){
   acc = null; await idbDel("cfg", "account"); cfg = {since:0, outbox:[], uploads:[]}; await saveCfg();
@@ -422,49 +469,88 @@ async function signOut(wipe){
 }
 const hasLocalData = () => db.students.length || db.lessons.length || db.events.length || books.length;
 
+function rkCard(){
+  if (!rkShow) return "";
+  return `<div class="card" style="border:2px solid var(--wa);margin-bottom:14px"><b>Dein Wiederherstellungsschlüssel</b>
+    <p class="small" style="max-width:65ch;margin:6px 0">Damit setzt du ein neues Passwort, falls du deins vergisst. <b>Bewahre ihn sicher auf</b>, zum Beispiel ausgedruckt zu Hause oder im Passwort-Manager. Er wird nur jetzt angezeigt.</p>
+    <div class="num" id="rkText" style="font:600 18px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.03em;background:var(--soft);border-radius:var(--r);padding:10px 12px;user-select:all;word-break:break-all">${esc(rkShow)}</div>
+    <div class="row" style="margin-top:10px"><button data-a="rkCopy">Kopieren</button><button data-a="rkSave">Als Datei sichern</button><span class="sp"></span><button class="pri" data-a="rkDone">Ich habe ihn sicher aufbewahrt</button></div></div>`;
+}
 function vDatenApp(){
   const lb = db.lastBackup ? new Date(db.lastBackup).toLocaleString("de-CH") : "noch nie";
   const ls = lastSync ? new Date(lastSync).toLocaleTimeString("de-CH", {hour:"2-digit", minute:"2-digit"}) : "–";
-  const syncCard = acc ? `<div class="card"><div class="row"><b>Sync ist eingerichtet</b><span class="badge b-ok">${esc(acc.email)}</span><span class="sp"></span><button class="pri" data-a="syncNow">Jetzt synchronisieren</button></div>
+  const f = (id, label, type, ac, extra) => `<div><label for="${id}">${label}</label><input id="${id}" type="${type}" ${ac ? `autocomplete="${ac}"` : ""} autocapitalize="off" ${extra || ""}></div>`;
+  let card;
+  if (acc){
+    card = `<div class="card"><div class="row"><b>Sync ist eingerichtet</b><span class="badge b-ok">${esc(acc.email)}</span><span class="sp"></span><button class="pri" data-a="syncNow">Jetzt synchronisieren</button></div>
       <p class="small muted" style="margin-bottom:0">Letzter Abgleich: ${ls}${cfg.outbox.length ? ` · ${cfg.outbox.length} Änderung(en) warten` : ""}${cfg.uploads.length ? ` · ${cfg.uploads.length} PDF(s) warten auf Upload` : ""}${syncErr ? ` · <span style="color:var(--da)">${esc(syncErr)}</span>` : ""}</p>
-      <p class="tiny" style="max-width:65ch">Alles wird auf dem Gerät verschlüsselt, bevor es auf den Server geht. Ohne dein Passwort kann niemand die Daten lesen, auch der Betreiber nicht. Darum gilt: Passwort vergessen heisst Daten weg. Sichere zusätzlich regelmässig ein Backup.</p>
-      <div class="row"><button class="ghost small" data-a="signOut">Abmelden</button><button class="ghost del small" data-a="signOutWipe">Abmelden und Daten von diesem Gerät löschen</button></div></div>`
-    : `<div class="card" id="acct"><b>Sync einrichten</b>
-      <p class="small muted" style="max-width:65ch;margin-top:4px">Mit einem Konto sind deine Einträge und PDFs auf allen Geräten gleich. Alles wird auf dem Gerät verschlüsselt, der Server sieht nur unlesbare Daten. <b>Passwort vergessen heisst Daten weg</b>, es gibt keine Wiederherstellung.</p>
-      <div class="f" style="max-width:640px">
-        <div><label for="ac-mail">E-Mail</label><input id="ac-mail" type="email" autocomplete="username" autocapitalize="off"></div>
-        <div><label for="ac-pw">Passwort (mind. 10 Zeichen)</label><input id="ac-pw" type="password" autocomplete="current-password"></div>
-        <div><label for="ac-inv">Einladungscode (nur für neues Konto)</label><input id="ac-inv" autocapitalize="off"></div></div>
-      <div class="row" style="margin-top:10px"><button class="pri" data-a="signIn">Anmelden</button><button data-a="signUp">Neues Konto erstellen</button><span class="small" id="ac-err" style="color:var(--da)"></span></div></div>`;
-  app.innerHTML = `<h2>Daten</h2>${syncCard}
+      <p class="tiny" style="max-width:65ch">Alles wird auf dem Gerät verschlüsselt, bevor es auf den Server geht. Niemand ausser dir kann die Daten lesen.</p>
+      ${acctView === "pw" ? `<div class="f" style="max-width:640px;margin-top:8px">${f("ac-old","Aktuelles Passwort","password","current-password")}${f("ac-new","Neues Passwort (mind. 10 Zeichen)","password","new-password")}</div>
+        <div class="row" style="margin-top:8px"><button class="pri" data-a="pwSave">Passwort ändern</button><button data-a="acView" data-v="">Abbrechen</button><span class="small" id="ac-err" style="color:var(--da)"></span></div>`
+      : acctView === "rk" ? `<div class="f" style="max-width:640px;margin-top:8px">${f("ac-old","Aktuelles Passwort","password","current-password")}</div>
+        <p class="tiny">Der bisherige Wiederherstellungsschlüssel wird ungültig.</p>
+        <div class="row"><button class="pri" data-a="rkNew">Neuen Schlüssel erzeugen</button><button data-a="acView" data-v="">Abbrechen</button><span class="small" id="ac-err" style="color:var(--da)"></span></div>`
+      : `<div class="row" style="margin-top:6px"><button class="ghost small" data-a="acView" data-v="pw">Passwort ändern</button><button class="ghost small" data-a="acView" data-v="rk">Neuer Wiederherstellungsschlüssel</button><span class="sp"></span><button class="ghost small" data-a="signOut">Abmelden</button><button class="ghost del small" data-a="signOutWipe">Abmelden und Daten von diesem Gerät löschen</button></div>`}</div>`;
+  } else {
+    const tabs = `<div class="seg" style="margin:8px 0 10px">${[["in","Anmelden"],["up","Neues Konto"],["forgot","Passwort vergessen"]].map(([k,t]) => `<button class="${acctView===k?"on":""}" data-a="acView" data-v="${k}">${t}</button>`).join("")}</div>`;
+    const fields = acctView === "forgot"
+      ? f("ac-mail","E-Mail","email","username") + f("ac-rk","Wiederherstellungsschlüssel","text","off",'placeholder="KB-XXXX-XXXX-…" spellcheck="false"') + f("ac-pw","Neues Passwort (mind. 10 Zeichen)","password","new-password")
+      : f("ac-mail","E-Mail","email","username") + f("ac-pw", acctView === "up" ? "Passwort (mind. 10 Zeichen)" : "Passwort", "password", acctView === "up" ? "new-password" : "current-password") + (acctView === "up" ? f("ac-inv","Einladungscode","text","off") : "");
+    const btn = {in:["signIn","Anmelden"], up:["signUp","Konto erstellen"], forgot:["recover","Neues Passwort setzen"]}[acctView];
+    card = `<div class="card" id="acct"><b>Sync einrichten</b>
+      <p class="small muted" style="max-width:65ch;margin-top:4px">Mit einem Konto sind deine Einträge und PDFs auf allen Geräten gleich. Alles wird auf dem Gerät verschlüsselt, der Server sieht nur unlesbare Daten. Beim Erstellen bekommst du einen <b>Wiederherstellungsschlüssel</b>, falls du das Passwort einmal vergisst.</p>
+      ${tabs}<form id="ac-form" class="f" style="max-width:640px" onsubmit="return false">${fields}</form>
+      <div class="row" style="margin-top:10px"><button class="pri" data-a="${btn[0]}">${btn[1]}</button><span class="small" id="ac-err" style="color:var(--da)"></span></div></div>`;
+  }
+  app.innerHTML = `<h2>Daten</h2>${rkCard()}${card}
   <h3>Backup</h3><div class="card"><p class="small muted num" style="margin-top:0">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine · ${books.length} Hefte</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-1849</p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-1911</p>`;
+}
+function acErr(e){
+  const c = e && e.code;
+  return c === "auth" ? (acctView === "forgot" ? "E-Mail oder Wiederherstellungsschlüssel stimmt nicht." : "E-Mail oder Passwort stimmt nicht.")
+    : c === "invite" ? "Der Einladungscode stimmt nicht." : c === "exists" ? "Für diese E-Mail gibt es schon ein Konto. Bitte «Anmelden»."
+    : c === "rk" ? "Der Wiederherstellungsschlüssel ist unvollständig. Er hat 32 Zeichen nach «KB-»."
+    : c === "old" ? "Dieses Konto stammt aus einer Testversion. Bitte ein neues Konto erstellen."
+    : (e && e.name === "OperationError") ? "Der Schlüssel passt nicht zu diesem Konto." : "Keine Verbindung zum Server. Bitte später nochmals versuchen.";
 }
 async function accountAction(kind){
-  const g = id => document.getElementById(id), err = g("ac-err");
-  const email = g("ac-mail").value.trim(), pw = g("ac-pw").value, inv = g("ac-inv").value.trim();
+  const g = id => document.getElementById(id), err = g("ac-err"), v = id => (g(id) ? g(id).value : "");
+  const email = v("ac-mail").trim(), pw = v("ac-pw");
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ err.textContent = "Bitte eine gültige E-Mail eingeben."; return; }
-  if (pw.length < 10){ err.textContent = "Das Passwort braucht mindestens 10 Zeichen."; return; }
-  if (kind === "up" && !inv){ err.textContent = "Für ein neues Konto brauchst du den Einladungscode."; return; }
-  const go = async keep => {
+  if (kind !== "in" && pw.length < 10){ err.textContent = "Das Passwort braucht mindestens 10 Zeichen."; return; }
+  if (!pw){ err.textContent = "Bitte das Passwort eingeben."; return; }
+  if (kind === "up" && !v("ac-inv").trim()){ err.textContent = "Für ein neues Konto brauchst du den Einladungscode."; return; }
+  const run = async keep => {
     err.textContent = "Wird eingerichtet … (das dauert ein paar Sekunden)";
-    try { await signIn(email, pw, kind === "up" ? inv : "", keep); toast("Sync ist eingerichtet"); }
-    catch(e) { const c = e.code; err.textContent = c === "auth" ? "E-Mail oder Passwort stimmt nicht. Noch kein Konto? Dann «Neues Konto erstellen»." : c === "invite" ? "Der Einladungscode stimmt nicht." : c === "exists" ? "Für diese E-Mail gibt es schon ein Konto. Bitte «Anmelden»." : "Keine Verbindung zum Server. Bitte später nochmals versuchen."; }
+    try {
+      if (kind === "up") await signUp(email, pw, v("ac-inv").trim());
+      else if (kind === "forgot") await recoverAcc(email, v("ac-rk"), pw, keep);
+      else await logIn(email, pw, keep);
+      acctView = "in"; toast(kind === "forgot" ? "Neues Passwort gesetzt" : "Sync ist eingerichtet"); render();
+    } catch(e) { const el = document.getElementById("ac-err"); if (el) el.textContent = acErr(e); }
   };
-  if (hasLocalData()){
-    if (kind === "up") go(true);
-    else ask("Auf diesem Gerät sind schon Einträge. Sollen sie mit den Daten in deinem Konto zusammengeführt werden, oder möchtest du nur die Daten aus dem Konto laden? (Dann werden die Einträge auf diesem Gerät verworfen.)", "Zusammenführen", () => go(true), () => go(false), "Nur Konto-Daten laden");
-  } else go(false);
+  if (kind === "up" || !hasLocalData()) run(true);
+  else ask("Auf diesem Gerät sind schon Einträge. Sollen sie mit den Daten in deinem Konto zusammengeführt werden, oder möchtest du nur die Daten aus dem Konto laden? (Dann werden die Einträge auf diesem Gerät verworfen.)", "Zusammenführen", () => run(true), () => run(false), "Nur Konto-Daten laden");
 }
 document.addEventListener("click", ev => {
   const b = ev.target.closest("[data-a]"); if (!b) return;
+  const g = id => document.getElementById(id);
   switch (b.dataset.a){
+    case "acView": acctView = b.dataset.v || "in"; if (!b.dataset.v && acc) acctView = ""; render(); break;
     case "signIn": accountAction("in"); break;
     case "signUp": accountAction("up"); break;
+    case "recover": accountAction("forgot"); break;
     case "syncNow": sync().then(() => render()); break;
+    case "pwSave": { const o = g("ac-old").value, n = g("ac-new").value; if (n.length < 10){ g("ac-err").textContent = "Das neue Passwort braucht mindestens 10 Zeichen."; return; }
+      g("ac-err").textContent = "Wird geändert …"; changePw(o, n).then(() => { acctView = ""; render(); toast("Passwort geändert"); }, e => { g("ac-err").textContent = acErr(e); }); break; }
+    case "rkNew": g("ac-err").textContent = "Wird erzeugt …"; newRecoveryKey(g("ac-old").value).then(() => { acctView = ""; render(); }, e => { g("ac-err").textContent = acErr(e); }); break;
+    case "rkCopy": navigator.clipboard.writeText(rkShow).then(() => toast("Kopiert"), () => { const r = document.createRange(); r.selectNodeContents(g("rkText")); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Markiert – jetzt kopieren"); }); break;
+    case "rkSave": saveFile("Klassenbuch Wiederherstellungsschlüssel.txt", `Klassenbuch Schlagzeug – Wiederherstellungsschlüssel\n\nKonto: ${acc ? acc.email : ""}\nSchlüssel: ${rkShow}\n\nDamit setzt du in der App unter Daten → «Passwort vergessen» ein neues Passwort.\nSicher aufbewahren und niemandem weitergeben.\n`, "text/plain"); break;
+    case "rkDone": rkShow = null; render(); break;
     case "signOut": ask("Auf diesem Gerät abmelden? Die Einträge bleiben hier gespeichert, werden aber nicht mehr abgeglichen.", "Abmelden", () => signOut(false)); break;
     case "signOutWipe": ask("Abmelden und alle Einträge und PDFs von diesem Gerät löschen? Im Konto bleiben sie erhalten.", "Abmelden und löschen", () => signOut(true)); break;
   }
