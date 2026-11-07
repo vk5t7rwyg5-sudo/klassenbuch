@@ -1,0 +1,1129 @@
+<!doctype html>
+<html lang="de-CH"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Klassenbuch">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f5f5f2">
+<style>:root{padding-top:env(safe-area-inset-top,0px)}[hidden]{display:none!important}</style>
+</head><body>
+<title>Klassenbuch Schlagzeug</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky tab bar over a single working column; cards only for lessons, people and calendar months */
+:root{--bg:#f5f5f2;--card:#fff;--soft:#ecece6;--tx:#1e1f1c;--tx2:#5c5e57;--tx3:#868880;--bd:#deded6;--bd2:#c9cac0;
+--ac:#1d5a8f;--acbg:#e3eef8;--ok:#3b6d11;--okbg:#e8f2dc;--wa:#7d4a0a;--wabg:#f8ecd6;--da:#a32d2d;--dabg:#fbe8e8;--pu:#534ab7;--pubg:#eceafd;--te:#0f6e56;--tebg:#dff3ec;
+--paper:#fff;--display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;--body:"Figtree",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--r:8px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1a1b19;--card:#242522;--soft:#2e2f2b;--tx:#eeeee8;--tx2:#b3b4ab;--tx3:#878980;--bd:#383934;--bd2:#4a4b45;
+--ac:#8dbbe8;--acbg:#16395a;--ok:#9fca62;--okbg:#26401a;--wa:#f2c27a;--wabg:#4f3410;--da:#f09a9a;--dabg:#5a2020;--pu:#b2acef;--pubg:#353070;--te:#68d0ad;--tebg:#0e4436;--paper:#fff;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1a1b19;--card:#242522;--soft:#2e2f2b;--tx:#eeeee8;--tx2:#b3b4ab;--tx3:#878980;--bd:#383934;--bd2:#4a4b45;
+--ac:#8dbbe8;--acbg:#16395a;--ok:#9fca62;--okbg:#26401a;--wa:#f2c27a;--wabg:#4f3410;--da:#f09a9a;--dabg:#5a2020;--pu:#b2acef;--pubg:#353070;--te:#68d0ad;--tebg:#0e4436;--paper:#fff;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 var(--body)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--bd)}
+.top{max-width:1100px;margin:auto;padding-block:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:700;font-size:17px;margin-right:10px;letter-spacing:-.01em}
+nav{display:flex;flex-wrap:wrap;gap:2px}
+nav a{color:var(--tx2);text-decoration:none;padding:7px 12px;border-radius:var(--r);font-size:14px}
+nav a.on{background:var(--acbg);color:var(--ac);font-weight:500}
+#sync{font-size:12px;color:var(--tx3);margin-left:auto}
+main{max-width:1100px;margin:auto;padding-block:16px 60px}
+h2{font-family:var(--display);font-size:22px;font-weight:700;margin:4px 0 14px;text-wrap:balance;letter-spacing:-.01em}
+h3{font-size:13px;font-weight:600;margin:22px 0 8px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px 16px;min-width:0}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sp{flex:1}
+.muted{color:var(--tx2)}.small{font-size:13px}.tiny{font-size:12px;color:var(--tx3)}
+.num{font-variant-numeric:tabular-nums}
+button,.btn{font:inherit;font-size:14px;color:var(--tx);background:var(--card);border:1px solid var(--bd2);border-radius:var(--r);padding:6px 12px;cursor:pointer;min-height:34px;text-decoration:none;display:inline-flex;align-items:center}
+button:hover,.btn:hover{background:var(--soft)}button.pri{background:var(--ac);border-color:var(--ac);color:var(--card)}
+button.ghost{border-color:transparent;background:none}button.del{color:var(--da)}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+input,select,textarea{font:inherit;font-size:15px;color:var(--tx);background:var(--card);border:1px solid var(--bd2);border-radius:var(--r);padding:7px 9px;width:100%}
+textarea{min-height:58px;resize:vertical;overflow-y:hidden}
+label{font-size:12px;color:var(--tx2);display:block;margin-bottom:3px}
+.f{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.badge{font-size:12px;padding:2px 8px;border-radius:6px;white-space:nowrap;display:inline-block}
+.b-ac{background:var(--acbg);color:var(--ac)}.b-ok{background:var(--okbg);color:var(--ok)}.b-wa{background:var(--wabg);color:var(--wa)}.b-da{background:var(--dabg);color:var(--da)}.b-pu{background:var(--pubg);color:var(--pu)}.b-te{background:var(--tebg);color:var(--te)}.b-gr{background:var(--soft);color:var(--tx2)}
+.bar{height:6px;border-radius:3px;background:var(--soft);overflow:hidden}.bar i{display:block;height:100%;background:var(--ac)}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--bd2);border-radius:var(--r);overflow:hidden}
+.seg button{border:0;border-radius:0;min-height:32px;padding:4px 10px;font-size:13px;border-right:1px solid var(--bd)}.seg button:last-child{border-right:0}
+.seg button.on{background:var(--acbg);color:var(--ac)}
+.seg button.on.s-anwesend{background:var(--okbg);color:var(--ok)}.seg button.on.s-entschuldigt{background:var(--wabg);color:var(--wa)}.seg button.on.s-unentschuldigt{background:var(--dabg);color:var(--da)}
+.lesson{margin-bottom:10px}.lesson .fields{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:10px}
+.hint{background:var(--soft);border-radius:var(--r);padding:6px 10px;font-size:13px;color:var(--tx2);margin-top:8px}
+.chip{font-size:13px;padding:4px 10px;border-radius:14px;border:1px solid var(--bd2);background:var(--card);cursor:pointer;min-height:30px;text-align:left}
+.chip.on{background:var(--okbg);color:var(--ok);border-color:transparent}
+.lp-item{display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px solid var(--bd)}
+.lp-item:last-child{border-bottom:0}
+.st{min-width:30px;min-height:30px;padding:0;border-radius:50%;font-size:14px;line-height:1;justify-content:center;flex:none}
+.st.s1{background:var(--wabg);color:var(--wa);border-color:transparent}.st.s2{background:var(--okbg);color:var(--ok);border-color:transparent}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:7px 6px;border-bottom:1px solid var(--bd);vertical-align:top}th{font-weight:500;color:var(--tx2);font-size:13px}
+.months{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.mon table{font-size:12px;font-variant-numeric:tabular-nums}.mon td,.mon th{padding:2px;border:0;text-align:center}
+.mon td{position:relative}
+.mon td.ev::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--evc)}
+.mon td.ev.s::after{left:3px;border-radius:2px 0 0 2px}.mon td.ev.e::after{right:3px;border-radius:0 2px 2px 0}.mon td.ev.s.e::after{border-radius:2px}
+.mon td.today{outline:1px solid var(--ac);outline-offset:-1px;border-radius:4px;font-weight:600}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.banner{background:var(--wabg);color:var(--wa);border-radius:var(--r);padding:8px 12px;margin-bottom:12px;font-size:14px}
+.cols{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+ul.plain{margin:4px 0 0;padding-left:18px}ul.plain li{margin:2px 0}
+.report{max-width:760px;margin:auto}
+.empty{text-align:center;padding:36px 16px}
+.empty h2{margin-bottom:6px}
+dialog{border:1px solid var(--bd2);border-radius:12px;background:var(--card);color:var(--tx);padding:18px;max-width:min(420px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:8px 14px;border-radius:var(--r);font-size:14px;z-index:40;max-width:calc(100vw - 32px)}
+.wk{display:grid;grid-template-columns:220px minmax(0,1fr);gap:16px;align-items:start}
+.pk-list{display:flex;flex-direction:column;gap:2px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px)}
+.pk-day{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin:10px 0 4px;font-weight:600}
+.pk-day:first-child{margin-top:0}
+.pk{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:6px;align-items:center;border:0;background:none;text-align:left;padding:7px 8px;border-radius:var(--r);width:100%}
+.pk:hover{background:var(--soft)}.pk.on{background:var(--acbg);color:var(--ac)}
+.pk-n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.pk-s{display:flex;gap:6px;align-items:center;color:var(--tx3)}.pk .dot{margin:0}
+.ed{padding:18px 20px}.ed-name{font-family:var(--display);font-size:22px;font-weight:700;color:var(--tx);text-decoration:none}
+.ed-f{display:grid;gap:12px;margin-top:14px}.ed-2{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.ed textarea{font-size:16px;line-height:1.5}
+.prev{margin-top:12px;background:var(--soft);border-radius:var(--r);padding:8px 12px;font-size:14px}.prev summary{cursor:pointer;color:var(--tx2)}.prev p{margin:6px 0;white-space:pre-wrap}
+.ed-nav{margin-top:16px;border-top:1px solid var(--bd);padding-top:12px}
+button:disabled{opacity:.4;cursor:default}
+@media (max-width:760px){.wk{grid-template-columns:minmax(0,1fr)}.pk-list{position:static;flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:4px}.pk-day{display:none}.pk{grid-template-columns:auto auto auto;flex:none;width:auto;border:1px solid var(--bd2)}.ed{padding:14px}.ed-nav .sp{font-size:0}}
+.tl{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:-4px 0 14px}
+.tl-bar{display:flex;gap:3px;width:min(260px,100%)}
+.tl-bar i{flex:1;height:6px;border-radius:3px;background:var(--soft);border:1px solid var(--bd)}
+.tl-bar i.past{background:var(--acbg);border-color:transparent}.tl-bar i.now{background:var(--ac);border-color:transparent}
+.sb{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+@media (max-width:600px){.brand{width:100%}#sync{margin-left:0}nav a{padding:6px 8px}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+#pv{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column}
+.pv-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-top:calc(8px + env(safe-area-inset-top,0px));padding-bottom:8px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--bd);background:var(--card)}
+.pv-t{font-weight:600;min-width:0;flex:1 1 160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv-bar input.pg{width:62px;text-align:center;padding:6px 4px}
+.pv-bar select{width:auto;max-width:200px}
+.pv-pop{padding:10px max(12px,env(safe-area-inset-right,0px)) 10px max(12px,env(safe-area-inset-left,0px));background:var(--card);border-bottom:1px solid var(--bd)}
+.pv-pop input,.pv-pop select{width:auto;flex:1 1 160px;min-width:0}
+.pv-body{flex:1;overflow:auto;display:flex;flex-direction:column;align-items:center;padding:8px;background:var(--soft);-webkit-overflow-scrolling:touch}
+.pv-body canvas{background:var(--paper);box-shadow:0 1px 4px rgba(0,0,0,.18);max-width:none;flex:none}
+#pvMsg{padding:40px 16px;text-align:center}
+.lit-row{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd);flex-wrap:wrap}
+.lit-row:last-child{border-bottom:0}
+.lit-row input.num{width:70px;padding:5px 6px}
+.lit-add{display:grid;gap:8px;margin-top:12px;grid-template-columns:minmax(0,2fr) minmax(0,2fr) 80px auto;align-items:end}
+@media (max-width:640px){.lit-add{grid-template-columns:minmax(0,1fr) 80px}.lit-add>div:first-child,.lit-add>div:nth-child(2){grid-column:1/-1}}
+.bk{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--bd)}
+.bk:last-child{border-bottom:0}
+.bk-i{width:34px;height:44px;border-radius:4px;background:var(--pubg);color:var(--pu);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+.lit-card{padding:4px 0}
+.lit-t{font-size:14px}.lit-t th,.lit-t td{padding:8px 10px;vertical-align:middle}.lit-t tbody tr:last-child td{border-bottom:0}
+
+.lit-t tbody tr:hover{background:var(--soft)}
+.th-s{padding:0;min-height:0;font-size:13px;color:var(--tx2);font-weight:500}.th-s.on{color:var(--ac)}
+.lit-open{border:0;background:none;padding:0;min-height:0;font-weight:600;text-align:left;color:var(--tx);display:inline}
+.lit-open:hover{background:none;color:var(--ac);text-decoration:underline}
+.lit-marks{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.lit-marks .chip{min-height:24px;padding:1px 8px;font-size:12px}
+.m-only{display:none}
+.stk{display:inline-flex;gap:2px}.stk abbr{text-decoration:none;font-size:11px;font-weight:600;min-width:22px;text-align:center;padding:1px 4px;border-radius:4px;background:var(--wabg);color:var(--wa)}
+.lit-t tr.lit-g th{background:var(--soft);color:var(--tx);font-size:12px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;padding:6px 10px}
+.lit-t tr.lit-g:hover{background:none}
+@media (max-width:760px){.lit-t .c-a,.lit-t .c-b,.lit-t .c-s,.lit-t .c-k,.lit-t .c-st{display:none}.m-only{display:block}.lit-t th,.lit-t td{padding:8px 8px}}
+</style>
+
+<header class="gut"><div class="top"><span class="brand">Klassenbuch Schlagzeug</span><nav id="nav"></nav><span id="sync"></span></div></header>
+<main id="app" class="gut"><div class="empty"><h2>Klassenbuch wird geladen</h2><p class="muted">Deine Daten werden geholt.</p></div></main>
+<input type="file" id="fileIn" accept=".json,application/json" hidden>
+<dialog id="dlg"><p id="dlgText" style="margin-top:0"></p><div class="row" style="justify-content:flex-end"><button id="dlgNo">Abbrechen</button><button id="dlgYes" class="pri">OK</button></div></dialog>
+<div id="toast" hidden></div>
+<input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple hidden>
+<div id="pv" hidden role="dialog" aria-modal="true" aria-label="Notenviewer">
+  <div class="pv-bar"><button data-pv="close" aria-label="Schliessen">✕</button><span class="pv-t" id="pvT"></span>
+    <select id="pvMarks" aria-label="Lesezeichen" hidden></select>
+    <button data-pv="prev" aria-label="Vorherige Seite">‹</button><input class="pg num" id="pvP" inputmode="numeric" aria-label="Seite"><span class="small muted num" id="pvN"></span><button data-pv="next" aria-label="Nächste Seite">›</button>
+    <button data-pv="fit" id="pvFit">Breite</button><button data-pv="out" aria-label="Verkleinern">−</button><button data-pv="in" aria-label="Vergrössern">+</button>
+    <button data-pv="here" id="pvHere" hidden>Hier weiter</button><button data-pv="mark">Lesezeichen</button><button data-pv="assign" class="pri">Für SuS</button></div>
+  <div class="pv-pop" id="pvPop" hidden></div>
+  <div class="pv-body" id="pvBody"><canvas id="pvC" hidden></canvas><div id="pvMsg" class="muted"></div></div>
+</div>
+
+<script>
+const LP = {"bereiche":["Allgemein","Snare Drum","Drum Set","Pauken","Mallets","Ethnopercussion","Jazz"],"stufen":{"frühe Förderung":{"ziele":{"Allgemein":["Rechts-Links-Koordination","Hören (Imitation, Klänge, Anschlagskontrolle in der Fellmitte und Rand)","Sehen (Blickkontakt, Beobachten, Selbstkontrolle, Lehrervorbild)","Fühlen (Körpererfahrung, Stockverhalten am Fell, Schwerpunkt und Dreh-","punkt des Schlägels spüren)","Vorstellungshilfen geben","Viertelnote < 100","Übertragung der Grundrhythmen auf das gr./kl.Trommel-Spiel, Set-up oder Drumset","Genaues Einhalten von Metrum, Dynamik, Rhythmus als elementare Grundbausteine des Musizierens","Noten (1. Oktave C-Dur)"],"Snare Drum":["Erlernen einer elementaren Spieltechnik durch eine entspannte Handhaltung, Körperhaltung, Sitzhaltung","Viertel-, Achtel-, Sechzehntelnoten","Viertelpausen","Einfache Vorschläge","Einfache Standard-Rudiments","Klänge auf der Kleinen Trommel mit und ohne Schnarrsaiten, Rim-click,","weiche Schlägel, Jazzbesen"],"Drum Set":["Instrumente des Drumsets bezeichnen","Transfer von Dreitonliedern oder Übungen auf Drum Set","Dreitonlieder","Einfache Grooves (Lau-fe)"],"Pauken":["Instrument kennen lernen","Lockere Armbewegung","Dreitonlieder","Basstöne zu Stücken spielen","Schlagfleck kennen"],"Mallets":["Instrumente kennen lernen","2-5 Ton Lieder","7 Stufen, in 3 verschiedenen Tonarten"],"Ethnopercussion":["Alle drei Grundschläge kennen lernen","Einfache Grooves (Kuh-glo-cke Holz-Block)","Beliebig eingesetzte Trommeln, zur Abwechslung"],"Jazz":["Harmonische Begleitmuster (Grundton oder Terzen)"]},"spielpraxis":{"Snare Drum":["Erstes Vorspiel","Spiel in Gruppen, Kammermusik"],"Drum Set":["Kleine leichte Stücke","Erstes Zusammenspiel","Klassenvorspiele, Konzerte"],"Pauken":["Spiel in Gruppen, Kammermusik"]},"literatur":{"Snare Drum":["Rhythmusbausteine","Simple Rudiments"],"Mallets":["Grosse Notenliniern an Wand","Kurzlieder (2-3 T)","Hailight"]}},"Unterstufe":{"ziele":{"Allgemein":["Genaues Einhalten von Metrum, Dynamik, Rhythmus als elementare Grundbausteine des Musizierens","Viertelnote = 100–120","3/4, 4/4, 6/8"],"Snare Drum":["Erarbeiten von Grundrhythmen","Sechzehntelnoten","Triolen","Punktierung","Viertel-, Achtel-, Sechzehntel pausen","Einfache und doppelte Vorschläge","Akzente","Einfache Standard-Rudiments","Klänge auf der Kleinen Trommel mit und ohne Schnarrsaiten, Rim-click,","weiche Schlägel, Jazzbesen"],"Drum Set":["Erlernen von elementaren Spieltechniken (Bass Drum, Hi-Hat-Technik) und","einfachen motorischen Übungen:","Transfer von S.D. Rudiments und Übungen auf Drum Set","Einfache Akzentuierungen von Stickings","Einfache Pop/Rock-Grooves in Achteln/Vierteln/Sechzehnteln","Erfinden eigener Grooves","Fills im 2-taktigen und 4-taktigen Schema","Grooves und Fills verbinden und variieren","Anfänge der Unabhängigkeit von Händen und Füßen in Achtelnoten werten"],"Pauken":["Erarbeiten von verschiedenen Grundrhythmen (Notenkenntnisse) auf 2 Pauken","Sechzehntelnoten","Triolen","Punktierungen","Viertel-, Achtel-, Sechzehntel pausen, Viertelnote = 100 / 120","Dämpfen","Einfache Gehörübungen","Töne einstellen"],"Mallets":["7 Stufen, in 7 verschiedenen Tonarten","2-Schlägel Technikstudien","Tonleiter und Dreiklänge (Dur/Moll)","Wirbelübungen","4 Schläger:","Singles (independent/alternating)","Doubles","Intervallübungen"],"Jazz":["Einfache Grooves in Pop/Rock mit variierender Bass Drum - mit R, als auch L auf Hi-Hat in Vierteln, Achteln, Sechzehnteln","Variieren des Tempos, Dynamik","Auffüllen von Grooves mit Ghost-strokes","Wechseln von Hi-Hat auf Ride-Becken, auch mit kleinen Fills","Crash-Becken auf betonte Zeiten abspielen","1-/2-taktige Fills mit einfachen Notenwerten","2-/4-taktige Schema anwenden"]},"spielpraxis":{"Snare Drum":["Erstes Vorspiel","Spiel in Gruppen, Kammermusik"],"Drum Set":["Spielen mit Play along oder Track","Spielen von Sololiteratur","Freies Solo unter Einbeziehung des Erlernten","Kleine leichte Stücke","Erstes Zusammenspiel","Erste Band-Erfahrungen","Klassenvorspiele, Konzerte"],"Pauken":["Spiel in Gruppen, Kammermusik"],"Jazz":["Spielen zu einfachen Klavierbegleitungen, Kadenzen aus Rock/Pop-Songs","Spielen zu Play along, CD","Spielen mit Rhythm Section (Bass und Keyboard)","Intro und Schluss gestalten","Musikalische Abläufe (Blues) erfassen und nachvollziehen","Kommunikative Aspekte (Anschauen, Einzählen, Zählzeiten betonen mit Blickkontakt)","Drumcomputer kennenlernen und einsetzen"]},"literatur":{"Snare Drum":["Gert Bomhof: Schule für Snare Drum, Bd. 1, 48 S., de Haske","Trommelsafari, Hermann Aigner"],"Drum Set":["Michael Lang 1","Gert Bomhof: Method for Drum Set","Kopetzki","Nowak","Drumgroove puzzle"],"Pauken":["Gert Bomhof: Method for Timpani, DeHaske","Michell Peters: Fundamental Method for Timpani"],"Mallets":["Kurzlieder (5T)","Hailight","App (Notenlesen)","18 Kinderlieder Lang","Mallets Schule Lang"],"Ethnopercussion":["Bongos und Kongas, Hakim Ludin","Flying Kongas, Hakim Ludin"]}},"Mittelstufe":{"ziele":{"Allgemein":["Schnelligkeit Viertelnote = 144","Erhöhung der Geschwindigkeit","Spiel nach dem Metronom","Differenzierung der Dynamik von pp bis ff"],"Snare Drum":["Festigung und","Vervollständigung der Grundrhythmen wie","Mühle, Vorschläge","Akzentverschiebungen","Erweiterung der Rudiments","Taktwechsel (gerade / ungerade)","Erweiterung der Wirbelformen","Einführung von Artikulation und Phrasierung","Gleichmäßigkeit als Kennzeichen von präzisem Spiel","Stärkere Konzentration auf das körperlich entspannte Spiel","Klangveränderungen, z.B. Besentechnik, Rim-shot, Reifen u.ä."],"Drum Set":["Stickings und Rudiments mit Flams und Ruffs auf dem Set spielen","Pattern aus Snaresoli übertragen","Akzente in die Verteilungen einsetzen","Variationen der Grundgrooves in verschiedenen Stilbereichen","Schema spielen und variieren","Unabhängigkeitsübungen (Ostinati-Rhythmen) mit Melodielinien in verschiedenen Notenwerten spielen","Anfänge von Besentechnik"],"Pauken":["Festigung und Vervollständigung der verschiedenen Grundrhythmen und Übertragung auf 3 und 4 Pauken","Vorschläge","Akzentverschiebungen","Taktwechsel","Spiel in ungeraden Taktarten","Erweiterung des Wirbels im pp und ff, crescendo und decrescendo","Kreuzschläge","Umstimmen","vermehrte Gehörübungen (Stimmen nach Kammerton a und Intervalle ableiten)","Einführung von Artikulation und Phrasierung","Gleichmäßigkeit als Kennzeichen von präzisem Spiel","Stärkere Konzentration auf das körperlich entspannte Spiel","Geschichte der Pauke","Schlägelkunde"],"Mallets":["Alle Tonleitern und Dreiklänge","Blues / Pentatonik","Blattlesen","Solo-Stücke","Vibraphone dämpfen"],"Jazz":["Grooves mit Vierteln, Achteln, Triolen, Sechzehnteln und Sechzehnteltriolen","in jeder möglichen Verbindung von Hi-Hat, Bass Drum, Snare","Pop/Rock-Grooves variieren","Jazz/Latin-Grooves mit leichten Ostinato-Figuren","Variieren der Fills, Verbindung mit Grooves verschiedener Stile herstellen","Breaks (2/4-taktig) ausfüllen","Abhören und Analyse von Songs von CD"]},"spielpraxis":{"Snare Drum":["vermehrter Solovortrag","Ensemble, Blasorchester, Sinfonieorchester"],"Drum Set":["Spielen mit Play along oder Track","Spielen von Sololiteratur","Freies Solo unter Einbeziehung des Erlernten","Kleine leichte Stücke","Erstes Zusammenspiel","Erste Band-Erfahrungen","Klassenvorspiele, Konzerte"],"Pauken":["Solovortrag","Kammermusik","Ensemble, Blas- und Sinfonieorcherster","Wettbewerbsfähigkeit"],"Mallets":["Solovortrag","Kammermusik","Ensemble, Blas- und Sinfonieorcherster","Wettbewerbsfähigkeit"],"Jazz":["Spielen mit Rhythm Section","Spielen zu Play along, CD","Komponieren eigener Songs","Spielen von Arrangements nach Noten","Ausgestalten von Intro und Schlüssen, Breaks und Fills in verschiedenen","Stilbereichen","Kommunikative Aspekte","Drumcomputer einsetzen und programmieren"]},"literatur":{"Snare Drum":["Eckehardt Keune: Schule für kleine Trommel","Siegfried Fink: Studien für kleine Trommel, Bel. 1,","Mitchel Peters, intermediate S.D. Studies","Rudiments Militärmusik"],"Drum Set":["Michael Lang 2","Kopetzki","Nowak","Drumgroove puzzle","Real time drums","4 Way coordination"],"Pauken":["Gert Bomhof: Method for Timpani, DeHaske","Eckehardt Keune: Schule für Pauken","Michell Peters: Fundamental Method for Timpani"],"Mallets":["Gert Bomhof, Method for Mallets","Peters, Fundamental Method for Mallets"],"Ethnopercussion":["Bongos und Kongas, Hakim Ludin","Flying Kongas, Hakim Ludin"]}},"Oberstufe":{"ziele":{"Allgemein":["Lernen von schweren rhythmischen Strukturen","Geschwindigkeit und Ausdauer","Bewußtwerden und Erkennen von Fehlern und Fehlhaltungen"],"Snare Drum":["Einführung von speziellen Trommeltechniken","mehrfache Vorschläge","Alle 40 Rudiments"],"Drum Set":["Stickings, Pattern und Rudiments auf dem Set spielen","Tempo, Dynamik, Akzente variieren","Grooves verschiedener Stile spielen","Fills erfinden und mit Grooves zu langen Ketten verbinden","Analyse und Stilkopien anderer Drummer mit Hilfe von Soundtracks / Play alongs","Komplexe Unabhängigkeitsübungen mit Ostinati und Melodieverlagerung auf die einzelnen Instrumente","Linear Drumming und Linear Grooves","Modulation und Permutation von Grooves","Polymetrik / Polyrhythmik","Samplestations einbinden"],"Pauken":["Konzentration auf den Solovortrag","Erweiterung der Wirbeltechnik durch spezielle Wirbelübungen","Pedalübungen","Klangverfremdungen"],"Mallets":["intensivieren und vertiefen der 2- und 4-Schlägeltechniken (One Hand Roll)","Komplexere Strukturen zwischen linker und rechter Hand","Blattlesen, komplex"],"Jazz":["Repertoire von Fills und Grooves aller Stilrichtungen erweitern und anwenden"]},"spielpraxis":{"Snare Drum":["Konzentration auf den Solovortrag","Ensemble, Kammermusik","Blas- und Sinfonieorchester"],"Drum Set":["Spielen mit Metronom","Spielen mit Play along oder Track","Anfänge von Modulation und Permutation","Freies Solo unter Einbeziehung des Erlernten","Spielen von Sololiteratur","Blattspielen","Klassenvorspiele, Konzerte"],"Pauken":["Solovortrag","Kammermusik, Ensemble","Blas- und Sinfonieorchester","Wettbewerbsfähigkeit"],"Mallets":["Komplexere Strukturen zwischen linker und rechter Hand"],"Jazz":["Breaks ausfüllen","Stilkopien nach Abhören von CD oder mit Notenvorlagen","Eigenkompositionen vom Set aus einbringen","Songs analysieren und Strukturen nachvollziehen-eigene Songs komponieren","Drumcomputer, Sequenzer (Soft-/Hardware) einsetzen und programmieren","Rhythm-Section-Training","Live- und Studio-Situation kennenlernen","Kommunikative Aspekte (,,Führen\" einer Band)"]},"literatur":{"Snare Drum":["Knauer (Behsinger)","Mitchel Peters, advanced S.D. Studies","Sticking Patterns, Garry Chaffee","Riedhammer"],"Drum Set":["New Breed","Syncopation","Time functioning patterns","4 Way coordination"],"Pauken":["Siegfried Fink","Peter Sadlo"],"Mallets":["Music Speed reading, David R. Hickman","George Hamilton Green","Leigh Howard Stevens, Method of Movement"],"Ethnopercussion":["Bongos und Kongas, Hakim Ludin","Flying Kongas, Hakim Ludin"]}}}};
+const STUFEN = ["frühe Förderung","Unterstufe","Mittelstufe","Oberstufe"];
+const INSTR = ["Snare Drum","Drum Set","Pauken","Mallets","Ethnopercussion","Jazz"];
+const TAGE = ["","Mo","Di","Mi","Do","Fr","Sa"];
+const STATUS = [["anwesend","anwesend"],["entschuldigt","entsch."],["unentschuldigt","unentsch."],["ausgefallen","ausgef."]];
+const EVTYP = {Konzert:"b-te",Vorspiel:"b-ok",Wettbewerb:"b-pu",Stufentest:"b-wa",Ferien:"b-gr",Sonstiges:"b-ac"};
+const EVCOL = {Konzert:"var(--te)",Vorspiel:"var(--ok)",Wettbewerb:"var(--pu)",Stufentest:"var(--wa)",Ferien:"var(--tx3)",Sonstiges:"var(--ac)"};
+const KEY = "klassenbuch-ap-v1";
+
+const uid = () => Math.random().toString(36).slice(2, 10);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const iso = d => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+const fmt = (s, y) => { if (!s) return ""; const d = parse(s); return d.getDate() + "." + (d.getMonth()+1) + "." + (y ? d.getFullYear() : ""); };
+const today = () => iso(new Date());
+function monday(d){ d = new Date(d); const w = (d.getDay()+6)%7; d.setDate(d.getDate()-w); return d; }
+function addDays(d, n){ d = new Date(d); d.setDate(d.getDate()+n); return d; }
+function kw(d){ d = new Date(d); d.setHours(0,0,0,0); d.setDate(d.getDate()+3-(d.getDay()+6)%7); const w1 = new Date(d.getFullYear(),0,4); return 1+Math.round(((d-w1)/864e5-3+(w1.getDay()+6)%7)/7); }
+
+/* ---------- small UI helpers (the viewer frame blocks alert/confirm) ---------- */
+let toastT;
+function toast(t){ const el = document.getElementById("toast"); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 3500); }
+function ask(text, yes, fn, noFn, noLabel){
+  const d = document.getElementById("dlg"); document.getElementById("dlgText").textContent = text;
+  const y = document.getElementById("dlgYes"); y.textContent = yes;
+  const n = document.getElementById("dlgNo"); n.textContent = noLabel || "Abbrechen";
+  y.onclick = () => { d.close(); fn(); }; n.onclick = () => { d.close(); if (noFn) noFn(); };
+  try { d.showModal(); } catch(e) { d.setAttribute("open", ""); }
+}
+
+/* ---------- App-Speicher: Gerät (IndexedDB) + verschlüsselter Sync über adrianpopp.ch ---------- */
+const SYNC = "https://www.adrianpopp.ch/_functions/kb/";
+const FILES = "https://static.wixstatic.com/ugd/";
+const PART = 300000, BATCH = 380000, CHUNK = 15 * 1048576;
+let db = {students:[], lessons:[], events:[], lastBackup:null};
+let mode = "loading";
+let metaDirty = false; const dirtyL = new Set(), delL = new Set();
+let flushT, flushing = false, loaded = {meta:false, lessons:false}, pendingRender = false;
+let idb = null, acc = null, cfg = {since:0, outbox:[], uploads:[]}, syncing = false, syncAgain = false, syncT, lastSync = 0, syncErr = "";
+
+function setSync(t){ document.getElementById("sync").textContent = t; }
+function save(){ metaDirty = true; schedule(); }
+function saveL(id){ dirtyL.add(id); schedule(); }
+function dropL(id){ dirtyL.delete(id); delL.add(id); schedule(); }
+function schedule(){ clearTimeout(flushT); flushT = setTimeout(flush, 500); }
+const syncOn = () => !!acc;
+
+/* --- IndexedDB --- */
+function idbOpen(){
+  return new Promise((ok, no) => {
+    const r = indexedDB.open("klassenbuch", 1);
+    r.onupgradeneeded = () => { const d = r.result; ["rec","pdf","cfg"].forEach(s => d.objectStoreNames.contains(s) || d.createObjectStore(s)); };
+    r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
+  });
+}
+function tx(store, mode2, fn){
+  return new Promise((ok, no) => { const t = idb.transaction(store, mode2), s = t.objectStore(store); let res; Promise.resolve(fn(s)).then(v => res = v); t.oncomplete = () => ok(res); t.onerror = t.onabort = () => no(t.error); });
+}
+const idbGet = (store, k) => new Promise((ok, no) => { const r = idb.transaction(store).objectStore(store).get(k); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); });
+const idbAll = store => new Promise((ok, no) => { const out = {}, r = idb.transaction(store).objectStore(store).openCursor(); r.onsuccess = () => { const c = r.result; if (c){ out[c.key] = c.value; c.continue(); } else ok(out); }; r.onerror = () => no(r.error); });
+const idbPut = (store, k, v) => tx(store, "readwrite", s => { s.put(v, k); });
+const idbDel = (store, k) => tx(store, "readwrite", s => { s.delete(k); });
+const saveCfg = () => idbPut("cfg", "sync", cfg);
+
+/* --- Krypto --- */
+const te = new TextEncoder(), td = new TextDecoder();
+const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
+function b64(u8){ let s = ""; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); }
+function unb64(s){ const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+async function derive(email, pw){
+  const salt = te.encode("klassenbuch-v1:" + email.trim().toLowerCase());
+  const base = await crypto.subtle.importKey("raw", te.encode(pw), "PBKDF2", false, ["deriveBits"]);
+  const bits = new Uint8Array(await crypto.subtle.deriveBits({name:"PBKDF2", hash:"SHA-256", salt, iterations:600000}, base, 512));
+  return {email: email.trim().toLowerCase(), acct: hex(await crypto.subtle.digest("SHA-256", salt)).slice(0, 40), auth: hex(bits.slice(0, 32)), raw: b64(bits.slice(32))};
+}
+async function useAcc(a){ acc = {...a, key: await crypto.subtle.importKey("raw", unb64(a.raw), "AES-GCM", false, ["encrypt","decrypt"])}; }
+async function encBytes(u8){ const iv = crypto.getRandomValues(new Uint8Array(12)); const c = new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM", iv}, acc.key, u8)); const o = new Uint8Array(12 + c.length); o.set(iv); o.set(c, 12); return o; }
+async function decBytes(u8){ return new Uint8Array(await crypto.subtle.decrypt({name:"AES-GCM", iv: u8.subarray(0, 12)}, acc.key, u8.subarray(12))); }
+const encObj = async o => b64(await encBytes(te.encode(JSON.stringify(o))));
+const decObj = async s => JSON.parse(td.decode(await decBytes(unb64(s))));
+
+/* --- Server --- */
+async function api(action, body){
+  const r = await fetch(SYNC + action, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({...body, acct: acc?.acct, auth: acc?.auth, ...(body.acct ? {acct: body.acct, auth: body.auth} : {})})});
+  let j = {}; try { j = await r.json(); } catch(e) {}
+  if (!r.ok){ const e = new Error(j.error || ("http " + r.status)); e.code = j.error || r.status; throw e; }
+  return j;
+}
+
+/* --- Lokale Datensätze: meta, books, lesson:<id>, pdf:<id> --- */
+function recOf(key){
+  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup};
+  if (key === "books") return {books};
+  if (key.startsWith("lesson:")) return db.lessons.find(l => l.id === key.slice(7)) || null;
+  return undefined;
+}
+async function flush(){
+  if (mode !== "app" || flushing){ if (flushing) schedule(); return; }
+  flushing = true;
+  try {
+    const keys = [];
+    if (metaDirty){ metaDirty = false; keys.push("meta"); }
+    if (booksDirty){ booksDirty = false; keys.push("books"); }
+    for (const id of [...dirtyL]){ dirtyL.delete(id); keys.push("lesson:" + id); }
+    for (const id of [...delL]){ delL.delete(id); keys.push("lesson:" + id); }
+    if (keys.length){
+      await tx("rec", "readwrite", s => keys.forEach(k => { const v = recOf(k); if (v) s.put({v: structuredClone(v), rev: 0}, k); else s.delete(k); }));
+      if (acc){ keys.forEach(k => cfg.outbox.includes(k) || cfg.outbox.push(k)); await saveCfg(); syncSoon(1500); }
+      setSync(acc ? "Gespeichert, wird synchronisiert …" : "Auf diesem Gerät gespeichert");
+    }
+  } catch(e) { toast("Speichern auf dem Gerät ist fehlgeschlagen."); setSync("Nicht gespeichert"); }
+  flushing = false;
+  if (metaDirty || booksDirty || dirtyL.size || delL.size) schedule();
+}
+function busyTyping(){ const a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName); }
+function remoteRender(){ if (!(loaded.meta && loaded.lessons)) return; if (!document.getElementById("pv").hidden) return; if (busyTyping()) pendingRender = true; else render(); }
+document.addEventListener("focusout", () => setTimeout(() => { if (pendingRender && !busyTyping()){ pendingRender = false; render(); } }, 50));
+
+function applyRec(key, v){
+  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; }
+  else if (key === "books") books = v ? v.books || [] : [];
+  else if (key.startsWith("lesson:")){ const id = key.slice(7), i = db.lessons.findIndex(l => l.id === id); if (v){ v.id = id; if (i < 0) db.lessons.push(v); else db.lessons[i] = v; } else if (i >= 0) db.lessons.splice(i, 1); }
+}
+
+/* --- Sync --- */
+function syncSoon(ms){ clearTimeout(syncT); syncT = setTimeout(sync, ms || 0); }
+async function sync(){
+  if (!acc || !navigator.onLine) { if (acc) setSync("Offline – wird später synchronisiert"); return; }
+  if (syncing){ syncAgain = true; return; }
+  syncing = true; syncErr = "";
+  try {
+    setSync("Synchronisiert …");
+    // 1. Hochladen
+    while (cfg.outbox.length){
+      const batch = []; let size = 0; const done = [];
+      for (const key of cfg.outbox){
+        const r = await idbGet("rec", key);
+        const items = [];
+        if (!r) items.push({key, part:0, parts:1, del:true});
+        else { const data = await encObj(r.v); const n = Math.max(1, Math.ceil(data.length / PART)); for (let p = 0; p < n; p++) items.push({key, part:p, parts:n, data: data.slice(p * PART, (p + 1) * PART)}); }
+        const len = items.reduce((a, x) => a + (x.data ? x.data.length : 0) + 100, 0);
+        if (batch.length && size + len > BATCH) break;
+        if (len > BATCH){ for (const it of items) await api("push", {items:[it]}); done.push(key); continue; }
+        batch.push(...items); size += len; done.push(key);
+        if (size > BATCH * 0.8) break;
+      }
+      if (batch.length) await api("push", {items: batch});
+      cfg.outbox = cfg.outbox.filter(k => !done.includes(k)); await saveCfg();
+    }
+    // 2. PDFs hochladen
+    for (const id of [...cfg.uploads]){ await uploadPdf(id); cfg.uploads = cfg.uploads.filter(x => x !== id); await saveCfg(); }
+    // 3. Herunterladen
+    let since = Math.max(0, (cfg.since || 0) - 120000 * 1000), maxRev = cfg.since || 0, changed = false;
+    const local = await idbAll("rec"), acc2 = {};
+    for (;;){
+      const r = await api("pull", {since});
+      for (const it of r.items){
+        since = Math.max(since, it.rev); maxRev = Math.max(maxRev, it.rev);
+        const g = acc2[it.key] ||= {parts: it.parts, p: {}, del: false, rev: 0};
+        if (g.parts !== it.parts){ g.parts = it.parts; g.p = {}; }
+        g.p[it.part] = it.data; g.del = it.del; g.rev = Math.max(g.rev, it.rev);
+      }
+      if (!r.more) break;
+    }
+    for (const [key, g] of Object.entries(acc2)){
+      if (cfg.outbox.includes(key)) continue;
+      const cur = local[key];
+      if (cur && cur.rev >= g.rev) continue;
+      if (g.del){ if (cur){ await idbDel("rec", key); if (!key.startsWith("pdf:")) applyRec(key, null); changed = true; } continue; }
+      if (Object.keys(g.p).length !== g.parts) continue;
+      let v; try { v = await decObj(Array.from({length: g.parts}, (_, i) => g.p[i]).join("")); } catch(e) { continue; }
+      await idbPut("rec", key, {v, rev: g.rev});
+      if (!key.startsWith("pdf:")){ applyRec(key, v); changed = true; }
+    }
+    cfg.since = maxRev; await saveCfg();
+    lastSync = Date.now(); setSync("Synchronisiert");
+    if (changed) remoteRender();
+  } catch(e) {
+    syncErr = e.code === "auth" ? "Anmeldung abgelaufen oder Passwort geändert." : (e.message || "Fehler");
+    setSync(e.code === "auth" ? "Sync: bitte neu anmelden" : "Sync fehlgeschlagen – neuer Versuch folgt");
+    if (e.code !== "auth") syncSoon(30000);
+  }
+  syncing = false;
+  if (syncAgain){ syncAgain = false; syncSoon(500); }
+}
+window.addEventListener("online", () => syncSoon(500));
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") syncSoon(300); else flush(); });
+setInterval(() => { if (document.visibilityState === "visible") sync(); }, 60000);
+window.addEventListener("pagehide", () => flush());
+
+/* --- PDFs: lokal unverschlüsselt im Gerät, auf dem Server verschlüsselt in Stücken --- */
+async function storePdf(id, u8, n, name){
+  await idbPut("pdf", id, u8);
+  await idbPut("rec", "pdf:" + id, {v:{files:[], n, size: u8.length, name, pending:true}, rev:0});
+  if (acc){ cfg.uploads.includes(id) || cfg.uploads.push(id); await saveCfg(); syncSoon(1000); }
+}
+async function uploadPdf(id){
+  const r = await idbGet("rec", "pdf:" + id); if (!r || !r.v.pending) return;
+  const u8 = await idbGet("pdf", id); if (!u8) return;
+  const enc = await encBytes(u8 instanceof Uint8Array ? u8 : new Uint8Array(u8)), files = [];
+  for (let o = 0; o < enc.length; o += CHUNK){
+    setSync(`PDF wird hochgeladen … ${Math.round(o / enc.length * 100)} %`);
+    const {uploadUrl, uploadToken} = await api("uploadurl", {});
+    const fd = new FormData(); fd.append("upload_token", uploadToken || ""); fd.append("file", new Blob([enc.subarray(o, o + CHUNK)], {type:"application/pdf"}), "kb.pdf");
+    const res = await fetch(uploadUrl, {method:"POST", body: fd}); if (!res.ok) throw new Error("Upload " + res.status);
+    const j = await res.json(); files.push((Array.isArray(j) ? j[0] : j).file_name);
+  }
+  const v = {...r.v, files, pending:false};
+  await idbPut("rec", "pdf:" + id, {v, rev:0});
+  cfg.outbox.includes("pdf:" + id) || cfg.outbox.push("pdf:" + id); await saveCfg();
+}
+async function pdfBytes(id){
+  const have = await idbGet("pdf", id); if (have) return have instanceof Uint8Array ? have : new Uint8Array(have);
+  if (!acc) throw new Error("Dieses PDF ist auf diesem Gerät nicht vorhanden.");
+  let r = await idbGet("rec", "pdf:" + id);
+  if (!r){ await sync(); r = await idbGet("rec", "pdf:" + id); }
+  if (!r || !r.v.files || !r.v.files.length) throw new Error("Dieses PDF ist noch nicht hochgeladen.");
+  const parts = [];
+  for (const f of r.v.files){ const x = await fetch(FILES + f); if (!x.ok) throw new Error("http " + x.status); parts.push(new Uint8Array(await x.arrayBuffer())); }
+  const all = new Uint8Array(parts.reduce((a, p) => a + p.length, 0)); let o = 0; parts.forEach(p => { all.set(p, o); o += p.length; });
+  const u8 = await decBytes(all);
+  try { await idbPut("pdf", id, u8); } catch(e) {}
+  return u8;
+}
+
+/* --- Start --- */
+async function startApp(){
+  try { idb = await idbOpen(); } catch(e) { mode = "app"; loaded = {meta:true, lessons:true}; setSync("Speicher nicht verfügbar"); render(); return; }
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e) {}
+  cfg = Object.assign({since:0, outbox:[], uploads:[]}, await idbGet("cfg", "sync") || {});
+  const a = await idbGet("cfg", "account"); if (a) await useAcc(a);
+  const all = await idbAll("rec");
+  for (const [k, r] of Object.entries(all)) if (!k.startsWith("pdf:")) applyRec(k, r.v);
+  mode = "app"; assetsNs = true; loaded = {meta:true, lessons:true};
+  setSync(acc ? "Bereit" : "Nur auf diesem Gerät");
+  render();
+  if (acc) syncSoon(200);
+  if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").then(reg => {
+    reg.addEventListener("updatefound", () => { const w = reg.installing; w && w.addEventListener("statechange", () => { if (w.state === "installed" && navigator.serviceWorker.controller) toast("Neue Version geladen. Beim nächsten Öffnen aktiv."); }); });
+  }).catch(() => {});
+}
+
+/* --- Konto --- */
+async function signIn(email, pw, invite, keepLocal){
+  const a = await derive(email, pw);
+  if (invite) await api("register", {acct: a.acct, auth: a.auth, invite});
+  else await api("login", {acct: a.acct, auth: a.auth});
+  await idbPut("cfg", "account", a); await useAcc(a);
+  cfg = {since:0, outbox:[], uploads:[]};
+  if (keepLocal){
+    const all = await idbAll("rec");
+    cfg.outbox = Object.keys(all).filter(k => !k.startsWith("pdf:") || !all[k].v.pending);
+    cfg.uploads = Object.keys(all).filter(k => k.startsWith("pdf:") && all[k].v.pending).map(k => k.slice(4));
+    Object.keys(all).filter(k => k.startsWith("pdf:") && !all[k].v.pending).forEach(k => cfg.outbox.includes(k) || cfg.outbox.push(k));
+  } else {
+    await tx("rec", "readwrite", s => s.clear()); await tx("pdf", "readwrite", s => s.clear());
+    db = {students:[], lessons:[], events:[], lastBackup:null}; books = [];
+  }
+  await saveCfg(); render(); await sync();
+}
+async function signOut(wipe){
+  acc = null; await idbDel("cfg", "account"); cfg = {since:0, outbox:[], uploads:[]}; await saveCfg();
+  if (wipe){ await tx("rec", "readwrite", s => s.clear()); await tx("pdf", "readwrite", s => s.clear()); db = {students:[], lessons:[], events:[], lastBackup:null}; books = []; }
+  setSync("Nur auf diesem Gerät"); render();
+}
+const hasLocalData = () => db.students.length || db.lessons.length || db.events.length || books.length;
+
+function vDatenApp(){
+  const lb = db.lastBackup ? new Date(db.lastBackup).toLocaleString("de-CH") : "noch nie";
+  const ls = lastSync ? new Date(lastSync).toLocaleTimeString("de-CH", {hour:"2-digit", minute:"2-digit"}) : "–";
+  const syncCard = acc ? `<div class="card"><div class="row"><b>Sync ist eingerichtet</b><span class="badge b-ok">${esc(acc.email)}</span><span class="sp"></span><button class="pri" data-a="syncNow">Jetzt synchronisieren</button></div>
+      <p class="small muted" style="margin-bottom:0">Letzter Abgleich: ${ls}${cfg.outbox.length ? ` · ${cfg.outbox.length} Änderung(en) warten` : ""}${cfg.uploads.length ? ` · ${cfg.uploads.length} PDF(s) warten auf Upload` : ""}${syncErr ? ` · <span style="color:var(--da)">${esc(syncErr)}</span>` : ""}</p>
+      <p class="tiny" style="max-width:65ch">Alles wird auf dem Gerät verschlüsselt, bevor es auf den Server geht. Ohne dein Passwort kann niemand die Daten lesen, auch der Betreiber nicht. Darum gilt: Passwort vergessen heisst Daten weg. Sichere zusätzlich regelmässig ein Backup.</p>
+      <div class="row"><button class="ghost small" data-a="signOut">Abmelden</button><button class="ghost del small" data-a="signOutWipe">Abmelden und Daten von diesem Gerät löschen</button></div></div>`
+    : `<div class="card" id="acct"><b>Sync einrichten</b>
+      <p class="small muted" style="max-width:65ch;margin-top:4px">Mit einem Konto sind deine Einträge und PDFs auf allen Geräten gleich. Alles wird auf dem Gerät verschlüsselt, der Server sieht nur unlesbare Daten. <b>Passwort vergessen heisst Daten weg</b>, es gibt keine Wiederherstellung.</p>
+      <div class="f" style="max-width:640px">
+        <div><label for="ac-mail">E-Mail</label><input id="ac-mail" type="email" autocomplete="username" autocapitalize="off"></div>
+        <div><label for="ac-pw">Passwort (mind. 10 Zeichen)</label><input id="ac-pw" type="password" autocomplete="current-password"></div>
+        <div><label for="ac-inv">Einladungscode (nur für neues Konto)</label><input id="ac-inv" autocapitalize="off"></div></div>
+      <div class="row" style="margin-top:10px"><button class="pri" data-a="signIn">Anmelden</button><button data-a="signUp">Neues Konto erstellen</button><span class="small" id="ac-err" style="color:var(--da)"></span></div></div>`;
+  app.innerHTML = `<h2>Daten</h2>${syncCard}
+  <h3>Backup</h3><div class="card"><p class="small muted num" style="margin-top:0">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine · ${books.length} Hefte</p>
+  <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
+  <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
+  <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-1849</p>`;
+}
+async function accountAction(kind){
+  const g = id => document.getElementById(id), err = g("ac-err");
+  const email = g("ac-mail").value.trim(), pw = g("ac-pw").value, inv = g("ac-inv").value.trim();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ err.textContent = "Bitte eine gültige E-Mail eingeben."; return; }
+  if (pw.length < 10){ err.textContent = "Das Passwort braucht mindestens 10 Zeichen."; return; }
+  if (kind === "up" && !inv){ err.textContent = "Für ein neues Konto brauchst du den Einladungscode."; return; }
+  const go = async keep => {
+    err.textContent = "Wird eingerichtet … (das dauert ein paar Sekunden)";
+    try { await signIn(email, pw, kind === "up" ? inv : "", keep); toast("Sync ist eingerichtet"); }
+    catch(e) { const c = e.code; err.textContent = c === "auth" ? "E-Mail oder Passwort stimmt nicht. Noch kein Konto? Dann «Neues Konto erstellen»." : c === "invite" ? "Der Einladungscode stimmt nicht." : c === "exists" ? "Für diese E-Mail gibt es schon ein Konto. Bitte «Anmelden»." : "Keine Verbindung zum Server. Bitte später nochmals versuchen."; }
+  };
+  if (hasLocalData()){
+    if (kind === "up") go(true);
+    else ask("Auf diesem Gerät sind schon Einträge. Sollen sie mit den Daten in deinem Konto zusammengeführt werden, oder möchtest du nur die Daten aus dem Konto laden? (Dann werden die Einträge auf diesem Gerät verworfen.)", "Zusammenführen", () => go(true), () => go(false), "Nur Konto-Daten laden");
+  } else go(false);
+}
+document.addEventListener("click", ev => {
+  const b = ev.target.closest("[data-a]"); if (!b) return;
+  switch (b.dataset.a){
+    case "signIn": accountAction("in"); break;
+    case "signUp": accountAction("up"); break;
+    case "syncNow": sync().then(() => render()); break;
+    case "signOut": ask("Auf diesem Gerät abmelden? Die Einträge bleiben hier gespeichert, werden aber nicht mehr abgeglichen.", "Abmelden", () => signOut(false)); break;
+    case "signOutWipe": ask("Abmelden und alle Einträge und PDFs von diesem Gerät löschen? Im Konto bleiben sie erhalten.", "Abmelden und löschen", () => signOut(true)); break;
+  }
+});
+
+/* ---------- data helpers ---------- */
+const S = id => db.students.find(x => x.id === id);
+const sorted = () => db.students.filter(s => s.aktiv !== false).slice().sort((a,b) => (a.tag||9)-(b.tag||9) || (a.zeit||"99").localeCompare(b.zeit||"99") || a.name.localeCompare(b.name));
+const lessonsOf = sid => db.lessons.filter(l => l.sid === sid).sort((a,b) => b.datum.localeCompare(a.datum));
+function lpItems(stufe, bereiche){
+  const st = LP.stufen[stufe]; if (!st) return [];
+  const out = [];
+  ["Allgemein", ...bereiche].forEach(b => {
+    (st.ziele[b]||[]).forEach((t,i) => out.push({id:stufe+"|"+b+"|z"+i, bereich:b, text:t, kind:"ziel"}));
+    (st.spielpraxis[b]||[]).forEach((t,i) => out.push({id:stufe+"|"+b+"|p"+i, bereich:b, text:t, kind:"praxis"}));
+  });
+  return out;
+}
+function lpText(id){ const [st,b,k] = id.split("|"); const arr = k[0]==="z" ? LP.stufen[st]?.ziele[b] : LP.stufen[st]?.spielpraxis[b]; return arr?.[+k.slice(1)] || ""; }
+function progress(s){ const it = lpItems(s.stufe, s.instrumente||[]); const done = it.filter(i => (s.lp||{})[i.id] === 2).length; return {done, total:it.length, pct: it.length ? Math.round(done/it.length*100) : 0}; }
+function attendance(sid){ const l = db.lessons.filter(x => x.sid === sid && x.status); return {a:l.filter(x => x.status === "anwesend").length, n:l.filter(x => x.status !== "ausgefallen").length, e:l.filter(x=>x.status==="entschuldigt").length, u:l.filter(x=>x.status==="unentschuldigt").length}; }
+const eventsOf = sid => db.events.filter(e => (e.sids||[]).includes(sid)).sort((a,b) => a.datum.localeCompare(b.datum));
+const nextEvent = sid => eventsOf(sid).find(e => (e.bis||e.datum) >= today());
+function lessonDate(s, mon){ return iso(addDays(mon, (s.tag||1)-1)); }
+function getLesson(sid, datum, create){ let l = db.lessons.find(x => x.sid === sid && x.datum === datum); if (!l && create){ l = {id:uid(), sid, datum, status:"", warmup:"", inhalt:"", aufgaben:"", notiz:"", lpDone:[]}; db.lessons.push(l); } return l; }
+
+const SB = [["familie","Familiärer Hintergrund","Geschwister, Eltern, wer bringt/holt ab, Sprache zuhause …"],["instrumente","Instrumente zuhause","Drumset, Pad, Xylophon, Platz zum Üben, Lärmsituation …"],["schule","Schulsituation","Klasse, Schulhaus, Belastung, andere Hobbys …"],["charakter","Charaktereigenschaften","Wie lernt die Person, was motiviert, worauf achten …"],["sonstiges","Sonstiges","Gesundheit, Ensembles, Absprachen …"]];
+const SBN = SB.length + 1;
+const sbDone = s => [["geburt"], ...SB].filter(([k]) => ((s.stammblatt||{})[k]||"").trim()).length;
+function alter(s){ const g = (s.stammblatt||{}).geburt||""; if (!/^\d{4}-\d{2}-\d{2}$/.test(g)) return null;
+  const n = new Date(), b = new Date(g+"T00:00"); let a = n.getFullYear() - b.getFullYear();
+  if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--; return a >= 0 && a < 120 ? a : null; }
+function alterTxt(s){ const a = alter(s); if (a !== null) return a + " J."; return s.typ === "Gruppe" ? ((s.stammblatt||{}).geburt||"").trim() : ""; }
+let weekStart = monday(new Date());
+let filt = {schule:"Alle", q:""};
+let lpStufe = "Unterstufe";
+let calYear = (() => { const d = new Date(); return d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear()-1; })();
+let editEv = null, detailStufe = null;
+
+const app = document.getElementById("app");
+function route(){ const h = location.hash.slice(1) || "woche"; const i = h.indexOf("-"); return i < 0 ? {v:h} : {v:h.slice(0,i), id:h.slice(i+1)}; }
+function render(){
+  if (!(loaded.meta && loaded.lessons)) return;
+  const {v, id} = route();
+  const tabs = [["woche","Woche"],["sus","SuS"],["kalender","Kalender"],["lehrplan","Lehrplan"],["literatur","Literatur"],["daten","Daten"]];
+  const cur = v === "s" || v === "bericht" ? "sus" : v;
+  document.getElementById("nav").innerHTML = tabs.map(([k,t]) => `<a href="#${k}" class="${cur===k?"on":""}">${t}</a>`).join("");
+  ({woche:vWoche, sus:vSus, s:()=>vDetail(id), kalender:vKalender, lehrplan:vLehrplan, literatur:vLiteratur, daten:vDatenApp, bericht:()=>vBericht(id)}[v] || vWoche)();
+  app.querySelectorAll("textarea").forEach(autosize);
+}
+function autosize(el){ el.style.height = "auto"; el.style.height = (el.scrollHeight + 2) + "px"; }
+window.addEventListener("resize", () => app.querySelectorAll("textarea").forEach(autosize));
+window.addEventListener("hashchange", () => { detailStufe = null; editBook = null; render(); window.scrollTo(0,0); });
+
+function backupBanner(){
+  if (syncOn()) return "";
+  const lb = db.lastBackup, days = lb ? Math.floor((Date.now()-lb)/864e5) : null;
+  if (db.lessons.length && (days === null || days >= 7)) return `<div class="banner">${days===null?"Noch kein Backup gespeichert.":"Letztes Backup vor "+days+" Tagen."} <a href="#daten">Jetzt sichern</a></div>`;
+  return "";
+}
+function emptyState(){
+  return `<div class="card empty"><h2>Noch keine SuS erfasst</h2><p class="muted" style="max-width:46ch;margin:0 auto 14px">Lege deine erste Schülerin oder deinen ersten Schüler an, oder lade ein Backup. Unter <a href="#daten">Daten</a> richtest du den Sync für alle deine Geräte ein.</p>
+  <div class="row" style="justify-content:center"><button class="pri" data-a="newS">Person anlegen</button><button data-a="import">Backup laden</button></div></div>`;
+}
+
+let selSid = null;
+function ferienAm(ds, s){ return db.events.find(e => e.typ === "Ferien" && ds >= e.datum && ds <= (e.bis||e.datum) && (!s || !/Teufen/.test(e.ort||"") || s.schule === "MSAM")); }
+function zeitstrahl(mon){
+  const blocks = db.events.filter(e => e.typ === "Ferien" && e.bis && (parse(e.bis) - parse(e.datum)) / 864e5 >= 4).sort((a,b) => a.datum.localeCompare(b.datum));
+  const m = iso(mon), next = blocks.find(e => e.datum > m), prev = [...blocks].reverse().find(e => e.bis < m);
+  if (!next || !prev || blocks.some(e => e.datum <= iso(addDays(mon, 4)) && e.bis >= m)) return "";
+  let start = addDays(parse(prev.bis), 1); while (start.getDay() !== 1) start = addDays(start, 1);
+  const end = monday(parse(next.datum));
+  const total = Math.round((end - start) / 6048e5), cur = Math.round((mon - start) / 6048e5) + 1;
+  if (total < 1 || cur < 1 || cur > total) return "";
+  const label = cur === total ? `Letzte Woche vor den ${esc(next.titel)}` : `Woche ${cur} von ${total} bis zu den ${esc(next.titel)}`;
+  const segs = Array.from({length:total}, (_, k) => `<i class="${k+1 < cur ? "past" : k+1 === cur ? "now" : ""}"></i>`).join("");
+  return `<div class="tl" title="${esc(prev.titel)} bis ${fmt(prev.bis,1)}, ${esc(next.titel)} ab ${fmt(next.datum,1)}"><div class="tl-bar" aria-hidden="true">${segs}</div><span class="small muted num">${label} <span class="tiny">(ab ${fmt(next.datum)})</span></span></div>`;
+}
+function vWoche(){
+  const mon = weekStart, sun = addDays(mon, 6);
+  const evs = db.events.filter(e => e.typ !== "Ferien" && (e.bis||e.datum) >= iso(mon) && e.datum <= iso(sun));
+  const fer = db.events.filter(e => e.typ === "Ferien" && (e.bis||e.datum) >= iso(mon) && e.datum <= iso(sun));
+  let html = backupBanner() + `<div class="row" style="margin-bottom:12px">
+    <button data-a="wk" data-n="-7" aria-label="Vorherige Woche">‹</button>
+    <h2 style="margin:0">KW ${kw(mon)} <span class="muted num" style="font-weight:400;font-size:15px;font-family:var(--body)">${fmt(iso(mon))}–${fmt(iso(sun),1)}</span></h2>
+    <button data-a="wk" data-n="7" aria-label="Nächste Woche">›</button><button class="ghost" data-a="wk" data-n="0">Heute</button>
+    ${fer.map(e => `<span class="badge b-gr">${esc(e.titel)}</span>`).join("")}
+    ${evs.map(e => `<span class="badge ${EVTYP[e.typ]}">${esc(e.typ)} ${fmt(e.datum)}: ${esc(e.titel)}</span>`).join("")}</div>`;
+  html += zeitstrahl(mon);
+  if (!db.students.length){ app.innerHTML = html + emptyState(); return; }
+  const list = sorted().filter(s => !ferienAm(lessonDate(s, mon), s));
+  if (!list.length){ app.innerHTML = html + `<div class="card empty"><h2>${esc(fer[0]?.titel || "Ferien")}</h2><p class="muted">In dieser Woche finden keine Lektionen statt.</p><div class="row" style="justify-content:center"><button class="pri" data-a="wk" data-n="7">Zur nächsten Schulwoche</button></div></div>`; return; }
+  if (!list.some(s => s.id === selSid)){
+    const t = today(), now = new Date().toTimeString().slice(0,5);
+    const isThisWeek = iso(monday(new Date())) === iso(mon);
+    selSid = (isThisWeek && (list.find(s => lessonDate(s, mon) === t && (s.zeit||"") >= now.slice(0,2)+":00" && !(getLesson(s.id, t)||{}).status) || list.find(s => lessonDate(s, mon) >= t && !(getLesson(s.id, lessonDate(s, mon))||{}).status)) || list[0]).id;
+  }
+  let lastTag = -1, items = "";
+  list.forEach(s => {
+    const d = lessonDate(s, mon), l = getLesson(s.id, d) || {}, f = ferienAm(d, s);
+    if (s.tag !== lastTag){ items += `<div class="pk-day">${s.tag ? TAGE[s.tag] + " " + fmt(d) : "Ohne Tag"}</div>`; lastTag = s.tag; }
+    const filled = l.inhalt || l.aufgaben || l.warmup || l.notiz;
+    const dot = l.status === "anwesend" ? "var(--ok)" : l.status === "entschuldigt" ? "var(--wa)" : l.status === "unentschuldigt" ? "var(--da)" : l.status === "ausgefallen" || f ? "var(--tx3)" : "transparent";
+    items += `<button class="pk ${s.id===selSid?"on":""}" data-a="pick" data-v="${s.id}">
+      <span class="tiny num">${esc(s.zeit||"–")}</span><span class="pk-n">${esc(s.name)}</span>
+      <span class="pk-s">${filled?'<span title="Notiz erfasst">✎</span>':""}<span class="dot" style="background:${dot};border:1px solid ${dot==="transparent"?"var(--bd2)":dot}"></span></span></button>`;
+  });
+  const i = list.findIndex(s => s.id === selSid), s = list[i];
+  const d = lessonDate(s, mon), l = getLesson(s.id, d) || {}, f = ferienAm(d, s);
+  const prev = lessonsOf(s.id).find(x => x.datum < d && (x.inhalt || x.aufgaben));
+  const open = lpItems(s.stufe, s.instrumente||[]).filter(it => (s.lp||{})[it.id] === 1);
+  const pS = list[i-1], nS = list[i+1];
+  const editor = `<div class="card ed" data-sid="${s.id}" data-d="${d}">
+    <div class="row"><div style="min-width:0"><a href="#s-${s.id}" class="ed-name">${esc(s.name)}</a>
+      <div class="small muted num">${s.tag?TAGE[s.tag]+" "+fmt(d,1):fmt(d,1)}${s.zeit?" · "+esc(s.zeit):""}${s.dauer?" · "+s.dauer+" Min.":""}${alterTxt(s)?" · "+esc(alterTxt(s)):""} · ${esc(s.stufe)}${s.typ==="Gruppe"&&s.mitglieder?" · "+esc(s.mitglieder):""}</div></div>
+      <span class="sp"></span>
+      <div class="seg">${STATUS.map(([k,t]) => `<button class="${l.status===k?"on s-"+k:""}" data-a="att" data-st="${k}">${t}</button>`).join("")}</div></div>
+    ${litChips(s)}
+    ${f ? `<div class="banner" style="margin:10px 0 0">${esc(f.titel)}: an diesem Tag ist schulfrei.</div>` : ""}
+    ${prev ? `<details class="prev" ${prev.aufgaben?"open":""}><summary>Letzte Lektion, ${fmt(prev.datum,1)}${prev.aufgaben?" · Aufgaben: "+esc(prev.aufgaben.replace(/\n+/g," · ")):""}</summary>
+      ${prev.inhalt?`<p><b>Gearbeitet</b><br>${esc(prev.inhalt)}</p>`:""}${prev.aufgaben?`<p><b>Aufgaben</b><br>${esc(prev.aufgaben)}</p>`:""}${prev.notiz?`<p class="muted"><b>Notiz</b><br>${esc(prev.notiz)}</p>`:""}</details>` : ""}
+    <div class="ed-f">
+      <div><label for="w-${s.id}">WarmUp</label><textarea id="w-${s.id}" data-f="warmup" rows="2" placeholder="Pad, Pyramide, Toaster …">${esc(l.warmup)}</textarea></div>
+      <div><label for="i-${s.id}">Gearbeitet</label><textarea id="i-${s.id}" data-f="inhalt" rows="6" placeholder="Was habt ihr gemacht? Eine Zeile pro Teil.">${esc(l.inhalt)}</textarea></div>
+      <div class="ed-2">
+        <div><label for="a-${s.id}">Aufgaben bis nächstes Mal</label><textarea id="a-${s.id}" data-f="aufgaben" rows="3">${esc(l.aufgaben)}</textarea></div>
+        <div><label for="n-${s.id}">Notiz (intern, nicht im Elternbericht)</label><textarea id="n-${s.id}" data-f="notiz" rows="3">${esc(l.notiz)}</textarea></div>
+      </div>
+    </div>
+    ${open.length ? `<div style="margin-top:12px"><label>Lehrplanziele in Arbeit: antippen, wenn erreicht</label><div class="row">${open.map(it => `<button class="chip" data-a="lpdone" data-i="${esc(it.id)}" title="${esc(it.bereich)}">${esc(it.text)}</button>`).join("")}</div></div>` : ""}
+    ${(l.lpDone||[]).length ? `<div class="row small" style="margin-top:6px">${l.lpDone.map(id => `<span class="chip on">✓ ${esc(id.split("|")[1])}: ${esc(lpText(id))}</span>`).join("")}</div>` : ""}
+    <div class="row ed-nav"><button ${pS?`data-a="pick" data-v="${pS.id}"`:"disabled"}>‹ ${pS?esc(pS.name):""}</button><span class="sp tiny" style="text-align:center">${i+1} von ${list.length} · wird automatisch gespeichert</span><button ${nS?`data-a="pick" data-v="${nS.id}"`:"disabled"}>${nS?esc(nS.name):""} ›</button></div>
+  </div>`;
+  app.innerHTML = html + `<div class="wk"><nav class="pk-list" aria-label="SuS dieser Woche">${items}</nav>${editor}</div>`;
+  const on = app.querySelector(".pk.on"); if (on && on.scrollIntoView && window.matchMedia("(max-width:760px)").matches) on.scrollIntoView({block:"nearest", inline:"center"});
+}
+
+function vSus(){
+  const list = sorted().filter(s => (filt.schule==="Alle" || s.schule===filt.schule) && s.name.toLowerCase().includes(filt.q.toLowerCase()));
+  const inactive = db.students.filter(s => s.aktiv === false);
+  let html = backupBanner() + `<div class="row" style="margin-bottom:12px"><h2 style="margin:0">Alle SuS <span class="muted num" style="font-weight:400">(${list.length})</span></h2><span class="sp"></span>
+    <div class="seg">${["Alle","MSAM","Rondo"].map(k => `<button class="${filt.schule===k?"on":""}" data-a="fs" data-v="${k}">${k}</button>`).join("")}</div>
+    <input id="q" placeholder="Suchen" value="${esc(filt.q)}" style="width:140px" aria-label="SuS suchen"><button class="pri" data-a="newS">Neu</button></div>`;
+  if (!db.students.length){ app.innerHTML = html + emptyState(); return; }
+  html += `<div class="grid">`;
+  list.forEach(s => {
+    const p = progress(s), a = attendance(s.id), ne = nextEvent(s.id), last = lessonsOf(s.id).find(l => l.aufgaben);
+    html += `<a href="#s-${s.id}" class="card" style="text-decoration:none;color:inherit;display:block">
+      <div class="row"><b>${esc(s.name)}</b><span class="sp"></span><span class="tiny num">${s.tag?TAGE[s.tag]:""} ${esc(s.zeit)}${s.dauer?" · "+s.dauer+"'":""}</span></div>
+      <div class="small muted">${alterTxt(s)?esc(alterTxt(s))+" · ":""}${esc(s.stufe)} · ${esc(s.schule)}${s.typ==="Gruppe"?" · Gruppe":""}</div>
+      <div class="tiny">${esc((s.instrumente||[]).join(", "))}</div>
+      <div class="bar" style="margin:8px 0 3px"><i style="width:${p.pct}%"></i></div>
+      <div class="small muted num">Lehrplan ${p.pct} % (${p.done}/${p.total}) · Präsenz ${a.n?a.a+"/"+a.n:"–"}${a.u?` · <span style="color:var(--da)">${a.u} unentsch.</span>`:""}</div>
+      ${last ? `<div class="tiny" style="margin-top:4px">Aufgaben: ${esc(last.aufgaben)}</div>` : ""}
+      ${ne ? `<div style="margin-top:6px"><span class="badge ${EVTYP[ne.typ]}">${esc(ne.typ)} ${fmt(ne.datum)}</span></div>` : ""}
+      ${sbDone(s) < SBN ? `<div style="margin-top:6px"><span class="badge b-wa">Stammblatt ${sbDone(s)}/${SBN}</span></div>` : ""}
+    </a>`;
+  });
+  html += `</div>`;
+  if (inactive.length) html += `<h3>Ehemalige</h3><div class="row">${inactive.map(s => `<a class="chip" href="#s-${s.id}" style="text-decoration:none;color:inherit">${esc(s.name)}</a>`).join("")}</div>`;
+  app.innerHTML = html;
+  const q = document.getElementById("q"); q.oninput = () => { filt.q = q.value; const pos = q.selectionStart; vSus(); const n = document.getElementById("q"); n.focus(); n.setSelectionRange(pos,pos); };
+}
+
+function vDetail(id){
+  const s = S(id); if (!s){ location.hash = "sus"; return; }
+  s.lp ||= {};
+  const st = detailStufe || s.stufe;
+  const p = progress(s), a = attendance(s.id);
+  const items = lpItems(st, s.instrumente||[]);
+  const groups = {}; items.forEach(i => (groups[i.bereich] ||= []).push(i));
+  const ls = lessonsOf(s.id);
+  const lit = LP.stufen[st].literatur;
+  let html = `<div class="row" style="margin-bottom:10px"><a href="#sus" class="muted">‹ Alle SuS</a><span class="sp"></span>
+    <a class="btn" href="#bericht-${s.id}">Bericht für Eltern</a></div>
+  <h2>${esc(s.name)}${alter(s)!==null?` <span class="muted num" style="font-weight:400;font-size:16px;font-family:var(--body)">${alter(s)} Jahre</span>`:""}</h2>
+  <div class="card"><div class="f">
+    <div><label for="sf-name">Name</label><input id="sf-name" data-sf="name" value="${esc(s.name)}"></div>
+    <div><label for="sf-schule">Schule</label><select id="sf-schule" data-sf="schule">${["MSAM","Rondo"].map(k=>`<option ${s.schule===k?"selected":""}>${k}</option>`).join("")}</select></div>
+    <div><label for="sf-typ">Einzel/Gruppe</label><select id="sf-typ" data-sf="typ" data-rr>${["Einzel","Gruppe"].map(k=>`<option ${s.typ===k?"selected":""}>${k}</option>`).join("")}</select></div>
+    <div><label for="sf-tag">Wochentag</label><select id="sf-tag" data-sf="tag" data-num>${TAGE.map((t,i)=>`<option value="${i}" ${s.tag==i?"selected":""}>${t||"–"}</option>`).join("")}</select></div>
+    <div><label for="sf-zeit">Zeit</label><input id="sf-zeit" type="time" data-sf="zeit" value="${esc(s.zeit)}"></div>
+    <div><label for="sf-dauer">Dauer (Min.)</label><input id="sf-dauer" type="number" data-sf="dauer" data-num value="${esc(s.dauer)}"></div>
+    <div><label for="sf-stufe">Förderstufe</label><select id="sf-stufe" data-sf="stufe" data-rr>${STUFEN.map(k=>`<option ${s.stufe===k?"selected":""}>${k}</option>`).join("")}</select></div>
+    <div><label for="sf-seit">Unterricht seit</label><input id="sf-seit" data-sf="seit" value="${esc(s.seit)}" placeholder="2023"></div>
+    <div><label for="sf-eltern">Eltern</label><input id="sf-eltern" data-sf="eltern" value="${esc(s.eltern)}"></div>
+    <div><label for="sf-kontakt">Kontakt</label><input id="sf-kontakt" data-sf="kontakt" value="${esc(s.kontakt)}" placeholder="079 123 45 67"></div>
+    ${s.typ==="Gruppe"?`<div style="grid-column:1/-1"><label for="sf-mitglieder">Mitglieder</label><input id="sf-mitglieder" data-sf="mitglieder" value="${esc(s.mitglieder)}"></div>`:""}
+    <div style="grid-column:1/-1"><label for="sf-bemerkung">Bemerkung</label><input id="sf-bemerkung" data-sf="bemerkung" value="${esc(s.bemerkung)}"></div>
+  </div>
+  <div style="margin-top:10px"><label>Instrumente / Bereiche</label><div class="row">${INSTR.map(k => `<button class="chip ${(s.instrumente||[]).includes(k)?"on":""}" data-a="instr" data-v="${k}">${k}</button>`).join("")}</div></div>
+  <div class="row" style="margin-top:12px"><span class="small muted num">Präsenz ${a.n?a.a+"/"+a.n:"–"} · entschuldigt ${a.e} · unentschuldigt ${a.u}</span><span class="sp"></span>
+    <button class="ghost small" data-a="toggleAktiv">${s.aktiv===false?"Wieder aktiv setzen":"Als ehemalig markieren"}</button><button class="ghost del small" data-a="delS">Löschen</button></div></div>
+
+  <h3>Stammblatt <span id="sbCount" class="badge ${sbDone(s)===SBN?"b-ok":"b-wa"}" style="text-transform:none;letter-spacing:0">${sbDone(s)} von ${SBN} ausgefüllt</span></h3>
+  <div class="card"><div class="sb">${s.typ==="Gruppe"
+    ? `<div><label for="sb-geburt">Alter / Jahrgänge</label><input id="sb-geburt" data-sb="geburt" value="${esc((s.stammblatt||{}).geburt)}" placeholder="z. B. 9–11 J. oder 2015/2016"></div>`
+    : `<div><label for="sb-geburt">Geburtsdatum</label><div class="row" style="flex-wrap:nowrap"><input id="sb-geburt" type="date" data-sb="geburt" value="${esc((s.stammblatt||{}).geburt)}" style="flex:1;min-width:0"><b id="ageOut" class="num" style="white-space:nowrap">${alter(s)!==null?alter(s)+" Jahre":""}</b></div></div>`}${SB.map(([k,lab,ph]) => `<div><label for="sb-${k}">${lab}</label><textarea id="sb-${k}" data-sb="${k}" rows="3" placeholder="${ph}">${esc((s.stammblatt||{})[k])}</textarea></div>`).join("")}</div>
+  <p class="tiny" style="margin:8px 0 0">Nur für dich. Das Stammblatt erscheint nicht im Elternbericht.</p></div>
+
+  ${litSection(s)}
+
+  <h3>Lehrplan</h3>
+  <div class="row" style="margin-bottom:8px"><div class="seg">${STUFEN.map(k => `<button class="${st===k?"on":""}" data-a="dstufe" data-v="${k}">${k}${k===s.stufe?" ●":""}</button>`).join("")}</div>
+    <span class="sp"></span><span class="small muted num">${st===s.stufe?`${p.done}/${p.total} erreicht · `:""}○ offen · ◐ in Arbeit · ● erreicht</span></div>
+  <div class="cols">${Object.entries(groups).map(([b, its]) => `<div class="card"><b>${esc(b)}</b>
+    ${its.map(i => { const v = s.lp[i.id]||0; return `<div class="lp-item"><button class="st s${v}" data-a="lp" data-i="${esc(i.id)}" aria-label="Status ändern">${["○","◐","●"][v]}</button><span class="small">${i.kind==="praxis"?'<span class="badge b-te">Spielpraxis</span> ':""}${esc(i.text)}</span></div>`; }).join("")}
+    ${(lit[b]||[]).length ? `<div class="tiny" style="margin-top:6px">Literatur: ${lit[b].map(esc).join(" · ")}</div>` : ""}${lpBookLinks(st, b)}</div>`).join("")}</div>
+
+  <h3>Termine</h3>
+  <div class="card">${eventsOf(s.id).length ? eventsOf(s.id).map(e => `<div class="row small" style="padding:3px 0"><span class="badge ${EVTYP[e.typ]}">${esc(e.typ)}</span> <span class="num">${fmt(e.datum,1)}</span> ${esc(e.titel)} ${(e.bis||e.datum)<today()?'<span class="tiny">vorbei</span>':""}</div>`).join("") : `<span class="small muted">Keine Termine. Im Kalender eintragen und ${esc(s.name)} zuordnen.</span>`}</div>
+
+  <h3>Lektionen</h3>
+  <div class="row" style="margin-bottom:8px"><input type="date" id="newLd" value="${today()}" style="width:170px" aria-label="Datum der Lektion"><button data-a="newL">Lektion an diesem Datum</button></div>
+  <div class="card tw"><table><tr><th>Datum</th><th>Status</th><th>Gearbeitet</th><th>Aufgaben</th><th>Notiz</th><th></th></tr>
+  ${ls.map(l => `<tr><td style="white-space:nowrap" class="num"><a href="#woche" data-a="gowk" data-d="${l.datum}">${fmt(l.datum,1)}</a></td><td>${l.status?`<span class="badge ${{anwesend:"b-ok",entschuldigt:"b-wa",unentschuldigt:"b-da",ausgefallen:"b-gr"}[l.status]}">${l.status}</span>`:""}</td>
+    <td class="small">${esc([l.warmup,l.inhalt].filter(Boolean).join(" · "))}</td><td class="small">${esc(l.aufgaben)}</td><td class="small muted">${esc(l.notiz)}</td><td><button class="ghost del small" data-a="delL" data-v="${l.id}" aria-label="Lektion löschen">×</button></td></tr>`).join("") || `<tr><td colspan="6" class="muted small">Noch keine Lektionen. In der Wochenansicht eintragen.</td></tr>`}
+  </table></div>`;
+  app.innerHTML = `<div data-sid="${s.id}">${html}</div>`;
+}
+
+function reportText(s){
+  const p = progress(s), items = lpItems(s.stufe, s.instrumente||[]);
+  const groups = {}; items.forEach(i => (groups[i.bereich] ||= []).push(i));
+  const lines = [`Lernstand ${s.name}`, `Schlagzeug / Perkussion, ${s.schule}, Stand ${fmt(today(),1)}`, "", `Förderstufe: ${s.stufe}`, `Lehrplanziele dieser Stufe erreicht: ${p.done} von ${p.total} (${p.pct} %)`];
+  Object.entries(groups).forEach(([b, its]) => { const d = its.filter(i=>s.lp[i.id]===2), w = its.filter(i=>s.lp[i.id]===1); if (!d.length && !w.length) return;
+    lines.push("", b); if (d.length) lines.push("Erreicht:", ...d.map(i=>"- "+i.text)); if (w.length) lines.push("Daran arbeiten wir:", ...w.map(i=>"- "+i.text)); });
+  const lr = litReport(s); if (lr.length) lines.push("", "Aktuelle Literatur:", ...lr.map(x => "- " + x));
+  const up = eventsOf(s.id).filter(e => e.datum >= today());
+  if (up.length) lines.push("", "Nächste Termine:", ...up.map(e => `- ${fmt(e.datum,1)}: ${e.titel} (${e.typ})${e.ort?", "+e.ort:""}`));
+  return lines.join("\n");
+}
+function vBericht(id){
+  const s = S(id); if (!s){ location.hash = "sus"; return; }
+  s.lp ||= {};
+  const p = progress(s), a = attendance(s.id);
+  const items = lpItems(s.stufe, s.instrumente||[]);
+  const groups = {}; items.forEach(i => (groups[i.bereich] ||= []).push(i));
+  const recent = lessonsOf(s.id).filter(l => l.inhalt || l.aufgaben).slice(0, 6);
+  const up = eventsOf(s.id).filter(e => e.datum >= today());
+  app.innerHTML = `<div class="report" data-sid="${s.id}">
+  <div class="row" style="margin-bottom:12px"><a href="#s-${s.id}" class="muted">‹ Zurück</a><span class="sp"></span><button data-a="copyRep">Text kopieren</button><button class="pri" data-a="saveRep">Als Datei sichern</button></div>
+  <div class="card">
+  <h2 style="margin-bottom:2px">Lernstand ${esc(s.name)}</h2>
+  <div class="muted small">Schlagzeug / Perkussion · ${esc(s.schule)} · Stand ${fmt(today(),1)}</div>
+  <p>Förderstufe: <b>${esc(s.stufe)}</b> · Bereiche: ${esc((s.instrumente||[]).join(", "))}<br>
+  Lehrplanziele dieser Stufe erreicht: <b class="num">${p.done} von ${p.total}</b> (${p.pct} %)${a.n?` · Präsenz: ${a.a} von ${a.n} Lektionen`:""}</p>
+  ${Object.entries(groups).map(([b, its]) => { const done = its.filter(i=>s.lp[i.id]===2), wip = its.filter(i=>s.lp[i.id]===1); if(!done.length && !wip.length) return ""; return `<h3>${esc(b)}</h3>
+    ${done.length?`<div class="small"><b>Erreicht</b><ul class="plain">${done.map(i=>`<li>${esc(i.text)}</li>`).join("")}</ul></div>`:""}
+    ${wip.length?`<div class="small" style="margin-top:6px"><b>Daran arbeiten wir</b><ul class="plain">${wip.map(i=>`<li>${esc(i.text)}</li>`).join("")}</ul></div>`:""}`; }).join("")}
+  ${recent.length?`<h3>Letzte Lektionen</h3><div class="tw"><table>${recent.map(l=>`<tr><td style="white-space:nowrap" class="num">${fmt(l.datum,1)}</td><td class="small">${esc(l.inhalt)}${l.aufgaben?`<br><span class="muted">Aufgaben: ${esc(l.aufgaben)}</span>`:""}</td></tr>`).join("")}</table></div>`:""}
+  ${litReport(s).length?`<h3>Aktuelle Literatur</h3><ul class="plain small">${litReport(s).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+  ${up.length?`<h3>Nächste Termine</h3><ul class="plain small">${up.map(e=>`<li>${fmt(e.datum,1)}: ${esc(e.titel)} (${esc(e.typ)})${e.ort?", "+esc(e.ort):""}</li>`).join("")}</ul>`:""}
+  <p class="tiny" style="margin-top:20px">Interne Notizen sind in diesem Bericht nicht enthalten.</p>
+  </div></div>`;
+}
+
+function vKalender(){
+  const from = calYear+"-08-01", to = (calYear+1)+"-07-31";
+  const evs = db.events.filter(e => (e.bis||e.datum) >= from && e.datum <= to).sort((a,b) => a.datum.localeCompare(b.datum));
+  const e = editEv ? db.events.find(x => x.id === editEv) : null;
+  const f = e || {datum:today(), titel:"", typ:"Konzert", ort:"", sids:[], notiz:""};
+  let html = `<div class="row" style="margin-bottom:12px"><button data-a="cy" data-n="-1" aria-label="Vorheriges Schuljahr">‹</button><h2 style="margin:0">Schuljahr ${calYear}/${String(calYear+1).slice(2)}</h2><button data-a="cy" data-n="1" aria-label="Nächstes Schuljahr">›</button></div>
+  <div class="card" style="margin-bottom:14px" id="evform"><b>${e?"Termin bearbeiten":"Neuer Termin"}</b><div class="f" style="margin-top:8px">
+    <div><label for="ev_datum">Datum</label><input type="date" id="ev_datum" value="${esc(f.datum)}"></div>
+    <div><label for="ev_bis">Bis (optional)</label><input type="date" id="ev_bis" value="${esc(f.bis||"")}"></div>
+    <div><label for="ev_typ">Typ</label><select id="ev_typ">${Object.keys(EVTYP).map(k=>`<option ${f.typ===k?"selected":""}>${k}</option>`).join("")}</select></div>
+    <div style="grid-column:span 2"><label for="ev_titel">Titel</label><input id="ev_titel" value="${esc(f.titel)}" placeholder="Weihnachtsvorspiel"></div>
+    <div><label for="ev_ort">Ort / Zeit</label><input id="ev_ort" value="${esc(f.ort)}" placeholder="Aula, 18:30"></div>
+  </div>
+  <label style="margin-top:10px">Wer macht mit?</label><div class="row" id="ev_sids">${sorted().map(s => `<button class="chip ${(f.sids||[]).includes(s.id)?"on":""}" data-a="evs" data-v="${s.id}">${esc(s.name)}</button>`).join("") || '<span class="tiny">Noch keine SuS erfasst.</span>'}</div>
+  <div style="margin-top:8px"><label for="ev_notiz">Notiz</label><input id="ev_notiz" value="${esc(f.notiz||"")}" placeholder="Stücke, Anmeldeschluss"></div>
+  <div class="row" style="margin-top:10px"><button class="pri" data-a="evsave">${e?"Speichern":"Termin hinzufügen"}</button>${e?`<button data-a="evcancel">Abbrechen</button><span class="sp"></span><button class="del" data-a="evdel">Löschen</button>`:""}<span class="small" id="everr" style="color:var(--da)"></span></div></div>
+  <div class="row small" style="margin-bottom:8px">${Object.keys(EVTYP).map(k=>`<span><span class="dot" style="background:${EVCOL[k]}"></span>${k}</span>`).join(" ")}</div>
+  <div class="months">`;
+  for (let m = 0; m < 12; m++){
+    const y = calYear + (m+7 >= 12 ? 1 : 0), mo = (m+7)%12;
+    const first = new Date(y, mo, 1), days = new Date(y, mo+1, 0).getDate(), off = (first.getDay()+6)%7;
+    let cells = "<tr>" + "<td></td>".repeat(off);
+    for (let d = 1; d <= days; d++){
+      const ds = iso(new Date(y, mo, d)); const ev = evs.find(x => ds >= x.datum && ds <= (x.bis||x.datum));
+      const dow = (off+d-1)%7, endDs = ev ? (ev.bis||ev.datum) : "";
+      const se = ev ? ((ds===ev.datum || dow===0 || d===1) ? " s" : "") + ((ds===endDs || dow===6 || d===days) ? " e" : "") : "";
+      cells += `<td class="${ev?"ev"+se:""}${ds===today()?" today":""}" ${ev?`style="--evc:${EVCOL[ev.typ]}" title="${esc(ev.titel)}"`:""}>${d}</td>`;
+      if ((off+d)%7 === 0) cells += "</tr><tr>";
+    }
+    html += `<div class="card mon"><b class="small">${first.toLocaleDateString("de-CH",{month:"long",year:"numeric"})}</b><table><tr>${["Mo","Di","Mi","Do","Fr","Sa","So"].map(t=>`<th>${t}</th>`).join("")}</tr>${cells}</tr></table></div>`;
+  }
+  html += `</div><h3>Alle Termine</h3><div class="card">${evs.length ? evs.map(e => `<div class="row" style="padding:6px 0;border-bottom:1px solid var(--bd)">
+    <span style="min-width:90px" class="small num ${(e.bis||e.datum)<today()?"muted":""}">${fmt(e.datum,1)}${e.bis?"–"+fmt(e.bis):""}</span><span class="badge ${EVTYP[e.typ]}">${esc(e.typ)}</span>
+    <span class="sp" style="min-width:0"><b class="small">${esc(e.titel)}</b>${e.ort?` <span class="tiny">${esc(e.ort)}</span>`:""}<br><span class="tiny">${(e.sids||[]).map(i=>esc(S(i)?.name||"")).join(", ")}${e.notiz?" · "+esc(e.notiz):""}</span></span>
+    <button class="ghost small" data-a="evedit" data-v="${e.id}">Bearbeiten</button></div>`).join("") : `<span class="muted small">Noch keine Termine in diesem Schuljahr. Trag oben das erste Konzert oder den nächsten Stufentest ein.</span>`}</div>`;
+  app.innerHTML = html;
+}
+
+function vLehrplan(){
+  const st = LP.stufen[lpStufe];
+  const bs = LP.bereiche.filter(b => (st.ziele[b]||[]).length || (st.spielpraxis[b]||[]).length || (st.literatur[b]||[]).length || lpBooks(lpStufe, b).length);
+  const other = lpBooks(lpStufe, null);
+  app.innerHTML = `<div class="row" style="margin-bottom:12px"><h2 style="margin:0">Lehrplan AP</h2><span class="sp"></span><div class="seg">${STUFEN.map(k => `<button class="${lpStufe===k?"on":""}" data-a="lps" data-v="${k}">${k}</button>`).join("")}</div></div>
+  <div class="cols">${bs.map(b => `<div class="card"><b>${esc(b)}</b>
+    ${(st.ziele[b]||[]).length?`<ul class="plain small">${st.ziele[b].map(t=>`<li>${esc(t)}</li>`).join("")}</ul>`:""}
+    ${(st.spielpraxis[b]||[]).length?`<div style="margin-top:8px"><span class="badge b-te">Spielpraxis</span><ul class="plain small">${st.spielpraxis[b].map(t=>`<li>${esc(t)}</li>`).join("")}</ul></div>`:""}
+    ${(st.literatur[b]||[]).length?`<div style="margin-top:8px"><span class="badge b-pu">Literatur</span><ul class="plain small">${st.literatur[b].map(t=>`<li>${esc(t)}</li>`).join("")}</ul></div>`:""}
+    ${lpBookLinks(lpStufe, b)}
+  </div>`).join("")}${other.length ? `<div class="card"><b>Ohne Bereich</b> <span class="tiny">z. B. Body Percussion</span>${lpBookLinks(lpStufe, null)}</div>` : ""}</div>`;
+}
+
+function vDaten(){
+  const lb = db.lastBackup ? new Date(db.lastBackup).toLocaleString("de-CH") : "noch nie";
+  const where = mode === "cloud"
+    ? "Deine Daten liegen in deinem privaten Bereich dieser Seite. Nur du siehst sie, auf jedem Gerät, auf dem du mit deinem Konto angemeldet bist. Auch wenn du die Seite teilst, sehen andere nur ein leeres Klassenbuch."
+    : "Deine Daten liegen nur in diesem Browser auf diesem Gerät. Lade regelmässig ein Backup herunter.";
+  app.innerHTML = `<h2>Daten</h2>
+  <div class="card"><p style="margin-top:0;max-width:65ch">${where}</p>
+  <p class="small muted num">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine</p>
+  <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Startpaket oder Backup laden</button></div>
+  <p class="tiny">„Laden“ ersetzt alle Daten durch die gewählte Datei.</p></div>
+  <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Daten löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>`;
+}
+
+async function saveFile(filename, data, type){
+  const dl = null;
+  try { const file = new File([data], filename, {type}); if (navigator.canShare && navigator.canShare({files:[file]}) && matchMedia("(pointer:coarse)").matches){ await navigator.share({files:[file]}); return true; } } catch(e) { if (e && e.name === "AbortError") return false; }
+  if (dl){ try { await dl.save({filename, data}); return true; } catch(e) { if (e && e.code === "declined") return false; toast("Die Datei konnte nicht gesichert werden."); return false; } }
+  const u = URL.createObjectURL(new Blob([data], {type})), x = document.createElement("a");
+  x.href = u; x.download = filename; document.body.appendChild(x); x.click(); x.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); return true;
+}
+function replaceAll(d){
+  delL.clear(); db.lessons.forEach(l => delL.add(l.id)); dirtyL.clear();
+  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null};
+  db.lessons.forEach(l => { delL.delete(l.id); dirtyL.add(l.id); });
+  if (Array.isArray(d.books)){ books = d.books; saveBooks(); }
+  save(); render();
+}
+
+document.addEventListener("click", ev => {
+  const b = ev.target.closest("[data-a]"); if (!b) return;
+  const a = b.dataset.a, card = b.closest("[data-sid]"), sid = card?.dataset.sid;
+  const s = sid ? S(sid) : null;
+  switch (a){
+    case "wk": { const n = +b.dataset.n; weekStart = n ? addDays(weekStart, n) : monday(new Date());
+      if (n && db.students.length) for (let k = 0; k < 12 && sorted().every(s => ferienAm(lessonDate(s, weekStart), s)); k++) weekStart = addDays(weekStart, n);
+      render(); break; }
+    case "gowk": weekStart = monday(parse(b.dataset.d)); break;
+    case "att": { const l = getLesson(sid, card.dataset.d, true); l.status = l.status === b.dataset.st ? "" : b.dataset.st; saveL(l.id); render(); break; }
+    case "lpdone": { const l = getLesson(sid, card.dataset.d, true); (s.lp ||= {})[b.dataset.i] = 2; (l.lpDone ||= []).push(b.dataset.i); if (!l.status) l.status = "anwesend"; saveL(l.id); save(); render(); break; }
+    case "lp": { s.lp ||= {}; const v = ((s.lp[b.dataset.i]||0)+1)%3; if (v) s.lp[b.dataset.i] = v; else delete s.lp[b.dataset.i]; save(); render(); break; }
+    case "dstufe": detailStufe = b.dataset.v; render(); break;
+    case "instr": { const v = b.dataset.v; s.instrumente = (s.instrumente||[]).includes(v) ? s.instrumente.filter(x=>x!==v) : [...(s.instrumente||[]), v]; save(); render(); break; }
+    case "toggleAktiv": s.aktiv = s.aktiv === false; save(); render(); break;
+    case "delS": ask(`${s.name} und alle Lektionen löschen?`, "Löschen", () => { db.students = db.students.filter(x => x.id !== sid); db.lessons.filter(l => l.sid === sid).forEach(l => dropL(l.id)); db.lessons = db.lessons.filter(l => l.sid !== sid); db.events.forEach(e => e.sids = (e.sids||[]).filter(x => x !== sid)); save(); location.hash = "sus"; }); break;
+    case "delL": ask("Diese Lektion löschen?", "Löschen", () => { dropL(b.dataset.v); db.lessons = db.lessons.filter(l => l.id !== b.dataset.v); render(); }); break;
+    case "newL": { const d = document.getElementById("newLd").value; if (d){ const l = getLesson(sid, d, true); saveL(l.id); weekStart = monday(parse(d)); location.hash = "woche"; } break; }
+    case "pick": selSid = b.dataset.v; render(); if (window.matchMedia("(max-width:760px)").matches) document.querySelector(".ed")?.scrollIntoView({block:"start"}); else window.scrollTo(0,0); break;
+    case "fs": filt.schule = b.dataset.v; render(); break;
+    case "newS": { const n = {id:uid(), name:"Neue Person", schule:"MSAM", typ:"Einzel", mitglieder:"", tag:0, zeit:"", dauer:30, stufe:"Unterstufe", instrumente:["Snare Drum"], seit:"", eltern:"", kontakt:"", bemerkung:"", lp:{}, aktiv:true}; db.students.push(n); save(); location.hash = "s-"+n.id; break; }
+    case "lps": lpStufe = b.dataset.v; render(); break;
+    case "cy": calYear += +b.dataset.n; render(); break;
+    case "evs": b.classList.toggle("on"); break;
+    case "evedit": editEv = b.dataset.v; render(); document.getElementById("evform").scrollIntoView({behavior:"smooth"}); break;
+    case "evcancel": editEv = null; render(); break;
+    case "evdel": ask("Diesen Termin löschen?", "Löschen", () => { db.events = db.events.filter(x => x.id !== editEv); editEv = null; save(); render(); }); break;
+    case "evsave": {
+      const g = id => document.getElementById(id).value.trim();
+      if (!g("ev_datum") || !g("ev_titel")){ document.getElementById("everr").textContent = "Datum und Titel ausfüllen."; return; }
+      const data = {datum:g("ev_datum"), bis:g("ev_bis") > g("ev_datum") ? g("ev_bis") : "", typ:g("ev_typ"), titel:g("ev_titel"), ort:g("ev_ort"), notiz:g("ev_notiz"), sids:[...document.querySelectorAll("#ev_sids .chip.on")].map(x => x.dataset.v)};
+      if (editEv) Object.assign(db.events.find(x => x.id === editEv), data); else db.events.push({id:uid(), ...data});
+      editEv = null; save(); render(); toast("Termin gespeichert"); break;
+    }
+    case "export": saveFile("klassenbuch-backup-" + today() + ".json", JSON.stringify({...db, books}, null, 1), "application/json").then(ok => { if (ok){ db.lastBackup = Date.now(); save(); render(); toast("Backup gesichert"); } }); break;
+    case "import": document.getElementById("fileIn").click(); break;
+    case "reset": ask("Wirklich alle SuS, Lektionen und Termine löschen?", "Alles löschen", () => replaceAll({})); break;
+    case "litAdd": { const b = bookById(document.getElementById("nl-b").value); if (!b) return;
+      (s.lit ||= []).push({id:uid(), b:b.id, stueck:document.getElementById("nl-st").value.trim(), seite:+document.getElementById("nl-se").value || 1, status:"aktuell", seit:today()}); save(); render(); break; }
+    case "litOpen": { const x = (s?.lit || []).find(y => y.id === b.dataset.v), bk = x && bookById(x.b); if (bk) openPdf(bk.id, pdfP(bk, x.seite), {sid, lit:x.id}); break; }
+    case "litDone": { const x = s.lit.find(y => y.id === b.dataset.v); x.status = "fertig"; x.bis = today(); save(); render(); break; }
+    case "litBack": { const x = s.lit.find(y => y.id === b.dataset.v); x.status = "aktuell"; delete x.bis; save(); render(); break; }
+    case "litDel": ask("Diesen Eintrag entfernen?", "Entfernen", () => { s.lit = s.lit.filter(y => y.id !== b.dataset.v); save(); render(); }); break;
+    case "litKat": litF.kat = b.dataset.v; render(); break;
+    case "litSort": litF.sort = b.dataset.v; render(); break;
+    case "litGrp": litF.group = !!b.dataset.v; render(); break;
+    case "litUp": document.getElementById("pdfIn").click(); break;
+    case "bkOpen": openPdf(b.dataset.v, +b.dataset.p || 1); break;
+    case "bkEdit": editBook = b.dataset.v; render(); document.getElementById("bkEdit")?.scrollIntoView({block:"nearest"}); break;
+    case "bkCancel": editBook = null; render(); break;
+    case "bkSave": { const bk = bookById(b.dataset.v), g = id => document.getElementById(id).value.trim();
+      Object.assign(bk, {titel:g("be-titel") || bk.titel, autor:g("be-autor"), ordner:g("be-ordner"), kat:g("be-kat") || bk.kat, off:Math.max(0, (+g("be-off") || 1) - 1), instr:[...document.querySelectorAll("#be-instr .chip.on")].map(x => x.dataset.v), stufen:[...document.querySelectorAll("#be-stufen .chip.on")].map(x => x.dataset.v)});
+      editBook = null; saveBooks(); render(); toast("Gespeichert"); break; }
+    case "bkDel": { const bk = bookById(b.dataset.v), n = db.students.filter(x => (x.lit||[]).some(y => y.b === bk.id)).length;
+      ask(`„${bk.titel}“ aus dem Katalog entfernen?${n ? ` ${n} SuS haben es in ihrer Literatur.` : ""}`, "Entfernen", () => { books = books.filter(x => x.id !== bk.id); editBook = null; saveBooks(); render(); }); break; }
+    case "copyRep": { const t = reportText(s); navigator.clipboard.writeText(t).then(() => toast("Text kopiert"), () => toast("Kopieren nicht möglich. Markiere den Text von Hand.")); break; }
+    case "saveRep": saveFile("Lernstand " + s.name + " " + today() + ".txt", reportText(s), "text/plain").then(ok => ok && toast("Bericht gesichert")); break;
+  }
+});
+document.getElementById("fileIn").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  f.text().then(t => { const d = JSON.parse(t); if (!Array.isArray(d.students)) throw 0;
+    ask(`Datei mit ${d.students.length} SuS, ${(d.lessons||[]).length} Lektionen und ${(d.events||[]).length} Terminen laden? Die aktuellen Daten werden ersetzt.`, "Laden", () => { replaceAll(d); if (d.pdfFiles) idbPut("cfg", "pdfmap", d.pdfFiles); toast(d.pdfFiles ? "Daten geladen. Füge jetzt unter Literatur die PDFs hinzu." : "Daten geladen"); location.hash = d.pdfFiles ? "literatur" : "sus"; }); })
+    .catch(() => toast("Diese Datei ist kein gültiges Backup.")); e.target.value = "";
+};
+document.addEventListener("input", ev => {
+  const t = ev.target; if (t.tagName === "TEXTAREA") autosize(t);
+  const card = t.closest("[data-sid]"); if (!card) return;
+  const s = S(card.dataset.sid); if (!s) return;
+  if (t.dataset.f){ const l = getLesson(s.id, card.dataset.d, true); l[t.dataset.f] = t.value; saveL(l.id); }
+  if (t.dataset.sb){ (s.stammblatt ||= {})[t.dataset.sb] = t.value; save(); const c = document.getElementById("sbCount"); if (c){ const n = sbDone(s); c.textContent = n + " von " + SBN + " ausgefüllt"; c.className = "badge " + (n === SBN ? "b-ok" : "b-wa"); } const ao = document.getElementById("ageOut"); if (ao) ao.textContent = alter(s) !== null ? alter(s) + " Jahre" : ""; }
+  if (t.dataset.lit){ const x = (s.lit || []).find(y => y.id === t.dataset.lit); if (x){ x.seite = +t.value || 1; save(); } }
+  if (t.dataset.sf){ s[t.dataset.sf] = "num" in t.dataset ? +t.value : t.value; save(); if ("rr" in t.dataset){ detailStufe = null; render(); } }
+});
+window.addEventListener("beforeunload", () => { if (mode === "local") flush(); });
+/* ---------- Literatur: Katalog (eigenes Dokument), Zuweisungen pro SuS (s.lit), Notenviewer ---------- */
+let books = [], litRef = null, booksDirty = false, lastBooksJson = "", assetsNs = null;
+let litF = {q:"", kat:"Alle", instr:"", stufe:"", sort:"titel", group:true}, editBook = null;
+const KATS = ["Lehrmittel","Stücke","Unterrichtsblätter"];
+const STK = {"frühe Förderung":"fF","Unterstufe":"U","Mittelstufe":"M","Oberstufe":"O"};
+function lpBooks(stufe, bereich){ return books.filter(b => (b.stufen||[]).includes(stufe) && (bereich ? (b.instr||[]).includes(bereich) : !(b.instr||[]).length)).sort((a,b) => a.titel.localeCompare(b.titel, "de")); }
+function lpBookLinks(stufe, bereich){ const bs = lpBooks(stufe, bereich); return bs.length ? `<div style="margin-top:8px"><span class="badge b-ac">Im Klassenbuch</span><div class="lit-marks">${bs.map(b => `<button class="chip" data-a="bkOpen" data-v="${b.id}">${esc(b.titel)}</button>`).join("")}</div></div>` : ""; }
+const bookById = id => books.find(b => b.id === id);
+const pdfP = (b, seite) => Math.max(1, Math.min(b.seiten, (+seite || 1) + (b.off || 0)));
+function saveBooks(){ booksDirty = true; schedule(); }
+const curLit = s => (s.lit || []).filter(x => x.status !== "fertig");
+const litLabel = x => { const b = bookById(x.b); return x.stueck || (b ? b.titel : "Unbekanntes Heft"); };
+function bookUsers(id){ return db.students.filter(s => s.aktiv !== false && curLit(s).some(x => x.b === id)); }
+
+function bookOptions(s, sel){
+  const mine = books.filter(b => (b.stufen || []).includes(s.stufe) && ((b.instr || []).some(i => (s.instrumente || []).includes(i)) || !(b.instr || []).length));
+  const groups = {}; books.forEach(b => (groups[b.ordner || b.kat] ||= []).push(b));
+  const opt = b => `<option value="${b.id}" ${b.id===sel?"selected":""}>${esc(b.titel)}${b.autor?" – "+esc(b.autor):""}</option>`;
+  return (mine.length ? `<optgroup label="Passend: ${esc(s.stufe)}, ${esc((s.instrumente||[]).join(", "))}">${mine.map(opt).join("")}</optgroup>` : "")
+    + Object.keys(groups).sort((a,b) => a.localeCompare(b)).map(g => `<optgroup label="${esc(g)}">${groups[g].map(opt).join("")}</optgroup>`).join("");
+}
+function litRow(x, done){
+  const b = bookById(x.b);
+  return `<div class="lit-row">
+    <button class="${done?"":"pri"} small" data-a="litOpen" data-v="${x.id}" ${b?"":"disabled"}>Öffnen</button>
+    <div style="min-width:0;flex:1 1 180px"><b class="small">${esc(litLabel(x))}</b><div class="tiny">${esc(b ? b.titel + (b.autor ? " · " + b.autor : "") : "Heft nicht mehr im Katalog")}${x.seit ? " · seit " + fmt(x.seit,1) : ""}${done && x.bis ? " · fertig " + fmt(x.bis,1) : ""}</div></div>
+    <label class="tiny" for="ls-${x.id}" style="margin:0">S.</label><input id="ls-${x.id}" class="num" type="number" inputmode="numeric" data-lit="${x.id}" value="${esc(x.seite)}">
+    ${done ? `<button class="ghost small" data-a="litBack" data-v="${x.id}">Wieder aktiv</button>` : `<button class="ghost small" data-a="litDone" data-v="${x.id}">Fertig</button>`}
+    <button class="ghost del small" data-a="litDel" data-v="${x.id}" aria-label="Entfernen">×</button></div>`;
+}
+function litSection(s){
+  const cur = curLit(s), done = (s.lit || []).filter(x => x.status === "fertig");
+  return `<h3>Literatur</h3><div class="card">
+    ${cur.length ? cur.map(x => litRow(x, false)).join("") : `<span class="small muted">Noch keine aktuelle Literatur. Wähle unten ein Heft, oder tippe im Notenviewer auf „Für SuS“.</span>`}
+    ${books.length ? `<div class="lit-add">
+      <div><label for="nl-b">Heft</label><select id="nl-b">${bookOptions(s)}</select></div>
+      <div><label for="nl-st">Stück / Übung</label><input id="nl-st" placeholder="z. B. Etüde Nr. 12"></div>
+      <div><label for="nl-se">Seite</label><input id="nl-se" type="number" inputmode="numeric" value="1"></div>
+      <div><button class="pri" data-a="litAdd">Hinzufügen</button></div></div>` : `<p class="tiny">Der Literaturkatalog ist noch leer.</p>`}
+    ${done.length ? `<details style="margin-top:10px"><summary class="small muted">Abgeschlossen (${done.length})</summary>${done.map(x => litRow(x, true)).join("")}</details>` : ""}
+  </div>`;
+}
+function litChips(s){
+  const cur = curLit(s); if (!cur.length) return "";
+  return `<div class="row" style="margin-top:10px">${cur.map(x => `<button class="chip" data-a="litOpen" data-v="${x.id}" ${bookById(x.b)?"":"disabled"}>♪ ${esc(litLabel(x))} · S. ${esc(x.seite)}</button>`).join("")}</div>`;
+}
+function litReport(s){ return curLit(s).map(x => { const b = bookById(x.b); return (x.stueck ? x.stueck + " – " : "") + (b ? b.titel + (b.autor ? " (" + b.autor + ")" : "") : ""); }).filter(Boolean); }
+
+function vLiteratur(){
+  const q = litF.q.trim().toLowerCase();
+  const list = books.filter(b => (litF.kat === "Alle" || b.kat === litF.kat) && (!litF.instr || (b.instr||[]).includes(litF.instr)) && (!litF.stufe || (litF.stufe === "-" ? !(b.stufen||[]).length : (b.stufen||[]).includes(litF.stufe)))
+    && (!q || [b.titel, b.autor, b.ordner, ...(b.instr||[]), ...(b.marks||[]).map(m => m.t)].join(" ").toLowerCase().includes(q)));
+  const key = litF.sort || "titel", cmp = (x, y) => (x || "").localeCompare(y || "", "de");
+  list.sort((a, b) => key === "seiten" ? a.seiten - b.seiten : key === "sus" ? bookUsers(b.id).length - bookUsers(a.id).length || cmp(a.titel, b.titel) : cmp(a[key], b[key]) || cmp(a.titel, b.titel));
+  const kats = ["Alle", ...KATS.filter(k => books.some(b => b.kat === k)), ...new Set(books.map(b => b.kat).filter(k => !KATS.includes(k)))];
+  const cnt = k => k === "Alle" ? books.length : books.filter(b => b.kat === k).length;
+  const th = (k, t, cls) => `<th class="${cls||""}"><button class="ghost th-s ${key===k?"on":""}" data-a="litSort" data-v="${k}">${t}${key===k?" ↓":""}</button></th>`;
+  let html = `<div class="row" style="margin-bottom:12px"><h2 style="margin:0">Literatur</h2><span class="sp"></span>
+    ${assetsNs ? `<button data-a="litUp">PDF hinzufügen</button>` : ""}</div>
+  <div class="row" style="margin-bottom:8px"><div class="seg">${kats.map(k => `<button class="${litF.kat===k?"on":""}" data-a="litKat" data-v="${esc(k)}">${esc(k)} <span class="tiny num">${cnt(k)}</span></button>`).join("")}</div></div>
+  <div class="row" style="margin-bottom:12px"><input id="litQ" type="search" placeholder="Suchen: Titel, Autor, Lesezeichen …" value="${esc(litF.q)}" style="flex:1 1 220px;width:auto" aria-label="Literatur suchen">
+    <div class="seg"><button class="${litF.group?"on":""}" data-a="litGrp" data-v="1">Nach Ordnern</button><button class="${litF.group?"":"on"}" data-a="litGrp" data-v="">Liste</button></div>
+    <select id="litI" style="width:auto" aria-label="Bereich"><option value="">Alle Bereiche</option>${INSTR.map(k => `<option ${litF.instr===k?"selected":""}>${k}</option>`).join("")}</select>
+    <select id="litSt" style="width:auto" aria-label="Stufe"><option value="">Alle Stufen</option>${STUFEN.map(k => `<option ${litF.stufe===k?"selected":""}>${k}</option>`).join("")}<option value="-" ${litF.stufe==="-"?"selected":""}>Ohne Stufe</option></select></div>`;
+  if (!books.length) html += `<div class="card empty"><h2>Noch keine Literatur</h2><p class="muted">Tippe auf «PDF hinzufügen» und wähle deine Noten aus.</p></div>`;
+  else if (!list.length) html += `<p class="muted">Nichts gefunden.</p>`;
+  else html += `<div class="card lit-card"><table class="lit-t"><thead><tr>${th("titel","Titel")}${th("autor","Autor","c-a")}${litF.kat==="Alle"?th("kat","Kategorie","c-k"):""}<th class="c-b">Bereiche</th><th class="c-st">Stufe</th>${th("seiten","Seiten","c-s num")}${th("sus","SuS")}<th></th></tr></thead><tbody>
+    ${(() => { const cols = litF.kat === "Alle" ? 8 : 7;
+      if (!litF.group) return list.map(row).join("");
+      const g = {}; list.forEach(b => (g[b.ordner || "Ohne Ordner"] ||= []).push(b));
+      return Object.keys(g).sort((a, b) => a.localeCompare(b, "de")).map(o => `<tr class="lit-g"><th colspan="${cols}">${esc(o)} <span class="tiny num">${g[o].length}</span></th></tr>` + g[o].map(row).join("")).join(""); })()}
+    </tbody></table></div>
+    <p class="tiny">${list.length} von ${books.length} · Titel antippen öffnet die Noten.</p>`;
+  function row(b){
+      const us = bookUsers(b.id), meta = [b.autor, (b.stufen||[]).map(s => STK[s]).join("/"), b.seiten + " S."].filter(Boolean).join(" · ");
+      if (editBook === b.id) return `<tr><td colspan="8"><div id="bkEdit"><div class="f">
+        <div style="grid-column:1/-1"><label for="be-titel">Titel</label><input id="be-titel" value="${esc(b.titel)}"></div>
+        <div><label for="be-autor">Autor</label><input id="be-autor" value="${esc(b.autor)}"></div>
+        <div><label for="be-ordner">Ordner</label><input id="be-ordner" value="${esc(b.ordner)}"></div>
+        <div><label for="be-kat">Kategorie</label><select id="be-kat">${[...new Set([...KATS, b.kat])].map(k => `<option ${b.kat===k?"selected":""}>${esc(k)}</option>`).join("")}</select></div>
+        <div><label for="be-off">Heftseite 1 = PDF-Seite</label><input id="be-off" type="number" inputmode="numeric" value="${(b.off||0)+1}"></div></div>
+        <label style="margin-top:8px">Stufen</label><div class="row" id="be-stufen">${STUFEN.map(k => `<button class="chip ${(b.stufen||[]).includes(k)?"on":""}" data-a="evs" data-v="${k}">${k}</button>`).join("")}</div>
+        <label style="margin-top:8px">Bereiche</label><div class="row" id="be-instr">${INSTR.map(k => `<button class="chip ${(b.instr||[]).includes(k)?"on":""}" data-a="evs" data-v="${k}">${k}</button>`).join("")}</div>
+        <div class="row" style="margin-top:10px"><button class="pri" data-a="bkSave" data-v="${b.id}">Speichern</button><button data-a="bkCancel">Abbrechen</button><span class="sp"></span><button class="del" data-a="bkDel" data-v="${b.id}">Aus Katalog entfernen</button></div></div></td></tr>`;
+      return `<tr>
+        <td class="c-t"><button class="lit-open" data-a="bkOpen" data-v="${b.id}">${esc(b.titel)}</button><div class="tiny m-only">${esc(meta)}</div>
+          ${(b.marks||[]).length ? `<div class="lit-marks">${b.marks.slice().sort((x,y) => x.p - y.p).map(m => `<button class="chip" data-a="bkOpen" data-v="${b.id}" data-p="${m.p}">${esc(m.t)} · S. ${m.p - (b.off||0)}</button>`).join("")}</div>` : ""}</td>
+        <td class="c-a small muted">${esc(b.autor)}</td>
+        ${litF.kat==="Alle" ? `<td class="c-k"><span class="badge ${{Lehrmittel:"b-ac","Stücke":"b-pu","Unterrichtsblätter":"b-te"}[b.kat]||"b-gr"}">${esc(b.kat)}</span></td>` : ""}
+        <td class="c-b tiny">${esc((b.instr||[]).join(", "))}</td>
+        <td class="c-st"><span class="stk">${(b.stufen||[]).map(s => `<abbr title="${s}">${STK[s]}</abbr>`).join("")}</span>${b.lp ? ` <span class="tiny" title="Steht im Lehrplan AP">LP</span>` : ""}</td>
+        <td class="c-s small num muted">${b.seiten}</td>
+        <td>${us.map(s => `<a class="badge b-ac" href="#s-${s.id}" style="text-decoration:none">${esc(s.name.split(" ")[0])}</a>`).join(" ")}</td>
+        <td style="text-align:right"><button class="ghost small" data-a="bkEdit" data-v="${b.id}" aria-label="${esc(b.titel)} bearbeiten">Bearbeiten</button></td></tr>`;
+  }
+  app.innerHTML = html;
+  const qi = document.getElementById("litQ"); qi.oninput = () => { litF.q = qi.value; const pos = qi.selectionStart; vLiteratur(); const n = document.getElementById("litQ"); n.focus(); n.setSelectionRange(pos, pos); };
+  document.getElementById("litI").onchange = e => { litF.instr = e.target.value; vLiteratur(); };
+  document.getElementById("litSt").onchange = e => { litF.stufe = e.target.value; vLiteratur(); };
+}
+
+/* ---------- Notenviewer (pdf.js, im Hauptthread) ---------- */
+let pdfjsP = null;
+function loadPdfjs(){
+  if (pdfjsP) return pdfjsP;
+  const base = "vendor/";
+  const add = src => new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+  pdfjsP = add(base + "pdf.min.js").then(() => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = base + "pdf.worker.min.js"; return window.pdfjsLib; });
+  pdfjsP.catch(() => { pdfjsP = null; });
+  return pdfjsP;
+}
+const docCache = new Map();
+function getDoc(a){
+  if (docCache.has(a)) return docCache.get(a);
+  const pr = (async () => {
+    const lib = await loadPdfjs();
+    const data = await pdfBytes(a);
+    return lib.getDocument({data: data.slice(), isEvalSupported: false}).promise;
+  })();
+  docCache.set(a, pr); pr.catch(() => docCache.delete(a));
+  while (docCache.size > 4){ const k = docCache.keys().next().value; const old = docCache.get(k); docCache.delete(k); old.then(d => d.destroy()).catch(() => {}); }
+  return pr;
+}
+function locate(b, p){ let r = p; for (const t of b.teile){ if (r <= t.n) return {t, lp: r}; r -= t.n; } const t = b.teile[b.teile.length-1]; return {t, lp: t.n}; }
+const pv = {b:null, p:1, zoom:1, fit:"page", sid:null, lit:null, tok:0, task:null, pop:null};
+const $ = id => document.getElementById(id);
+function openPdf(bid, p, ctx){
+  const b = bookById(bid); if (!b){ toast("Dieses Heft ist nicht mehr im Katalog."); return; }
+  if (!b.teile.length || !b.teile.every(t => t.a)){ toast("Das PDF ist noch nicht hochgeladen."); return; }
+  Object.assign(pv, {b, p: Math.max(1, Math.min(b.seiten, p || 1)), zoom: 1, sid: ctx?.sid || null, lit: ctx?.lit || null, pop: null});
+  $("pv").hidden = false; document.body.style.overflow = "hidden";
+  $("pvHere").hidden = !pv.lit; pvMarks(); pvPopRender(); pvShow();
+}
+function closePdf(){ $("pv").hidden = true; document.body.style.overflow = ""; pv.tok++; if (pv.task) try { pv.task.cancel(); } catch(e) {} render(); }
+function pvMarks(){
+  const sel = $("pvMarks"), m = (pv.b.marks || []).slice().sort((x,y) => x.p - y.p);
+  sel.hidden = !m.length;
+  sel.innerHTML = `<option value="">Lesezeichen …</option>` + m.map(x => `<option value="${x.p}">${esc(x.t)} · S. ${x.p - (pv.b.off||0)}</option>`).join("");
+}
+async function pvShow(){
+  const b = pv.b, tok = ++pv.tok, off = b.off || 0;
+  $("pvT").textContent = b.titel; $("pvP").value = pv.p - off; $("pvN").textContent = "/ " + (b.seiten - off);
+  $("pvFit").textContent = pv.fit === "page" ? "Breite" : "Ganze Seite";
+  const msg = $("pvMsg"), c = $("pvC"), body = $("pvBody");
+  const slow = setTimeout(() => { if (tok === pv.tok){ msg.textContent = "Noten werden geladen …"; c.hidden = true; } }, 250);
+  const {t, lp} = locate(b, pv.p);
+  try {
+    const doc = await getDoc(t.a); if (tok !== pv.tok) return;
+    const page = await doc.getPage(Math.min(lp, doc.numPages)); if (tok !== pv.tok) return;
+    const w = body.clientWidth - 16, h = body.clientHeight - 16, v1 = page.getViewport({scale: 1});
+    const base = pv.fit === "width" ? w / v1.width : Math.min(w / v1.width, h / v1.height);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5), vp = page.getViewport({scale: base * pv.zoom * dpr});
+    const cv = document.createElement("canvas"); cv.width = Math.floor(vp.width); cv.height = Math.floor(vp.height);
+    if (pv.task) try { pv.task.cancel(); } catch(e) {}
+    pv.task = page.render({canvasContext: cv.getContext("2d"), viewport: vp});
+    await pv.task.promise; if (tok !== pv.tok) return;
+    clearTimeout(slow);
+    c.width = cv.width; c.height = cv.height; c.getContext("2d").drawImage(cv, 0, 0);
+    c.style.width = (vp.width / dpr) + "px"; c.style.height = (vp.height / dpr) + "px"; c.hidden = false; msg.textContent = "";
+    body.scrollTop = 0; body.scrollLeft = Math.max(0, (body.scrollWidth - body.clientWidth) / 2);
+    const nx = locate(b, Math.min(pv.p + 1, b.seiten)); if (nx.t !== t) getDoc(nx.t.a).catch(() => {});
+  } catch(e) {
+    clearTimeout(slow);
+    if (tok === pv.tok && !(e && e.name === "RenderingCancelledException")){ c.hidden = true; msg.textContent = e && /PDF/.test(e.message || "") ? e.message : "Das PDF konnte nicht geladen werden. Prüfe die Verbindung und versuche es nochmals."; }
+  }
+}
+function pvGo(p){ if (!pv.b) return; const n = Math.max(1, Math.min(pv.b.seiten, p)); if (n !== pv.p){ pv.p = n; pvShow(); } else $("pvP").value = pv.p - (pv.b.off||0); }
+function pvPopRender(){
+  const el = $("pvPop"), off = pv.b.off || 0;
+  if (!pv.pop){ el.hidden = true; el.innerHTML = ""; return; }
+  el.hidden = false;
+  if (pv.pop === "assign"){
+    const list = sorted();
+    el.innerHTML = `<div class="row"><b class="small">Für SuS merken</b>
+      <select id="pvS" aria-label="Schüler:in">${list.map(s => `<option value="${s.id}" ${s.id===pv.sid?"selected":""}>${esc(s.name)}</option>`).join("")}</select>
+      <input id="pvSt" placeholder="Stück / Übung (optional)" aria-label="Stück">
+      <input id="pvSe" type="number" inputmode="numeric" value="${pv.p - off}" style="flex:0 0 80px" aria-label="Seite">
+      <button class="pri" data-pv="assignOk">Merken</button><button class="ghost" data-pv="popx">Abbrechen</button></div>`;
+  } else {
+    const m = (pv.b.marks || []).slice().sort((x,y) => x.p - y.p);
+    el.innerHTML = `<div class="row"><b class="small">Lesezeichen auf S. ${pv.p - off}</b>
+      <input id="pvMk" placeholder="Name, z. B. Etüde Nr. 12" aria-label="Name des Lesezeichens">
+      <button class="pri" data-pv="markOk">Speichern</button><button class="ghost" data-pv="popx">Schliessen</button></div>
+      ${m.length ? `<div class="row" style="margin-top:8px;gap:4px">${m.map((x,i) => `<span class="chip" style="cursor:default">${esc(x.t)} · S. ${x.p - off} <button class="ghost del" style="min-height:0;padding:0 0 0 6px" data-pv="markDel" data-i="${pv.b.marks.indexOf(x)}" aria-label="Lesezeichen löschen">×</button></span>`).join("")}</div>` : ""}`;
+    setTimeout(() => $("pvMk")?.focus(), 0);
+  }
+}
+$("pv").addEventListener("click", ev => {
+  const t = ev.target.closest("[data-pv]"); if (!t) return;
+  const off = pv.b.off || 0;
+  switch (t.dataset.pv){
+    case "close": closePdf(); break;
+    case "prev": pvGo(pv.p - 1); break;
+    case "next": pvGo(pv.p + 1); break;
+    case "fit": pv.fit = pv.fit === "page" ? "width" : "page"; pv.zoom = 1; pvShow(); break;
+    case "in": pv.zoom = Math.min(4, pv.zoom * 1.25); pvShow(); break;
+    case "out": pv.zoom = Math.max(.5, pv.zoom / 1.25); pvShow(); break;
+    case "assign": case "mark": pv.pop = pv.pop === t.dataset.pv ? null : t.dataset.pv; pvPopRender(); break;
+    case "popx": pv.pop = null; pvPopRender(); break;
+    case "assignOk": {
+      const s = S($("pvS").value); if (!s) return;
+      const x = {id: uid(), b: pv.b.id, stueck: $("pvSt").value.trim(), seite: +$("pvSe").value || (pv.p - off), status: "aktuell", seit: today()};
+      (s.lit ||= []).push(x); save(); pv.pop = null; pvPopRender(); toast(`Bei ${s.name} gespeichert`); break;
+    }
+    case "markOk": { const name = $("pvMk").value.trim(); if (!name){ $("pvMk").focus(); return; } (pv.b.marks ||= []).push({t: name, p: pv.p}); saveBooks(); pvMarks(); pvPopRender(); toast("Lesezeichen gespeichert"); break; }
+    case "markDel": pv.b.marks.splice(+t.dataset.i, 1); saveBooks(); pvMarks(); pvPopRender(); break;
+    case "here": { const s = S(pv.sid), x = s && (s.lit || []).find(y => y.id === pv.lit); if (x){ x.seite = pv.p - off; save(); toast(`${s.name}: weiter auf S. ${x.seite}`); } break; }
+  }
+});
+$("pvP").addEventListener("change", e => pvGo((+e.target.value || 1) + (pv.b.off || 0)));
+$("pvMarks").addEventListener("change", e => { if (e.target.value) pvGo(+e.target.value); e.target.value = ""; });
+document.addEventListener("keydown", e => {
+  if ($("pv").hidden) return;
+  if (e.key === "Escape"){ if (pv.pop){ pv.pop = null; pvPopRender(); } else closePdf(); return; }
+  if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName)) return;
+  if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " "){ e.preventDefault(); pvGo(pv.p + 1); }
+  if (e.key === "ArrowLeft" || e.key === "PageUp"){ e.preventDefault(); pvGo(pv.p - 1); }
+});
+(() => { let x0 = null, y0 = 0; const body = $("pvBody");
+  body.addEventListener("touchstart", e => { if (e.touches.length === 1){ x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; } else x0 = null; }, {passive: true});
+  body.addEventListener("touchend", e => { if (x0 === null) return; const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
+    if (body.scrollWidth > body.clientWidth + 2) return;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) pvGo(pv.p + (dx < 0 ? 1 : -1)); }, {passive: true});
+})();
+window.addEventListener("resize", () => { if (!$("pv").hidden) pvShow(); });
+
+/* ---------- PDFs direkt im Klassenbuch hinzufügen ---------- */
+$("pdfIn").onchange = async e => {
+  const fs = [...e.target.files]; e.target.value = ""; if (!fs.length) return;
+  let ok = 0, mapped = 0; const map = (await idbGet("cfg", "pdfmap")) || {};
+  for (const f of fs){
+    try {
+      toast(`Lädt ${f.name} …`);
+      const u8 = new Uint8Array(await f.arrayBuffer());
+      const lib = await loadPdfjs(); const doc = await lib.getDocument({data: u8.slice(), isEvalSupported: false}).promise; const n = doc.numPages; doc.destroy();
+      if (map[f.name]){ await storePdf(map[f.name], u8, n, f.name); mapped++; continue; }
+      const id = uid() + uid();
+      await storePdf(id, u8, n, f.name);
+      books.push({id: uid(), titel: f.name.replace(/\.pdf$/i, ""), autor: "", kat: "Unterrichtsblätter", ordner: "Neu hinzugefügt", instr: [], seiten: n, off: 0, teile: [{a: id, n}], marks: [], stufen: []});
+      ok++;
+    } catch(err) { toast(`${f.name} ist kein lesbares PDF.`); }
+  }
+  if (ok) saveBooks();
+  if (ok || mapped){ render(); toast([ok ? ok + " PDF(s) hinzugefügt" : "", mapped ? mapped + " PDF(s) zugeordnet" : ""].filter(Boolean).join(", ")); }
+};
+
+startApp();
+</script>
+
+</body></html>
