@@ -117,7 +117,25 @@ button:disabled{opacity:.4;cursor:default}
 .pv-pop{padding:10px max(12px,env(safe-area-inset-right,0px)) 10px max(12px,env(safe-area-inset-left,0px));background:var(--card);border-bottom:1px solid var(--bd)}
 .pv-pop input,.pv-pop select{width:auto;flex:1 1 160px;min-width:0}
 .pv-body{flex:1;overflow:auto;display:flex;flex-direction:column;align-items:center;padding:8px;background:var(--soft);-webkit-overflow-scrolling:touch}
-.pv-body canvas{background:var(--paper);box-shadow:0 1px 4px rgba(0,0,0,.18);max-width:none;flex:none}
+.pv-pg{position:relative;flex:none;box-shadow:0 1px 4px rgba(0,0,0,.18)}
+.gn{margin-bottom:14px;padding:0}.gn summary{cursor:pointer;padding:10px 14px;display:flex;gap:8px;align-items:baseline;list-style:none}.gn summary::-webkit-details-marker{display:none}
+.gn summary b{white-space:nowrap}.gn summary span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.gn[open] summary span{display:none}
+.gn summary::before{content:"▸";color:var(--tx3)}.gn[open] summary::before{content:"▾"}
+.gn textarea{display:block;margin:0 14px 14px;width:calc(100% - 28px);font-size:16px;line-height:1.5}
+.gm{display:grid;gap:8px}.gm-r{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,2fr) auto;gap:6px;align-items:center}
+.gm-h{font-size:12px;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
+@media (max-width:700px){.gm-r{grid-template-columns:minmax(0,1fr) auto;padding-bottom:8px;border-bottom:1px solid var(--bd)}.gm-r>:nth-child(2),.gm-r>:nth-child(3){grid-column:1}.gm-r>:nth-child(4){grid-row:1;grid-column:2}.gm-h{display:none}}
+.gl{margin-top:6px;display:grid;gap:2px}.gl div{display:flex;gap:8px;min-width:0}.gl b{font-weight:500;white-space:nowrap}.gl span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sl{display:grid;gap:6px;max-width:420px}.sl .row{flex-wrap:nowrap}
+.pv-pg canvas{display:block;max-width:none}#pvC{background:var(--paper)}
+#pvI{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:multiply}
+.pv-ink #pvI{cursor:crosshair}
+#pvInkB.on{background:var(--acbg);color:var(--ac);border-color:var(--ac)}
+.ink-row{gap:6px}.ink-row select{flex:0 1 180px}
+.ink-t{min-width:40px;display:inline-grid;place-items:center}
+.ink-t i{display:block;width:18px;height:18px;border-radius:50%;border:2px solid var(--card)}
+.ink-t i.hl{border-radius:3px;width:24px;height:12px}
+.ink-t.on{outline:2px solid var(--ac);outline-offset:1px}
 #pvMsg{padding:40px 16px;text-align:center}
 .lit-row{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd);flex-wrap:wrap}
 .lit-row:last-child{border-bottom:0}
@@ -154,9 +172,10 @@ button:disabled{opacity:.4;cursor:default}
     <select id="pvMarks" aria-label="Lesezeichen" hidden></select>
     <button data-pv="prev" aria-label="Vorherige Seite">‹</button><input class="pg num" id="pvP" inputmode="numeric" aria-label="Seite"><span class="small muted num" id="pvN"></span><button data-pv="next" aria-label="Nächste Seite">›</button>
     <button data-pv="fit" id="pvFit">Breite</button><button data-pv="out" aria-label="Verkleinern">−</button><button data-pv="in" aria-label="Vergrössern">+</button>
-    <button data-pv="here" id="pvHere" hidden>Hier weiter</button><button data-pv="mark">Lesezeichen</button><button data-pv="assign" class="pri">Für SuS</button></div>
+    <button data-pv="here" id="pvHere" hidden>Hier weiter</button><button data-pv="ink" id="pvInkB">✎ Notizen</button><button data-pv="mark">Lesezeichen</button><button data-pv="assign" class="pri">Für SuS</button></div>
   <div class="pv-pop" id="pvPop" hidden></div>
-  <div class="pv-body" id="pvBody"><canvas id="pvC" hidden></canvas><div id="pvMsg" class="muted"></div></div>
+  <div class="pv-pop" id="pvInk" hidden></div>
+  <div class="pv-body" id="pvBody"><div class="pv-pg" id="pvPg" hidden><canvas id="pvC"></canvas><canvas id="pvI"></canvas></div><div id="pvMsg" class="muted"></div></div>
 </div>
 
 <script>
@@ -196,7 +215,9 @@ const FILES = "https://static.wixstatic.com/ugd/";
 const PART = 300000, BATCH = 380000, MAXITEMS = 60, CHUNK = 15 * 1048576;
 let db = {students:[], lessons:[], events:[], lastBackup:null};
 let mode = "loading";
-let metaDirty = false; const dirtyL = new Set(), delL = new Set();
+let metaDirty = false; const dirtyL = new Set(), delL = new Set(), dirtyInk = new Set();
+let ink = {}; // Stiftnotizen: "<sid>:<bookId>" → {p: {Seite: [Linien]}}
+function saveInk(k){ if (k){ dirtyInk.add(k); schedule(); } }
 let flushT, flushing = false, loaded = {meta:false, lessons:false}, pendingRender = false;
 let idb = null, acc = null, cfg = {since:0, outbox:[], uploads:[]}, syncing = false, syncAgain = false, syncT, lastSync = 0, syncErr = "";
 
@@ -266,9 +287,10 @@ async function api(action, body){
 
 /* --- Lokale Datensätze: meta, books, lesson:<id>, pdf:<id> --- */
 function recOf(key){
-  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup};
+  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || ""};
   if (key === "books") return {books};
   if (key.startsWith("lesson:")) return db.lessons.find(l => l.id === key.slice(7)) || null;
+  if (key.startsWith("ink:")){ const v = ink[key.slice(4)]; return v && Object.keys(v.p || {}).length ? v : null; }
   return undefined;
 }
 async function flush(){
@@ -280,6 +302,7 @@ async function flush(){
     if (booksDirty){ booksDirty = false; keys.push("books"); }
     for (const id of [...dirtyL]){ dirtyL.delete(id); keys.push("lesson:" + id); }
     for (const id of [...delL]){ delL.delete(id); keys.push("lesson:" + id); }
+    for (const k of [...dirtyInk]){ dirtyInk.delete(k); keys.push("ink:" + k); }
     if (keys.length){
       await tx("rec", "readwrite", s => keys.forEach(k => { const v = recOf(k); if (v) s.put({v: structuredClone(v), rev: 0}, k); else s.delete(k); }));
       if (acc){ keys.forEach(k => cfg.outbox.includes(k) || cfg.outbox.push(k)); await saveCfg(); syncSoon(1500); }
@@ -287,15 +310,16 @@ async function flush(){
     }
   } catch(e) { toast("Speichern auf dem Gerät ist fehlgeschlagen."); setSync("Nicht gespeichert"); }
   flushing = false;
-  if (metaDirty || booksDirty || dirtyL.size || delL.size) schedule();
+  if (metaDirty || booksDirty || dirtyL.size || delL.size || dirtyInk.size) schedule();
 }
 function busyTyping(){ const a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName); }
 function remoteRender(){ if (!(loaded.meta && loaded.lessons)) return; if (!document.getElementById("pv").hidden) return; if (busyTyping()) pendingRender = true; else render(); }
 document.addEventListener("focusout", () => setTimeout(() => { if (pendingRender && !busyTyping()){ pendingRender = false; render(); } }, 50));
 
 function applyRec(key, v){
-  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; }
+  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; }
   else if (key === "books") books = v ? v.books || [] : [];
+  else if (key.startsWith("ink:")){ const k = key.slice(4); if (v) ink[k] = v; else delete ink[k]; if (typeof pvInkRemote === "function") pvInkRemote(k); }
   else if (key.startsWith("lesson:")){ const id = key.slice(7), i = db.lessons.findIndex(l => l.id === id); if (v){ v.id = id; if (i < 0) db.lessons.push(v); else db.lessons[i] = v; } else if (i >= 0) db.lessons.splice(i, 1); }
 }
 
@@ -448,7 +472,7 @@ async function finishSignIn(a, keepLocal){
     cfg.uploads = Object.keys(all).filter(k => k.startsWith("pdf:") && all[k].v.pending).map(k => k.slice(4));
   } else {
     await tx("rec", "readwrite", s => s.clear()); await tx("pdf", "readwrite", s => s.clear());
-    db = {students:[], lessons:[], events:[], lastBackup:null}; books = [];
+    db = {students:[], lessons:[], events:[], lastBackup:null}; books = []; ink = {};
   }
   await saveCfg(); render(); await sync();
 }
@@ -487,7 +511,7 @@ async function newRecoveryKey(pw){
 }
 async function signOut(wipe){
   acc = null; await idbDel("cfg", "account"); cfg = {since:0, outbox:[], uploads:[]}; await saveCfg();
-  if (wipe){ await tx("rec", "readwrite", s => s.clear()); await tx("pdf", "readwrite", s => s.clear()); db = {students:[], lessons:[], events:[], lastBackup:null}; books = []; }
+  if (wipe){ await tx("rec", "readwrite", s => s.clear()); await tx("pdf", "readwrite", s => s.clear()); db = {students:[], lessons:[], events:[], lastBackup:null}; books = []; ink = {}; }
   setSync("Nur auf diesem Gerät"); render();
 }
 const hasLocalData = () => db.students.length || db.lessons.length || db.events.length || books.length;
@@ -525,12 +549,12 @@ function vDatenApp(){
       ${tabs}<form id="ac-form" class="f" style="max-width:640px" onsubmit="return false">${fields}</form>
       <div class="row" style="margin-top:10px"><button class="pri" data-a="${btn[0]}">${btn[1]}</button><span class="small" id="ac-err" style="color:var(--da)"></span></div></div>`;
   }
-  app.innerHTML = `<h2>Einstellungen</h2>${appearanceCard()}<h3>Konto und Sync</h3>${rkCard()}${card}
+  app.innerHTML = `<h2>Einstellungen</h2>${appearanceCard()}${schulenCard()}<h3>Konto und Sync</h3>${rkCard()}${card}
   <h3>Backup</h3><div class="card"><p class="small muted num" style="margin-top:0">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine · ${books.length} Hefte</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2112 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2120 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -609,6 +633,39 @@ function alter(s){ const g = (s.stammblatt||{}).geburt||""; if (!/^\d{4}-\d{2}-\
 function alterTxt(s){ const a = alter(s); if (a !== null) return a + " J."; return s.typ === "Gruppe" ? ((s.stammblatt||{}).geburt||"").trim() : ""; }
 let weekStart = monday(new Date());
 let filt = {schule:"Alle", q:""};
+function schulen(){ return db.schulen && db.schulen.length ? db.schulen.slice() : [...new Set(db.students.map(s => s.schule).filter(Boolean))]; }
+function schulOpts(cur){ const l = schulen(); if (cur && !l.includes(cur)) l.push(cur); return (l.length ? "" : `<option value="">–</option>`) + l.map(k => `<option ${cur===k?"selected":""}>${esc(k)}</option>`).join(""); }
+function schulenCard(){
+  const l = schulen();
+  return `<h3>Schulen</h3><div class="card"><div class="sl">
+    ${l.map((k, i) => { const n = db.students.filter(s => s.schule === k).length;
+      return `<div class="row"><input data-sn="${i}" value="${esc(k)}" aria-label="Name der Schule" style="flex:1;min-width:0"><span class="tiny num" style="white-space:nowrap">${n} SuS</span><button class="ghost del" data-a="schulDel" data-i="${i}" aria-label="Schule entfernen">×</button></div>`; }).join("") || `<span class="muted small">Noch keine Schule erfasst.</span>`}
+    <div class="row"><input id="schulNeu" placeholder="Neue Schule, z. B. Musikschule Appenzell" style="flex:1;min-width:0"><button data-a="schulAdd">Hinzufügen</button></div>
+  </div><p class="tiny" style="margin-bottom:0">Umbenennen ändert die Schule auch bei allen SuS. Ferien gelten nur für eine Schule, wenn ihr Name beim Termin unter «Ort» steht.</p></div>`;
+}
+function gMembers(s){
+  if (Array.isArray(s.members)) return s.members;
+  const names = String(s.mitglieder || "").split(/\s*(?:,|;|\/|\bund\b|&)\s*/).map(x => x.trim()).filter(Boolean);
+  const parts = String(s.kontakt || "").split(/\s*\|\s*/);
+  const byName = {}; parts.forEach(p => { const m = p.match(/^([^:]{2,60}):\s*(.*)$/); if (m) byName[m[1].trim()] = m[2]; });
+  return names.map(n => { const r = byName[n] || "", bits = r.split(" · "); const eltern = bits.length > 1 && !/\d|@/.test(bits[0]) ? bits.shift() : ""; return {name: n, eltern, kontakt: bits.join(" · ")}; });
+}
+function gruppeCard(s){
+  const m = gMembers(s);
+  return `<h3>Mitglieder <span class="muted num" style="text-transform:none;letter-spacing:0">(${m.length})</span></h3><div class="card"><div class="gm">
+    <div class="gm-r gm-h"><span>Kind</span><span>Eltern</span><span>Telefon, E-Mail, Adresse</span><span></span></div>
+    ${m.map((x, i) => `<div class="gm-r">
+      <input data-gm="${i}:name" value="${esc(x.name)}" placeholder="Name" aria-label="Name">
+      <input data-gm="${i}:eltern" value="${esc(x.eltern)}" placeholder="Eltern" aria-label="Eltern">
+      <input data-gm="${i}:kontakt" value="${esc(x.kontakt)}" placeholder="079 … · mail@… · Adresse" aria-label="Kontakt">
+      <button class="ghost del" data-a="gmDel" data-i="${i}" aria-label="Mitglied entfernen">×</button></div>`).join("")}
+  </div><div class="row" style="margin-top:10px"><button data-a="gmAdd">Kind hinzufügen</button></div></div>`;
+}
+function gList(s){
+  const m = gMembers(s); if (!m.length) return "";
+  return `<div class="gl small">${m.map(x => `<div><b>${esc(x.name)}</b>${x.eltern || x.kontakt ? `<span class="muted">${esc([x.eltern, x.kontakt.split(" · ")[0]].filter(Boolean).join(" · "))}</span>` : ""}</div>`).join("")}</div>`;
+}
+function gHasOwn(s){ const m = gMembers(s); return m.some(x => x.kontakt || x.eltern); }
 let lpStufe = "Unterstufe";
 let calYear = (() => { const d = new Date(); return d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear()-1; })();
 let editEv = null, detailStufe = null;
@@ -618,7 +675,7 @@ function route(){ const h = location.hash.slice(1) || "woche"; const i = h.index
 function render(){
   if (!(loaded.meta && loaded.lessons)) return;
   const {v, id} = route();
-  const tabs = [["woche","Woche"],["sus","SuS"],["kalender","Kalender"],["lehrplan","Lehrplan"],["literatur","Literatur"],["daten","Einstellungen"]];
+  const tabs = [["woche","Notizen"],["sus","SuS"],["kalender","Kalender"],["lehrplan","Lehrplan"],["literatur","Literatur"],["daten","Einstellungen"]];
   const cur = v === "s" || v === "bericht" ? "sus" : v;
   document.getElementById("nav").innerHTML = tabs.map(([k,t]) => `<a href="#${k}" class="${cur===k?"on":""}">${t}</a>`).join("");
   ({woche:vWoche, sus:vSus, s:()=>vDetail(id), kalender:vKalender, lehrplan:vLehrplan, literatur:vLiteratur, daten:vDatenApp, bericht:()=>vBericht(id)}[v] || vWoche)();
@@ -640,7 +697,8 @@ function emptyState(){
 }
 
 let selSid = null;
-function ferienAm(ds, s){ return db.events.find(e => e.typ === "Ferien" && ds >= e.datum && ds <= (e.bis||e.datum) && (!s || !/Teufen/.test(e.ort||"") || s.schule === "MSAM")); }
+function ferienAm(ds, s){ return db.events.find(e => e.typ === "Ferien" && ds >= e.datum && ds <= (e.bis||e.datum) && (!s || ferienFuer(e, s))); }
+function ferienFuer(e, s){ const ort = e.ort || ""; if (/Teufen/.test(ort)) return s.schule === "MSAM"; const hit = schulen().filter(k => k && ort.includes(k)); return !hit.length || hit.includes(s.schule); }
 function zeitstrahl(mon){
   const blocks = db.events.filter(e => e.typ === "Ferien" && e.bis && (parse(e.bis) - parse(e.datum)) / 864e5 >= 4).sort((a,b) => a.datum.localeCompare(b.datum));
   const m = iso(mon), next = blocks.find(e => e.datum > m), prev = [...blocks].reverse().find(e => e.bis < m);
@@ -653,6 +711,13 @@ function zeitstrahl(mon){
   const segs = Array.from({length:total}, (_, k) => `<i class="${k+1 < cur ? "past" : k+1 === cur ? "now" : ""}"></i>`).join("");
   return `<div class="tl" title="${esc(prev.titel)} bis ${fmt(prev.bis,1)}, ${esc(next.titel)} ab ${fmt(next.datum,1)}"><div class="tl-bar" aria-hidden="true">${segs}</div><span class="small muted num">${label} <span class="tiny">(ab ${fmt(next.datum)})</span></span></div>`;
 }
+function gnCard(){
+  let open = true; try { open = localStorage.getItem("kb-gn") !== "zu"; } catch(e) {}
+  const first = (db.notiz || "").split("\n").find(x => x.trim()) || "";
+  return `<details class="card gn" id="gn" ${open ? "open" : ""}><summary><b>Allgemeine Notizen</b><span class="small muted">${esc(first)}</span></summary>
+    <textarea id="gnT" data-gn rows="3" placeholder="Gilt für alle: Absprachen, Material, Ideen, was diese Woche ansteht …" aria-label="Allgemeine Notizen">${esc(db.notiz || "")}</textarea></details>`;
+}
+document.addEventListener("toggle", e => { if (e.target.id === "gn"){ try { localStorage.setItem("kb-gn", e.target.open ? "auf" : "zu"); } catch(err) {} if (e.target.open) autosize($("gnT")); } }, true);
 function vWoche(){
   const mon = weekStart, sun = addDays(mon, 6);
   const evs = db.events.filter(e => e.typ !== "Ferien" && (e.bis||e.datum) >= iso(mon) && e.datum <= iso(sun));
@@ -660,10 +725,10 @@ function vWoche(){
   let html = backupBanner() + `<div class="row" style="margin-bottom:12px">
     <button data-a="wk" data-n="-7" aria-label="Vorherige Woche">‹</button>
     <h2 style="margin:0">KW ${kw(mon)} <span class="muted num" style="font-weight:400;font-size:15px;font-family:var(--body)">${fmt(iso(mon))}–${fmt(iso(sun),1)}</span></h2>
-    <button data-a="wk" data-n="7" aria-label="Nächste Woche">›</button><button class="ghost" data-a="wk" data-n="0">Heute</button>
+    <button data-a="wk" data-n="7" aria-label="Nächste Woche">›</button>
     ${fer.map(e => `<span class="badge b-gr">${esc(e.titel)}</span>`).join("")}
     ${evs.map(e => `<span class="badge ${EVTYP[e.typ]}">${esc(e.typ)} ${fmt(e.datum)}: ${esc(e.titel)}</span>`).join("")}</div>`;
-  html += zeitstrahl(mon);
+  html += gnCard() + zeitstrahl(mon);
   if (!db.students.length){ app.innerHTML = html + emptyState(); return; }
   const list = sorted().filter(s => !ferienAm(lessonDate(s, mon), s));
   if (!list.length){ app.innerHTML = html + `<div class="card empty"><h2>${esc(fer[0]?.titel || "Ferien")}</h2><p class="muted">In dieser Woche finden keine Lektionen statt.</p><div class="row" style="justify-content:center"><button class="pri" data-a="wk" data-n="7">Zur nächsten Schulwoche</button></div></div>`; return; }
@@ -689,7 +754,7 @@ function vWoche(){
   const pS = list[i-1], nS = list[i+1];
   const editor = `<div class="card ed" data-sid="${s.id}" data-d="${d}">
     <div class="row"><div style="min-width:0"><a href="#s-${s.id}" class="ed-name">${esc(s.name)}</a>
-      <div class="small muted num">${s.tag?TAGE[s.tag]+" "+fmt(d,1):fmt(d,1)}${s.zeit?" · "+esc(s.zeit):""}${s.dauer?" · "+s.dauer+" Min.":""}${alterTxt(s)?" · "+esc(alterTxt(s)):""} · ${esc(s.stufe)}${s.typ==="Gruppe"&&s.mitglieder?" · "+esc(s.mitglieder):""}</div></div>
+      <div class="small muted num">${s.tag?TAGE[s.tag]+" "+fmt(d,1):fmt(d,1)}${s.zeit?" · "+esc(s.zeit):""}${s.dauer?" · "+s.dauer+" Min.":""}${alterTxt(s)?" · "+esc(alterTxt(s)):""} · ${esc(s.stufe)}</div>${s.typ==="Gruppe" ? gList(s) : ""}</div>
       <span class="sp"></span>
       <div class="seg">${STATUS.map(([k,t]) => `<button class="${l.status===k?"on s-"+k:""}" data-a="att" data-st="${k}">${t}</button>`).join("")}</div></div>
     ${litChips(s)}
@@ -716,7 +781,7 @@ function vSus(){
   const list = sorted().filter(s => (filt.schule==="Alle" || s.schule===filt.schule) && s.name.toLowerCase().includes(filt.q.toLowerCase()));
   const inactive = db.students.filter(s => s.aktiv === false);
   let html = backupBanner() + `<div class="row" style="margin-bottom:12px"><h2 style="margin:0">Alle SuS <span class="muted num" style="font-weight:400">(${list.length})</span></h2><span class="sp"></span>
-    <div class="seg">${["Alle","MSAM","Rondo"].map(k => `<button class="${filt.schule===k?"on":""}" data-a="fs" data-v="${k}">${k}</button>`).join("")}</div>
+    ${schulen().length > 1 ? `<div class="seg">${["Alle", ...schulen()].map(k => `<button class="${filt.schule===k?"on":""}" data-a="fs" data-v="${esc(k)}">${esc(k)}</button>`).join("")}</div>` : ""}
     <input id="q" placeholder="Suchen" value="${esc(filt.q)}" style="width:140px" aria-label="SuS suchen"><button class="pri" data-a="newS">Neu</button></div>`;
   if (!db.students.length){ app.innerHTML = html + emptyState(); return; }
   html += `<div class="grid">`;
@@ -726,6 +791,7 @@ function vSus(){
       <div class="row"><b>${esc(s.name)}</b><span class="sp"></span><span class="tiny num">${s.tag?TAGE[s.tag]:""} ${esc(s.zeit)}${s.dauer?" · "+s.dauer+"'":""}</span></div>
       <div class="small muted">${alterTxt(s)?esc(alterTxt(s))+" · ":""}${esc(s.stufe)} · ${esc(s.schule)}${s.typ==="Gruppe"?" · Gruppe":""}</div>
       <div class="tiny">${esc((s.instrumente||[]).join(", "))}</div>
+      ${s.typ==="Gruppe" ? gList(s) : ""}
       <div class="bar" style="margin:8px 0 3px"><i style="width:${p.pct}%"></i></div>
       <div class="small muted num">Lehrplan ${p.pct} % (${p.done}/${p.total}) · Präsenz ${a.n?a.a+"/"+a.n:"–"}${a.u?` · <span style="color:var(--da)">${a.u} unentsch.</span>`:""}</div>
       ${last ? `<div class="tiny" style="margin-top:4px">Aufgaben: ${esc(last.aufgaben)}</div>` : ""}
@@ -753,22 +819,22 @@ function vDetail(id){
   <h2>${esc(s.name)}${alter(s)!==null?` <span class="muted num" style="font-weight:400;font-size:16px;font-family:var(--body)">${alter(s)} Jahre</span>`:""}</h2>
   <div class="card"><div class="f">
     <div><label for="sf-name">Name</label><input id="sf-name" data-sf="name" value="${esc(s.name)}"></div>
-    <div><label for="sf-schule">Schule</label><select id="sf-schule" data-sf="schule">${["MSAM","Rondo"].map(k=>`<option ${s.schule===k?"selected":""}>${k}</option>`).join("")}</select></div>
+    <div><label for="sf-schule">Schule</label><select id="sf-schule" data-sf="schule">${schulOpts(s.schule)}</select></div>
     <div><label for="sf-typ">Einzel/Gruppe</label><select id="sf-typ" data-sf="typ" data-rr>${["Einzel","Gruppe"].map(k=>`<option ${s.typ===k?"selected":""}>${k}</option>`).join("")}</select></div>
     <div><label for="sf-tag">Wochentag</label><select id="sf-tag" data-sf="tag" data-num>${TAGE.map((t,i)=>`<option value="${i}" ${s.tag==i?"selected":""}>${t||"–"}</option>`).join("")}</select></div>
     <div><label for="sf-zeit">Zeit</label><input id="sf-zeit" type="time" data-sf="zeit" value="${esc(s.zeit)}"></div>
     <div><label for="sf-dauer">Dauer (Min.)</label><input id="sf-dauer" type="number" data-sf="dauer" data-num value="${esc(s.dauer)}"></div>
     <div><label for="sf-stufe">Förderstufe</label><select id="sf-stufe" data-sf="stufe" data-rr>${STUFEN.map(k=>`<option ${s.stufe===k?"selected":""}>${k}</option>`).join("")}</select></div>
     <div><label for="sf-seit">Unterricht seit</label><input id="sf-seit" data-sf="seit" value="${esc(s.seit)}" placeholder="2023"></div>
-    <div><label for="sf-eltern">Eltern</label><input id="sf-eltern" data-sf="eltern" value="${esc(s.eltern)}"></div>
-    <div><label for="sf-kontakt">Kontakt</label><input id="sf-kontakt" data-sf="kontakt" value="${esc(s.kontakt)}" placeholder="079 123 45 67"></div>
-    ${s.typ==="Gruppe"?`<div style="grid-column:1/-1"><label for="sf-mitglieder">Mitglieder</label><input id="sf-mitglieder" data-sf="mitglieder" value="${esc(s.mitglieder)}"></div>`:""}
+    ${s.typ==="Gruppe" && gHasOwn(s) ? "" : `<div><label for="sf-eltern">${s.typ==="Gruppe"?"Eltern (für alle)":"Eltern"}</label><input id="sf-eltern" data-sf="eltern" value="${esc(s.eltern)}"></div>
+    <div><label for="sf-kontakt">${s.typ==="Gruppe"?"Kontakt (für alle)":"Kontakt"}</label><input id="sf-kontakt" data-sf="kontakt" value="${esc(s.kontakt)}" placeholder="079 123 45 67"></div>`}
     <div style="grid-column:1/-1"><label for="sf-bemerkung">Bemerkung</label><input id="sf-bemerkung" data-sf="bemerkung" value="${esc(s.bemerkung)}"></div>
   </div>
   <div style="margin-top:10px"><label>Instrumente / Bereiche</label><div class="row">${INSTR.map(k => `<button class="chip ${(s.instrumente||[]).includes(k)?"on":""}" data-a="instr" data-v="${k}">${k}</button>`).join("")}</div></div>
   <div class="row" style="margin-top:12px"><span class="small muted num">Präsenz ${a.n?a.a+"/"+a.n:"–"} · entschuldigt ${a.e} · unentschuldigt ${a.u}</span><span class="sp"></span>
     <button class="ghost small" data-a="toggleAktiv">${s.aktiv===false?"Wieder aktiv setzen":"Als ehemalig markieren"}</button><button class="ghost del small" data-a="delS">Löschen</button></div></div>
 
+  ${s.typ==="Gruppe" ? gruppeCard(s) : ""}
   <h3>Stammblatt <span id="sbCount" class="badge ${sbDone(s)===SBN?"b-ok":"b-wa"}" style="text-transform:none;letter-spacing:0">${sbDone(s)} von ${SBN} ausgefüllt</span></h3>
   <div class="card"><div class="sb">${s.typ==="Gruppe"
     ? `<div><label for="sb-geburt">Alter / Jahrgänge</label><input id="sb-geburt" data-sb="geburt" value="${esc((s.stammblatt||{}).geburt)}" placeholder="z. B. 9–11 J. oder 2015/2016"></div>`
@@ -834,10 +900,13 @@ function vBericht(id){
 
 function vKalender(){
   const from = calYear+"-08-01", to = (calYear+1)+"-07-31";
+  const curSY = (() => { const d = new Date(); return d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear()-1; })();
+  if (calYear < curSY) calYear = curSY;
   const evs = db.events.filter(e => (e.bis||e.datum) >= from && e.datum <= to).sort((a,b) => a.datum.localeCompare(b.datum));
+  const kommend = evs.filter(e => (e.bis||e.datum) >= today());
   const e = editEv ? db.events.find(x => x.id === editEv) : null;
   const f = e || {datum:today(), titel:"", typ:"Konzert", ort:"", sids:[], notiz:""};
-  let html = `<div class="row" style="margin-bottom:12px"><button data-a="cy" data-n="-1" aria-label="Vorheriges Schuljahr">‹</button><h2 style="margin:0">Schuljahr ${calYear}/${String(calYear+1).slice(2)}</h2><button data-a="cy" data-n="1" aria-label="Nächstes Schuljahr">›</button></div>
+  let html = `<div class="row" style="margin-bottom:12px"><button data-a="cy" data-n="-1" aria-label="Vorheriges Schuljahr" ${calYear <= curSY ? "disabled" : ""}>‹</button><h2 style="margin:0">Schuljahr ${calYear}/${String(calYear+1).slice(2)}</h2><button data-a="cy" data-n="1" aria-label="Nächstes Schuljahr">›</button></div>
   <div class="card" style="margin-bottom:14px" id="evform"><b>${e?"Termin bearbeiten":"Neuer Termin"}</b><div class="f" style="margin-top:8px">
     <div><label for="ev_datum">Datum</label><input type="date" id="ev_datum" value="${esc(f.datum)}"></div>
     <div><label for="ev_bis">Bis (optional)</label><input type="date" id="ev_bis" value="${esc(f.bis||"")}"></div>
@@ -852,6 +921,7 @@ function vKalender(){
   <div class="months">`;
   for (let m = 0; m < 12; m++){
     const y = calYear + (m+7 >= 12 ? 1 : 0), mo = (m+7)%12;
+    if (new Date(y, mo + 1, 0) < new Date(new Date().toDateString())) continue;
     const first = new Date(y, mo, 1), days = new Date(y, mo+1, 0).getDate(), off = (first.getDay()+6)%7;
     let cells = "<tr>" + "<td></td>".repeat(off);
     for (let d = 1; d <= days; d++){
@@ -863,10 +933,10 @@ function vKalender(){
     }
     html += `<div class="card mon"><b class="small">${first.toLocaleDateString("de-CH",{month:"long",year:"numeric"})}</b><table><tr>${["Mo","Di","Mi","Do","Fr","Sa","So"].map(t=>`<th>${t}</th>`).join("")}</tr>${cells}</tr></table></div>`;
   }
-  html += `</div><h3>Alle Termine</h3><div class="card">${evs.length ? evs.map(e => `<div class="row" style="padding:6px 0;border-bottom:1px solid var(--bd)">
+  html += `</div><h3>Kommende Termine</h3><div class="card">${kommend.length ? kommend.map(e => `<div class="row" style="padding:6px 0;border-bottom:1px solid var(--bd)">
     <span style="min-width:90px" class="small num ${(e.bis||e.datum)<today()?"muted":""}">${fmt(e.datum,1)}${e.bis?"–"+fmt(e.bis):""}</span><span class="badge ${EVTYP[e.typ]}">${esc(e.typ)}</span>
     <span class="sp" style="min-width:0"><b class="small">${esc(e.titel)}</b>${e.ort?` <span class="tiny">${esc(e.ort)}</span>`:""}<br><span class="tiny">${(e.sids||[]).map(i=>esc(S(i)?.name||"")).join(", ")}${e.notiz?" · "+esc(e.notiz):""}</span></span>
-    <button class="ghost small" data-a="evedit" data-v="${e.id}">Bearbeiten</button></div>`).join("") : `<span class="muted small">Noch keine Termine in diesem Schuljahr. Trag oben das erste Konzert oder den nächsten Stufentest ein.</span>`}</div>`;
+    <button class="ghost small" data-a="evedit" data-v="${e.id}">Bearbeiten</button></div>`).join("") : `<span class="muted small">Keine kommenden Termine in diesem Schuljahr. Trag oben das nächste Konzert oder den nächsten Stufentest ein.</span>`}</div>`;
   app.innerHTML = html;
 }
 
@@ -904,7 +974,7 @@ function vDaten(){
   const where = mode === "cloud"
     ? "Deine Daten liegen in deinem privaten Bereich dieser Seite. Nur du siehst sie, auf jedem Gerät, auf dem du mit deinem Konto angemeldet bist. Auch wenn du die Seite teilst, sehen andere nur ein leeres Klassenbuch."
     : "Deine Daten liegen nur in diesem Browser auf diesem Gerät. Lade regelmässig ein Backup herunter.";
-  app.innerHTML = `<h2>Einstellungen</h2>${appearanceCard()}<h3>Daten</h3>
+  app.innerHTML = `<h2>Einstellungen</h2>${appearanceCard()}${schulenCard()}<h3>Daten</h3>
   <div class="card"><p style="margin-top:0;max-width:65ch">${where}</p>
   <p class="small muted num">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Startpaket oder Backup laden</button></div>
@@ -921,9 +991,10 @@ async function saveFile(filename, data, type){
 }
 function replaceAll(d){
   delL.clear(); db.lessons.forEach(l => delL.add(l.id)); dirtyL.clear();
-  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null};
+  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null, schulen:d.schulen||null, notiz:d.notiz||""};
   db.lessons.forEach(l => { delL.delete(l.id); dirtyL.add(l.id); });
   if (Array.isArray(d.books)){ books = d.books; saveBooks(); }
+  if (d.ink && typeof d.ink === "object"){ Object.keys(ink).forEach(k => { if (!d.ink[k]){ delete ink[k]; saveInk(k); } }); Object.entries(d.ink).forEach(([k, v]) => { ink[k] = v; saveInk(k); }); }
   save(); render();
 }
 
@@ -942,12 +1013,18 @@ document.addEventListener("click", ev => {
     case "dstufe": detailStufe = b.dataset.v; render(); break;
     case "instr": { const v = b.dataset.v; s.instrumente = (s.instrumente||[]).includes(v) ? s.instrumente.filter(x=>x!==v) : [...(s.instrumente||[]), v]; save(); render(); break; }
     case "toggleAktiv": s.aktiv = s.aktiv === false; save(); render(); break;
-    case "delS": ask(`${s.name} und alle Lektionen löschen?`, "Löschen", () => { db.students = db.students.filter(x => x.id !== sid); db.lessons.filter(l => l.sid === sid).forEach(l => dropL(l.id)); db.lessons = db.lessons.filter(l => l.sid !== sid); db.events.forEach(e => e.sids = (e.sids||[]).filter(x => x !== sid)); save(); location.hash = "sus"; }); break;
+    case "delS": ask(`${s.name} und alle Lektionen löschen?`, "Löschen", () => { db.students = db.students.filter(x => x.id !== sid); db.lessons.filter(l => l.sid === sid).forEach(l => dropL(l.id)); db.lessons = db.lessons.filter(l => l.sid !== sid); db.events.forEach(e => e.sids = (e.sids||[]).filter(x => x !== sid)); Object.keys(ink).filter(k => k.startsWith(sid + ":")).forEach(k => { delete ink[k]; saveInk(k); }); save(); location.hash = "sus"; }); break;
     case "delL": ask("Diese Lektion löschen?", "Löschen", () => { dropL(b.dataset.v); db.lessons = db.lessons.filter(l => l.id !== b.dataset.v); render(); }); break;
     case "newL": { const d = document.getElementById("newLd").value; if (d){ const l = getLesson(sid, d, true); saveL(l.id); weekStart = monday(parse(d)); location.hash = "woche"; } break; }
     case "pick": selSid = b.dataset.v; render(); if (window.matchMedia("(max-width:760px)").matches) document.querySelector(".ed")?.scrollIntoView({block:"start"}); else window.scrollTo(0,0); break;
     case "fs": filt.schule = b.dataset.v; render(); break;
-    case "newS": { const n = {id:uid(), name:"Neue Person", schule:"MSAM", typ:"Einzel", mitglieder:"", tag:0, zeit:"", dauer:30, stufe:"Unterstufe", instrumente:["Snare Drum"], seit:"", eltern:"", kontakt:"", bemerkung:"", lp:{}, aktiv:true}; db.students.push(n); save(); location.hash = "s-"+n.id; break; }
+    case "schulAdd": { const v = $("schulNeu").value.trim(); if (!v){ $("schulNeu").focus(); return; } const l = schulen(); if (!l.includes(v)) l.push(v); db.schulen = l; save(); render(); break; }
+    case "schulDel": { const l = schulen(), k = l[+b.dataset.i], n = db.students.filter(s => s.schule === k).length;
+      if (n){ toast(`${k} ist noch bei ${n} SuS eingetragen. Ändere zuerst dort die Schule.`); return; }
+      l.splice(+b.dataset.i, 1); db.schulen = l; if (filt.schule === k) filt.schule = "Alle"; save(); render(); break; }
+    case "gmAdd": { const m = gMembers(s); m.push({name:"", eltern:"", kontakt:""}); s.members = m; save(); render(); setTimeout(() => app.querySelector(`[data-gm="${m.length-1}:name"]`)?.focus(), 0); break; }
+    case "gmDel": { const m = gMembers(s), x = m[+b.dataset.i]; ask(`${x && x.name ? x.name : "Dieses Mitglied"} aus der Gruppe entfernen?`, "Entfernen", () => { m.splice(+b.dataset.i, 1); s.members = m; s.mitglieder = m.map(y => y.name).filter(Boolean).join(", "); save(); render(); }); break; }
+    case "newS": { const n = {id:uid(), name:"Neue Person", schule:schulen()[0] || "", typ:"Einzel", mitglieder:"", tag:0, zeit:"", dauer:30, stufe:"Unterstufe", instrumente:["Snare Drum"], seit:"", eltern:"", kontakt:"", bemerkung:"", lp:{}, aktiv:true}; db.students.push(n); save(); location.hash = "s-"+n.id; break; }
     case "lps": lpStufe = b.dataset.v; render(); break;
     case "cy": calYear += +b.dataset.n; render(); break;
     case "evs": b.classList.toggle("on"); break;
@@ -963,7 +1040,7 @@ document.addEventListener("click", ev => {
     }
     case "theme": setPref("kb-theme", b.dataset.v); applyLook(); render(); break;
     case "zoom": setPref("kb-zoom", b.dataset.v); applyLook(); render(); break;
-    case "export": saveFile("klassenbuch-backup-" + today() + ".json", JSON.stringify({...db, books}, null, 1), "application/json").then(ok => { if (ok){ db.lastBackup = Date.now(); save(); render(); toast("Backup gesichert"); } }); break;
+    case "export": saveFile("klassenbuch-backup-" + today() + ".json", JSON.stringify({...db, books, ink}, null, 1), "application/json").then(ok => { if (ok){ db.lastBackup = Date.now(); save(); render(); toast("Backup gesichert"); } }); break;
     case "import": document.getElementById("fileIn").click(); break;
     case "reset": ask("Wirklich alle SuS, Lektionen und Termine löschen?", "Alles löschen", () => replaceAll({})); break;
     case "litAdd": { const b = bookById(document.getElementById("nl-b").value); if (!b) return;
@@ -996,6 +1073,9 @@ document.getElementById("fileIn").onchange = e => {
 };
 document.addEventListener("input", ev => {
   const t = ev.target; if (t.tagName === "TEXTAREA") autosize(t);
+  if ("gn" in t.dataset){ db.notiz = t.value; save(); return; }
+  if (t.dataset.gm){ const s = S(t.closest("[data-sid]")?.dataset.sid); if (!s) return; const [i, f] = t.dataset.gm.split(":"); const m = gMembers(s); if (m[+i]){ m[+i][f] = t.value; s.members = m; s.mitglieder = m.map(x => x.name).filter(Boolean).join(", "); save(); } return; }
+  if (t.dataset.sn){ const i = +t.dataset.sn, list = schulen(), alt = list[i], neu = t.value.trim(); if (!neu || alt === undefined || list.includes(neu)) return; list[i] = neu; db.schulen = list; db.students.forEach(s => { if (s.schule === alt) s.schule = neu; }); if (filt.schule === alt) filt.schule = neu; save(); return; }
   const card = t.closest("[data-sid]"); if (!card) return;
   const s = S(card.dataset.sid); if (!s) return;
   if (t.dataset.f){ const l = getLesson(s.id, card.dataset.d, true); l[t.dataset.f] = t.value; saveL(l.id); }
@@ -1135,9 +1215,10 @@ function openPdf(bid, p, ctx){
   if (!b.teile.length || !b.teile.every(t => t.a)){ toast("Das PDF ist noch nicht hochgeladen."); return; }
   Object.assign(pv, {b, p: Math.max(1, Math.min(b.seiten, p || 1)), zoom: 1, sid: ctx?.sid || null, lit: ctx?.lit || null, pop: null});
   $("pv").hidden = false; document.body.style.overflow = "hidden";
-  $("pvHere").hidden = !pv.lit; pvMarks(); pvPopRender(); pvShow();
+  ink_.on = false; ink_.undo = []; ink_.cur = null;
+  $("pvHere").hidden = !pv.lit; pvMarks(); pvPopRender(); inkBar(); pvShow();
 }
-function closePdf(){ $("pv").hidden = true; document.body.style.overflow = ""; pv.tok++; if (pv.task) try { pv.task.cancel(); } catch(e) {} render(); }
+function closePdf(){ ink_.on = false; ink_.cur = null; pv.drawing = false; $("pv").classList.remove("pv-ink"); $("pv").hidden = true; document.body.style.overflow = ""; pv.tok++; if (pv.task) try { pv.task.cancel(); } catch(e) {} render(); }
 function pvMarks(){
   const sel = $("pvMarks"), m = (pv.b.marks || []).slice().sort((x,y) => x.p - y.p);
   sel.hidden = !m.length;
@@ -1147,8 +1228,8 @@ async function pvShow(){
   const b = pv.b, tok = ++pv.tok, off = b.off || 0;
   $("pvT").textContent = b.titel; $("pvP").value = pv.p - off; $("pvN").textContent = "/ " + (b.seiten - off);
   $("pvFit").textContent = pv.fit === "page" ? "Breite" : "Ganze Seite";
-  const msg = $("pvMsg"), c = $("pvC"), body = $("pvBody");
-  const slow = setTimeout(() => { if (tok === pv.tok){ msg.textContent = "Noten werden geladen …"; c.hidden = true; } }, 250);
+  const msg = $("pvMsg"), c = $("pvC"), body = $("pvBody"), pg = $("pvPg");
+  const slow = setTimeout(() => { if (tok === pv.tok){ msg.textContent = "Noten werden geladen …"; pg.hidden = true; } }, 250);
   const {t, lp} = locate(b, pv.p);
   try {
     const doc = await getDoc(t.a); if (tok !== pv.tok) return;
@@ -1162,12 +1243,13 @@ async function pvShow(){
     await pv.task.promise; if (tok !== pv.tok) return;
     clearTimeout(slow);
     c.width = cv.width; c.height = cv.height; c.getContext("2d").drawImage(cv, 0, 0);
-    c.style.width = (vp.width / dpr) + "px"; c.style.height = (vp.height / dpr) + "px"; c.hidden = false; msg.textContent = "";
+    c.style.width = (vp.width / dpr) + "px"; c.style.height = (vp.height / dpr) + "px"; pg.hidden = false; msg.textContent = "";
+    inkDraw();
     body.scrollTop = 0; body.scrollLeft = Math.max(0, (body.scrollWidth - body.clientWidth) / 2);
     const nx = locate(b, Math.min(pv.p + 1, b.seiten)); if (nx.t !== t) getDoc(nx.t.a).catch(() => {});
   } catch(e) {
     clearTimeout(slow);
-    if (tok === pv.tok && !(e && e.name === "RenderingCancelledException")){ c.hidden = true; msg.textContent = e && /PDF/.test(e.message || "") ? e.message : "Das PDF konnte nicht geladen werden. Prüfe die Verbindung und versuche es nochmals."; }
+    if (tok === pv.tok && !(e && e.name === "RenderingCancelledException")){ pg.hidden = true; msg.textContent = e && /PDF/.test(e.message || "") ? e.message : "Das PDF konnte nicht geladen werden. Prüfe die Verbindung und versuche es nochmals."; }
   }
 }
 function pvGo(p){ if (!pv.b) return; const n = Math.max(1, Math.min(pv.b.seiten, p)); if (n !== pv.p){ pv.p = n; pvShow(); } else $("pvP").value = pv.p - (pv.b.off||0); }
@@ -1202,6 +1284,7 @@ $("pv").addEventListener("click", ev => {
     case "in": pv.zoom = Math.min(4, pv.zoom * 1.25); pvShow(); break;
     case "out": pv.zoom = Math.max(.5, pv.zoom / 1.25); pvShow(); break;
     case "assign": case "mark": pv.pop = pv.pop === t.dataset.pv ? null : t.dataset.pv; pvPopRender(); break;
+    case "ink": ink_.on = !ink_.on; if (ink_.on && pv.pop){ pv.pop = null; pvPopRender(); } inkBar(); inkDraw(); break;
     case "popx": pv.pop = null; pvPopRender(); break;
     case "assignOk": {
       const s = S($("pvS").value); if (!s) return;
@@ -1217,18 +1300,150 @@ $("pvP").addEventListener("change", e => pvGo((+e.target.value || 1) + (pv.b.off
 $("pvMarks").addEventListener("change", e => { if (e.target.value) pvGo(+e.target.value); e.target.value = ""; });
 document.addEventListener("keydown", e => {
   if ($("pv").hidden) return;
-  if (e.key === "Escape"){ if (pv.pop){ pv.pop = null; pvPopRender(); } else closePdf(); return; }
+  if (e.key === "Escape"){ if (ink_.on){ ink_.on = false; inkBar(); return; } if (pv.pop){ pv.pop = null; pvPopRender(); } else closePdf(); return; }
   if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName)) return;
   if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " "){ e.preventDefault(); pvGo(pv.p + 1); }
   if (e.key === "ArrowLeft" || e.key === "PageUp"){ e.preventDefault(); pvGo(pv.p - 1); }
 });
 (() => { let x0 = null, y0 = 0; const body = $("pvBody");
   body.addEventListener("touchstart", e => { if (e.touches.length === 1){ x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; } else x0 = null; }, {passive: true});
-  body.addEventListener("touchend", e => { if (x0 === null) return; const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
+  body.addEventListener("touchend", e => { if (x0 === null || ink_.on || pv.drawing){ x0 = null; return; } const t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0; x0 = null;
     if (body.scrollWidth > body.clientWidth + 2) return;
     if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) pvGo(pv.p + (dx < 0 ? 1 : -1)); }, {passive: true});
 })();
 window.addEventListener("resize", () => { if (!$("pv").hidden) pvShow(); });
+/* ---------- Stiftnotizen im Notenviewer: pro Schüler:in und Heft, Linien in Seitenkoordinaten (0–10000) ---------- */
+const INK_C = {r:"#d0302f", b:"#1f5fbf", k:"#1b1b1b", y:"#ffd84a"};
+const ink_ = {on:false, tool:"pen", col:"r", hide:false, cur:null, erased:null, undo:[], stylus:false, raf:0};
+try { ink_.stylus = localStorage.getItem("kb-stylus") === "1"; } catch(e) {}
+const inkKey = () => pv.sid && pv.b ? pv.sid + ":" + pv.b.id : null;
+function inkList(create){
+  const k = inkKey(); if (!k) return null;
+  if (!ink[k]){ if (!create) return null; ink[k] = {p:{}}; }
+  const d = ink[k]; d.p ||= {};
+  if (!d.p[pv.p] && create) d.p[pv.p] = [];
+  return d.p[pv.p] || null;
+}
+function inkSave(k){
+  const d = ink[k];
+  if (d){ for (const pg of Object.keys(d.p || {})) if (!d.p[pg].length) delete d.p[pg]; if (!Object.keys(d.p || {}).length) delete ink[k]; }
+  saveInk(k);
+}
+function inkStroke(g, s, W, H){
+  const p = s.pts; if (!p || p.length < 2) return;
+  const X = i => p[i] * W / 10000, Y = i => p[i + 1] * H / 10000;
+  g.strokeStyle = INK_C[s.c] || "#000"; g.lineWidth = Math.max(1, s.w * W / 10000); g.lineCap = "round"; g.lineJoin = "round";
+  g.beginPath(); g.moveTo(X(0), Y(0));
+  if (p.length === 2) g.lineTo(X(0) + 0.1, Y(0));
+  for (let i = 2; i < p.length - 2; i += 2) g.quadraticCurveTo(X(i), Y(i), (X(i) + X(i + 2)) / 2, (Y(i) + Y(i + 2)) / 2);
+  if (p.length > 2) g.lineTo(X(p.length - 2), Y(p.length - 2));
+  g.stroke();
+}
+function inkDraw(){
+  const cv = $("pvI"), c = $("pvC"); if (!cv || !c) return;
+  if (cv.width !== c.width || cv.height !== c.height){ cv.width = c.width; cv.height = c.height; }
+  const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
+  if (ink_.hide) return;
+  const st = (inkList(false) || []).concat(ink_.cur ? [ink_.cur] : []);
+  for (const pass of ["hl", "pen"]) for (const s of st) if (s.t === pass) inkStroke(g, s, cv.width, cv.height);
+}
+const inkReq = () => { if (!ink_.raf) ink_.raf = requestAnimationFrame(() => { ink_.raf = 0; inkDraw(); }); };
+function pvInkRemote(k){ if (!$("pv").hidden && k === inkKey() && !pv.drawing) inkDraw(); }
+function inkBar(){
+  const el = $("pvInk"); $("pvInkB").classList.toggle("on", ink_.on); $("pv").classList.toggle("pv-ink", ink_.on);
+  if (!ink_.on){ el.hidden = true; el.innerHTML = ""; return; }
+  const list = sorted(), names = {r:"rot", b:"blau", k:"schwarz"};
+  el.hidden = false;
+  el.innerHTML = `<div class="row ink-row">
+    <select id="pvInkS" aria-label="Notizen für">${pv.sid ? "" : `<option value="">Notizen für …</option>`}${list.map(s => `<option value="${s.id}" ${s.id === pv.sid ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select>
+    ${["r","b","k"].map(c => `<button class="ink-t ${ink_.tool === "pen" && ink_.col === c ? "on" : ""}" data-ink="pen" data-c="${c}" aria-label="Stift ${names[c]}" title="Stift ${names[c]}"><i style="background:${INK_C[c]}"></i></button>`).join("")}
+    <button class="ink-t ${ink_.tool === "hl" ? "on" : ""}" data-ink="hl" aria-label="Textmarker" title="Textmarker"><i class="hl" style="background:${INK_C.y}"></i></button>
+    <button class="ink-t ${ink_.tool === "erase" ? "on" : ""}" data-ink="erase">Radierer</button>
+    <button data-ink="undo" ${ink_.undo.length ? "" : "disabled"}>Rückgängig</button>
+    <button class="ghost" data-ink="hide">${ink_.hide ? "Einblenden" : "Ausblenden"}</button>
+    <button class="ghost del" data-ink="clear">Seite leeren</button>
+    <button class="pri" data-ink="done">Fertig</button></div>
+    ${!pv.sid ? `<div class="small muted" style="margin-top:6px">Wähle, für wen die Notizen gelten. Sie erscheinen, wenn du das Heft bei dieser Person öffnest.</div>`
+      : !ink_.stylus ? `<div class="small muted" style="margin-top:6px">Mit dem Apple Pencil schreiben, mit dem Finger blättern und scrollen. Solange kein Stift erkannt ist, zeichnet auch der Finger.</div>` : ""}`;
+}
+$("pvInk").addEventListener("change", e => {
+  if (e.target.id !== "pvInkS") return;
+  pv.sid = e.target.value || null; pv.lit = null; $("pvHere").hidden = true; ink_.undo = []; inkBar(); inkDraw();
+});
+$("pvInk").addEventListener("click", e => {
+  const b = e.target.closest("[data-ink]"); if (!b) return;
+  const k = inkKey();
+  switch (b.dataset.ink){
+    case "pen": ink_.tool = "pen"; ink_.col = b.dataset.c; ink_.hide = false; break;
+    case "hl": ink_.tool = "hl"; ink_.hide = false; break;
+    case "erase": ink_.tool = "erase"; ink_.hide = false; break;
+    case "hide": ink_.hide = !ink_.hide; break;
+    case "done": ink_.on = false; break;
+    case "undo": {
+      const u = ink_.undo.pop(); if (!u) break;
+      if (u.k !== k) break;
+      if (u.pg !== pv.p){ ink_.undo.push(u); pvGo(u.pg); return; }
+      const list = inkList(true);
+      if (u.add){ const i = list.indexOf(u.add); if (i >= 0) list.splice(i, 1); }
+      if (u.del) list.push(...u.del);
+      inkSave(k); break;
+    }
+    case "clear": {
+      const list = inkList(false); if (!list || !list.length){ toast("Auf dieser Seite gibt es keine Notizen."); return; }
+      ask("Alle Notizen auf dieser Seite löschen?", "Löschen", () => { const del = list.splice(0); ink_.undo.push({k, pg: pv.p, del}); inkSave(k); inkBar(); inkDraw(); });
+      return;
+    }
+  }
+  inkBar(); inkDraw();
+});
+(() => {
+  const I = $("pvI");
+  const pt = e => { const r = I.getBoundingClientRect(); return [Math.round(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * 10000), Math.round(Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) * 10000)]; };
+  const allowed = e => ink_.on && !ink_.hide && !!inkKey() && (e.pointerType === "pen" || e.pointerType === "mouse" || !ink_.stylus);
+  const noteStylus = () => { if (!ink_.stylus){ ink_.stylus = true; try { localStorage.setItem("kb-stylus", "1"); } catch(e) {} if (ink_.on) inkBar(); } };
+  // Auf dem iPad: der Stift zeichnet (kein Scrollen), der Finger scrollt – ausser es wurde noch nie ein Stift benutzt
+  const blockTouch = e => { const t = e.touches[0]; if (!t) return; const stylus = t.touchType === "stylus"; if (stylus) noteStylus(); if (ink_.on && !ink_.hide && inkKey() && (stylus || !ink_.stylus)) e.preventDefault(); };
+  I.addEventListener("touchstart", blockTouch, {passive: false});
+  I.addEventListener("touchmove", blockTouch, {passive: false});
+  const erase = p => {
+    const list = inkList(false); if (!list) return;
+    for (let i = list.length - 1; i >= 0; i--){
+      const s = list[i], r = 120 + s.w / 2, r2 = r * r;
+      for (let j = 0; j < s.pts.length; j += 2){ const dx = s.pts[j] - p[0], dy = s.pts[j + 1] - p[1]; if (dx * dx + dy * dy <= r2){ ink_.erased.push(...list.splice(i, 1)); break; } }
+    }
+  };
+  I.addEventListener("pointerdown", e => {
+    if (e.pointerType === "pen") noteStylus();
+    if (!allowed(e) || (e.pointerType === "mouse" && e.button !== 0)) return;
+    e.preventDefault(); try { I.setPointerCapture(e.pointerId); } catch(err) {}
+    pv.drawing = e.pointerId; const p = pt(e);
+    if (ink_.tool === "erase"){ ink_.erased = []; erase(p); inkReq(); return; }
+    const hl = ink_.tool === "hl";
+    ink_.cur = {t: hl ? "hl" : "pen", c: hl ? "y" : ink_.col, w: hl ? 150 : 24, pts: p};
+    inkReq();
+  });
+  I.addEventListener("pointermove", e => {
+    if (pv.drawing !== e.pointerId) return;
+    e.preventDefault();
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+    for (const ev of (evs.length ? evs : [e])){
+      const p = pt(ev);
+      if (ink_.tool === "erase") erase(p);
+      else if (ink_.cur){ const a = ink_.cur.pts, dx = p[0] - a[a.length - 2], dy = p[1] - a[a.length - 1]; if (dx * dx + dy * dy >= 9) a.push(p[0], p[1]); }
+    }
+    inkReq();
+  });
+  const end = e => {
+    if (pv.drawing !== e.pointerId) return;
+    pv.drawing = false; const k = inkKey();
+    if (ink_.cur){ const s = ink_.cur; ink_.cur = null; inkList(true).push(s); ink_.undo.push({k, pg: pv.p, add: s}); inkSave(k); }
+    if (ink_.erased){ if (ink_.erased.length){ ink_.undo.push({k, pg: pv.p, del: ink_.erased}); inkSave(k); } ink_.erased = null; }
+    if (ink_.undo.length > 100) ink_.undo.shift();
+    inkBar(); inkDraw();
+  };
+  I.addEventListener("pointerup", end); I.addEventListener("pointercancel", end);
+})();
+
 
 /* ---------- PDFs direkt im Klassenbuch hinzufügen ---------- */
 $("pdfIn").onchange = async e => {
