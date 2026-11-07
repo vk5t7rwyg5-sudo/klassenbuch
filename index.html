@@ -134,7 +134,7 @@ button:disabled{opacity:.4;cursor:default}
 .mp-bar{display:flex;gap:6px;align-items:center;padding:6px 6px 6px 12px;border-bottom:1px solid var(--bd)}
 .mp-bar b{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
 .mp-bar a{font-size:13px;white-space:nowrap;color:var(--ac)}
-#mpL{display:flex;gap:4px;flex-wrap:wrap;padding:6px 10px 0}#mpL:empty{display:none}
+#mpL{display:flex;gap:4px;flex-wrap:wrap;padding:6px 10px 0;max-height:96px;overflow-y:auto}#mpL:empty{display:none}
 #mpF iframe{display:block;width:100%;border:0;background:var(--soft)}
 .play{min-height:0;padding:2px 8px;font-size:12px;border-radius:999px}
 .lit-play{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
@@ -632,7 +632,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2252 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2256 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1130,7 +1130,8 @@ function mediaInfo(u){
 const linkName = (l, i, all) => l.t || (all.length > 1 && all.filter(y => mediaInfo(y.u).svc === mediaInfo(l.u).svc).length > 1 ? mediaInfo(l.u).svc + " " + (i + 1) : mediaInfo(l.u).svc);
 function playBtns(b, cls){
   const ls = b.links || []; if (!ls.length) return "";
-  const btns = ls.map((l, i) => `<button class="chip play" data-a="play" data-v="${b.id}" data-i="${i}" title="Aufnahme abspielen">♫ ${esc(linkName(l, i, ls))}</button>`).join("");
+  const btns = ls.length > 3 ? `<button class="chip play" data-a="play" data-v="${b.id}" data-i="0" title="Aufnahmen abspielen">♫ ${ls.length} Aufnahmen</button>`
+    : ls.map((l, i) => `<button class="chip play" data-a="play" data-v="${b.id}" data-i="${i}" title="Aufnahme abspielen">♫ ${esc(linkName(l, i, ls))}</button>`).join("");
   return cls ? `<div class="${cls}">${btns}</div>` : btns;
 }
 let mpCur = null;
