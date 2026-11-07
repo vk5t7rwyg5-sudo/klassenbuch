@@ -193,7 +193,7 @@ function ask(text, yes, fn, noFn, noLabel){
 /* ---------- App-Speicher: Gerät (IndexedDB) + verschlüsselter Sync über adrianpopp.ch ---------- */
 const SYNC = "https://www.adrianpopp.ch/_functions/kb/";
 const FILES = "https://static.wixstatic.com/ugd/";
-const PART = 300000, BATCH = 380000, CHUNK = 15 * 1048576;
+const PART = 300000, BATCH = 380000, MAXITEMS = 60, CHUNK = 15 * 1048576;
 let db = {students:[], lessons:[], events:[], lastBackup:null};
 let mode = "loading";
 let metaDirty = false; const dirtyL = new Set(), delL = new Set();
@@ -300,14 +300,7 @@ function applyRec(key, v){
 }
 
 /* --- Sync --- */
-function syncSoon(ms){ clearTimeout(syncT); syncT = setTimeout(sync, ms || 0); }
-async function sync(){
-  if (!acc || !navigator.onLine) { if (acc) setSync("Offline – wird später synchronisiert"); return; }
-  if (syncing){ syncAgain = true; return; }
-  syncing = true; syncErr = "";
-  try {
-    setSync("Synchronisiert …");
-    // 1. Hochladen
+async function pushOutbox(){
     while (cfg.outbox.length){
       const batch = []; let size = 0; const done = [];
       for (const key of cfg.outbox){
@@ -316,18 +309,29 @@ async function sync(){
         if (!r) items.push({key, part:0, parts:1, del:true});
         else { const data = await encObj(r.v); const n = Math.max(1, Math.ceil(data.length / PART)); for (let p = 0; p < n; p++) items.push({key, part:p, parts:n, data: data.slice(p * PART, (p + 1) * PART)}); }
         const len = items.reduce((a, x) => a + (x.data ? x.data.length : 0) + 100, 0);
-        if (batch.length && size + len > BATCH) break;
+        if (batch.length && (size + len > BATCH || batch.length + items.length > MAXITEMS)) break;
         if (len > BATCH){ for (const it of items) await api("push", {items:[it]}); done.push(key); continue; }
         batch.push(...items); size += len; done.push(key);
-        if (size > BATCH * 0.8) break;
+        if (size > BATCH * 0.8 || batch.length >= MAXITEMS) break;
       }
       if (batch.length) await api("push", {items: batch});
       cfg.outbox = cfg.outbox.filter(k => !done.includes(k)); await saveCfg();
+      if (cfg.outbox.length) setSync(`Synchronisiert … noch ${cfg.outbox.length} Einträge`);
     }
+}
+function syncSoon(ms){ clearTimeout(syncT); syncT = setTimeout(sync, ms || 0); }
+async function sync(){
+  if (!acc || !navigator.onLine) { if (acc) setSync("Offline – wird später synchronisiert"); return; }
+  if (syncing){ syncAgain = true; return; }
+  syncing = true; syncErr = "";
+  try {
+    setSync("Synchronisiert …");
+    // 1. Hochladen
+    await pushOutbox();
     // 2. PDFs hochladen
     const ups = [...cfg.uploads];
     for (let i = 0; i < ups.length; i++){ await uploadPdf(ups[i], i + 1, ups.length); cfg.uploads = cfg.uploads.filter(x => x !== ups[i]); await saveCfg(); }
-    if (ups.length) setSync("PDFs hochgeladen, wird abgeglichen …");
+    if (ups.length){ setSync("PDFs hochgeladen, wird abgeglichen …"); await pushOutbox(); }
     // 3. Herunterladen
     let since = Math.max(0, (cfg.since || 0) - 120000 * 1000), maxRev = cfg.since || 0, changed = false;
     const local = await idbAll("rec"), acc2 = {};
@@ -355,7 +359,8 @@ async function sync(){
     lastSync = Date.now(); setSync("Synchronisiert");
     if (changed) remoteRender();
   } catch(e) {
-    syncErr = e.code === "auth" ? "Anmeldung abgelaufen oder Passwort geändert." : (e.message || "Fehler");
+    if (e.code === "rate"){ syncErr = ""; setSync("Server kurz ausgelastet – geht in einer Minute weiter"); syncing = false; syncSoon(65000); return; }
+    syncErr = e.code === "auth" ? "Anmeldung abgelaufen oder Passwort geändert." : /fetch|network|load failed/i.test(e.message || "") ? "Server nicht erreichbar oder Zeitüberschreitung." : (e.message || "Fehler");
     setSync(e.code === "auth" ? "Sync: bitte neu anmelden" : "Sync fehlgeschlagen – neuer Versuch folgt");
     if (e.code !== "auth") syncSoon(30000);
   }
@@ -525,7 +530,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-1939 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-1943 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
