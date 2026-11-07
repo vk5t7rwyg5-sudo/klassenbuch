@@ -32,7 +32,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .top{max-width:1100px;margin:auto;padding-block:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .brand{font-family:var(--display);font-weight:700;font-size:17px;margin-right:10px;letter-spacing:-.01em;display:flex;align-items:center;gap:9px;color:var(--tx);text-decoration:none}
 .brand svg{height:30px;width:auto;display:block;flex:none}
-header,main,dialog,#toast{zoom:var(--z,1)}
+header,main,dialog,#toast,#mp{zoom:var(--z,1)}
 .opt{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:center}.opt label{margin:0 0 4px}
 nav{display:flex;flex-wrap:wrap;gap:2px}
 nav a{color:var(--tx2);text-decoration:none;padding:7px 12px;border-radius:var(--r);font-size:14px}
@@ -130,6 +130,14 @@ button:disabled{opacity:.4;cursor:default}
 .gl{margin-top:6px;display:grid;gap:2px}.gl div{display:flex;gap:8px;min-width:0}.gl b{font-weight:500;white-space:nowrap}.gl span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sl{display:grid;gap:6px;max-width:420px}.sl .row{flex-wrap:nowrap}
 .gsb{display:grid;gap:12px}
+#mp{position:fixed;z-index:40;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));width:min(440px,calc(100vw - 24px));background:var(--card);border:1px solid var(--bd2);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.35);overflow:hidden}
+.mp-bar{display:flex;gap:6px;align-items:center;padding:6px 6px 6px 12px;border-bottom:1px solid var(--bd)}
+.mp-bar b{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
+.mp-bar a{font-size:13px;white-space:nowrap;color:var(--ac)}
+#mpL{display:flex;gap:4px;flex-wrap:wrap;padding:6px 10px 0}#mpL:empty{display:none}
+#mpF iframe{display:block;width:100%;border:0;background:var(--soft)}
+.play{min-height:0;padding:2px 8px;font-size:12px;border-radius:999px}
+.lit-play{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
 .stv-t{width:100%;border-collapse:collapse;font-size:14px}.stv-t th,.stv-t td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bd);vertical-align:top}
 .stv-t th{font-size:12px;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;font-weight:600}.stv-t td.w{white-space:pre-line}
 .sl-prev{margin-bottom:18px;border-color:var(--ac)}.sl-file{border-top:1px solid var(--bd);padding-top:10px;margin-top:10px}
@@ -177,13 +185,14 @@ button:disabled{opacity:.4;cursor:default}
 <input type="file" id="fileIn" accept=".json,application/json" hidden>
 <dialog id="dlg"><p id="dlgText" style="margin-top:0"></p><div class="row" style="justify-content:flex-end"><button id="dlgNo">Abbrechen</button><button id="dlgYes" class="pri">OK</button></div></dialog>
 <div id="toast" hidden></div>
+<div id="mp" hidden role="region" aria-label="Aufnahme"><div class="mp-bar"><b id="mpT"></b><a id="mpOpen" target="_blank" rel="noopener"></a><button class="ghost" data-mp="x" aria-label="Player schliessen">✕</button></div><div id="mpL"></div><div id="mpF"></div></div>
 <input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple hidden>
 <div id="pv" hidden role="dialog" aria-modal="true" aria-label="Notenviewer">
   <div class="pv-bar"><button data-pv="close" aria-label="Schliessen">✕</button><span class="pv-t" id="pvT"></span>
     <select id="pvMarks" aria-label="Lesezeichen" hidden></select>
     <button data-pv="prev" aria-label="Vorherige Seite">‹</button><input class="pg num" id="pvP" inputmode="numeric" aria-label="Seite"><span class="small muted num" id="pvN"></span><button data-pv="next" aria-label="Nächste Seite">›</button>
     <button data-pv="fit" id="pvFit">Breite</button><button data-pv="out" aria-label="Verkleinern">−</button><button data-pv="in" aria-label="Vergrössern">+</button>
-    <button data-pv="here" id="pvHere" hidden>Hier weiter</button><button data-pv="ink" id="pvInkB">✎ Notizen</button><button data-pv="mark">Lesezeichen</button><button data-pv="assign" class="pri">Für SuS</button></div>
+    <button data-pv="here" id="pvHere" hidden>Hier weiter</button><button data-a="play" id="pvPlay" data-i="0" hidden aria-label="Aufnahme abspielen">♫</button><button data-pv="ink" id="pvInkB">✎ Notizen</button><button data-pv="mark">Lesezeichen</button><button data-pv="assign" class="pri">Für SuS</button></div>
   <div class="pv-pop" id="pvPop" hidden></div>
   <div class="pv-pop" id="pvInk" hidden></div>
   <div class="pv-body" id="pvBody"><div class="pv-pg" id="pvPg" hidden><canvas id="pvC"></canvas><canvas id="pvI"></canvas></div><div id="pvMsg" class="muted"></div></div>
@@ -623,7 +632,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2240 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2248 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1097,6 +1106,46 @@ async function stvExport(){
   const name = `Stellvertretung ${stv.von}${stv.bis !== stv.von ? " bis " + stv.bis : ""}.xlsx`;
   if (await saveFile(name, blob, blob.type)) toast("Excel-Datei erstellt");
 }
+/* ---------- Aufnahmen: Links pro Heft/Stück und eingebetteter Player ---------- */
+function parseLinks(text){
+  return String(text || "").split(/\n+/).map(line => { const m = line.match(/https?:\/\/\S+/); if (!m) return null; const t = line.slice(0, m.index).replace(/[\s:–-]+$/, "").trim(); return t ? {t, u: m[0]} : {u: m[0]}; }).filter(Boolean);
+}
+function mediaInfo(u){
+  let x; try { x = new URL(u); } catch(e) { return {svc: "Link"}; }
+  const h = x.hostname.replace(/^(www|m|music)\.(?=youtube)/, "").replace(/^www\./, "");
+  const sec = v => { if (!v) return 0; const m = String(v).match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/); return m ? (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0) : 0; };
+  const st = () => { const s = sec(x.searchParams.get("t") || x.searchParams.get("start")); return s ? "?start=" + s : ""; };
+  if (h === "youtu.be") return {svc: "YouTube", embed: "https://www.youtube-nocookie.com/embed/" + x.pathname.slice(1).split("/")[0] + st(), h: 240};
+  if (h === "youtube.com" || h.endsWith(".youtube.com")){
+    const id = x.searchParams.get("v") || (x.pathname.match(/\/(?:shorts|embed|live)\/([\w-]+)/) || [])[1], list = x.searchParams.get("list");
+    if (id) return {svc: "YouTube", embed: "https://www.youtube-nocookie.com/embed/" + id + st(), h: 240};
+    if (list) return {svc: "YouTube", embed: "https://www.youtube-nocookie.com/embed/videoseries?list=" + encodeURIComponent(list), h: 240};
+    return {svc: "YouTube"};
+  }
+  if (h === "open.spotify.com"){ const m = x.pathname.match(/\/(track|album|playlist|episode|show|artist)\/([A-Za-z0-9]+)/); return {svc: "Spotify", embed: m ? `https://open.spotify.com/embed/${m[1]}/${m[2]}` : null, h: m && (m[1] === "track" || m[1] === "episode") ? 152 : 352}; }
+  if (/(^|\.)spotify\.(com|link)$/.test(h)) return {svc: "Spotify"};
+  if (h === "music.apple.com") return {svc: "Apple Music", embed: "https://embed.music.apple.com" + x.pathname + x.search, h: x.searchParams.get("i") ? 175 : 450};
+  return {svc: h.replace(/^www\./, "")};
+}
+const linkName = (l, i, all) => l.t || (all.length > 1 && all.filter(y => mediaInfo(y.u).svc === mediaInfo(l.u).svc).length > 1 ? mediaInfo(l.u).svc + " " + (i + 1) : mediaInfo(l.u).svc);
+function playBtns(b, cls){
+  const ls = b.links || []; if (!ls.length) return "";
+  const btns = ls.map((l, i) => `<button class="chip play" data-a="play" data-v="${b.id}" data-i="${i}" title="Aufnahme abspielen">♫ ${esc(linkName(l, i, ls))}</button>`).join("");
+  return cls ? `<div class="${cls}">${btns}</div>` : btns;
+}
+let mpCur = null;
+function playLink(bid, i){
+  const b = bookById(bid), l = b && (b.links || [])[i]; if (!l) return;
+  const info = mediaInfo(l.u);
+  if (!info.embed){ window.open(l.u, "_blank", "noopener"); return; }
+  mpCur = {bid, i};
+  $("mpT").textContent = b.titel + (l.t ? " · " + l.t : "");
+  const o = $("mpOpen"); o.href = l.u; o.textContent = "In " + info.svc + " öffnen";
+  $("mpL").innerHTML = b.links.length > 1 ? b.links.map((y, k) => `<button class="chip play ${k === i ? "on" : ""}" data-a="play" data-v="${b.id}" data-i="${k}">${esc(linkName(y, k, b.links))}</button>`).join("") : "";
+  $("mpF").innerHTML = `<iframe src="${esc(info.embed)}" height="${info.h}" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="lazy" title="${esc(b.titel)}"></iframe>`;
+  $("mp").hidden = false;
+}
+document.addEventListener("click", ev => { if (ev.target.closest('[data-mp="x"]')){ $("mpF").innerHTML = ""; $("mp").hidden = true; mpCur = null; } });
 function vWoche(){
   const mon = weekStart, sun = addDays(mon, 6);
   const evs = db.events.filter(e => e.typ !== "Ferien" && (e.bis||e.datum) >= iso(mon) && e.datum <= iso(sun));
@@ -1403,6 +1452,7 @@ document.addEventListener("click", ev => {
     case "fs": filt.schule = b.dataset.v; render(); break;
     case "slLoad": case "slMore": { const inp = document.createElement("input"); inp.type = "file"; inp.multiple = true; inp.accept = ".csv,.txt,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; inp.onchange = () => slLoad([...inp.files]); inp.click(); break; }
     case "slX": imp = null; render(); break;
+    case "play": playLink(b.dataset.v, +b.dataset.i || 0); break;
     case "stvGo": stv = null; break;
     case "stvTag": case "stvKid": { const set = a === "stvTag" ? stv.offTage : stv.offKids, v = b.dataset.v; set.has(v) ? set.delete(v) : set.add(v); render(); break; }
     case "stvAll": stv.offKids.clear(); stv.offTage.clear(); render(); break;
@@ -1449,7 +1499,8 @@ document.addEventListener("click", ev => {
     case "bkEdit": editBook = b.dataset.v; render(); document.getElementById("bkEdit")?.scrollIntoView({block:"nearest"}); break;
     case "bkCancel": editBook = null; render(); break;
     case "bkSave": { const bk = bookById(b.dataset.v), g = id => document.getElementById(id).value.trim();
-      Object.assign(bk, {titel:g("be-titel") || bk.titel, autor:g("be-autor"), ordner:g("be-ordner"), kat:g("be-kat") || bk.kat, off:Math.max(0, (+g("be-off") || 1) - 1), instr:[...document.querySelectorAll("#be-instr .chip.on")].map(x => x.dataset.v), stufen:[...document.querySelectorAll("#be-stufen .chip.on")].map(x => x.dataset.v)});
+      Object.assign(bk, {titel:g("be-titel") || bk.titel, autor:g("be-autor"), ordner:g("be-ordner"), kat:g("be-kat") || bk.kat, off:Math.max(0, (+g("be-off") || 1) - 1), instr:[...document.querySelectorAll("#be-instr .chip.on")].map(x => x.dataset.v), stufen:[...document.querySelectorAll("#be-stufen .chip.on")].map(x => x.dataset.v), links: parseLinks(document.getElementById("be-links").value)});
+      if (!bk.links.length) delete bk.links;
       editBook = null; saveBooks(); render(); toast("Gespeichert"); break; }
     case "bkDel": { const bk = bookById(b.dataset.v), n = db.students.filter(x => (x.lit||[]).some(y => y.b === bk.id)).length;
       ask(`„${bk.titel}“ aus dem Katalog entfernen?${n ? ` ${n} SuS haben es in ihrer Literatur.` : ""}`, "Entfernen", () => { books = books.filter(x => x.id !== bk.id); editBook = null; saveBooks(); render(); }); break; }
@@ -1524,7 +1575,7 @@ function litSection(s){
 }
 function litChips(s){
   const cur = curLit(s); if (!cur.length) return "";
-  return `<div class="row" style="margin-top:10px">${cur.map(x => `<button class="chip" data-a="litOpen" data-v="${x.id}" ${bookById(x.b)?"":"disabled"}>♪ ${esc(litLabel(x))} · S. ${esc(x.seite)}</button>`).join("")}</div>`;
+  return `<div class="row" style="margin-top:10px">${cur.map(x => `<button class="chip" data-a="litOpen" data-v="${x.id}" ${bookById(x.b)?"":"disabled"}>♪ ${esc(litLabel(x))} · S. ${esc(x.seite)}</button>${bookById(x.b) ? playBtns(bookById(x.b)) : ""}`).join("")}</div>`;
 }
 function litReport(s){ return curLit(s).map(x => { const b = bookById(x.b); return (x.stueck ? x.stueck + " – " : "") + (b ? b.titel + (b.autor ? " (" + b.autor + ")" : "") : ""); }).filter(Boolean); }
 
@@ -1590,12 +1641,13 @@ function vLiteratur(){
         <div><label for="be-autor">Autor</label><input id="be-autor" value="${esc(b.autor)}"></div>
         <div><label for="be-ordner">Ordner</label><input id="be-ordner" value="${esc(b.ordner)}"></div>
         <div><label for="be-kat">Kategorie</label><select id="be-kat">${[...new Set([...KATS, b.kat])].map(k => `<option ${b.kat===k?"selected":""}>${esc(k)}</option>`).join("")}</select></div>
-        <div><label for="be-off">Heftseite 1 = PDF-Seite</label><input id="be-off" type="number" inputmode="numeric" value="${(b.off||0)+1}"></div></div>
+        <div><label for="be-off">Heftseite 1 = PDF-Seite</label><input id="be-off" type="number" inputmode="numeric" value="${(b.off||0)+1}"></div>
+        <div style="grid-column:1/-1"><label for="be-links">Aufnahmen: ein Link pro Zeile (Spotify, YouTube, Apple Music …), optional mit Namen davor</label><textarea id="be-links" rows="2" placeholder="Original https://open.spotify.com/track/…&#10;Play-Along https://youtu.be/…">${esc((b.links||[]).map(l => (l.t ? l.t + " " : "") + l.u).join("\n"))}</textarea></div></div>
         <label style="margin-top:8px">Stufen</label><div class="row" id="be-stufen">${STUFEN.map(k => `<button class="chip ${(b.stufen||[]).includes(k)?"on":""}" data-a="evs" data-v="${k}">${k}</button>`).join("")}</div>
         <label style="margin-top:8px">Bereiche</label><div class="row" id="be-instr">${INSTR.map(k => `<button class="chip ${(b.instr||[]).includes(k)?"on":""}" data-a="evs" data-v="${k}">${k}</button>`).join("")}</div>
         <div class="row" style="margin-top:10px"><button class="pri" data-a="bkSave" data-v="${b.id}">Speichern</button><button data-a="bkCancel">Abbrechen</button><span class="sp"></span><button class="del" data-a="bkDel" data-v="${b.id}">Aus Katalog entfernen</button></div></div></td></tr>`;
       return `<tr class="${voice ? "lit-sub" : ""}">
-        <td class="c-t"><button class="lit-open" data-a="bkOpen" data-v="${b.id}">${esc(voice || b.titel)}</button><div class="tiny m-only">${esc(meta)}</div>
+        <td class="c-t"><button class="lit-open" data-a="bkOpen" data-v="${b.id}">${esc(voice || b.titel)}</button>${playBtns(b, "lit-play")}<div class="tiny m-only">${esc(meta)}</div>
           ${(b.marks||[]).length ? `<div class="lit-marks">${b.marks.slice().sort((x,y) => x.p - y.p).map(m => `<button class="chip" data-a="bkOpen" data-v="${b.id}" data-p="${m.p}">${esc(m.t)} · S. ${m.p - (b.off||0)}</button>`).join("")}</div>` : ""}</td>
         <td class="c-a small muted">${esc(b.autor)}</td>
         ${litF.kat==="Alle" ? `<td class="c-k"><span class="badge ${{Lehrmittel:"b-ac","Stücke":"b-pu","Unterrichtsblätter":"b-te"}[b.kat]||"b-gr"}">${esc(b.kat)}</span></td>` : ""}
@@ -1642,6 +1694,7 @@ function openPdf(bid, p, ctx){
   Object.assign(pv, {b, p: Math.max(1, Math.min(b.seiten, p || 1)), zoom: 1, sid: ctx?.sid || null, lit: ctx?.lit || null, pop: null});
   $("pv").hidden = false; document.body.style.overflow = "hidden";
   ink_.on = false; ink_.undo = []; ink_.cur = null;
+  $("pvPlay").hidden = !(b.links || []).length; $("pvPlay").dataset.v = b.id;
   $("pvHere").hidden = !pv.lit; pvMarks(); pvPopRender(); inkBar(); pvShow();
 }
 function closePdf(){ ink_.on = false; ink_.cur = null; pv.drawing = false; $("pv").classList.remove("pv-ink"); $("pv").hidden = true; document.body.style.overflow = ""; pv.tok++; if (pv.task) try { pv.task.cancel(); } catch(e) {} render(); }
