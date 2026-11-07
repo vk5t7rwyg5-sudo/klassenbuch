@@ -130,6 +130,8 @@ button:disabled{opacity:.4;cursor:default}
 .gl{margin-top:6px;display:grid;gap:2px}.gl div{display:flex;gap:8px;min-width:0}.gl b{font-weight:500;white-space:nowrap}.gl span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sl{display:grid;gap:6px;max-width:420px}.sl .row{flex-wrap:nowrap}
 .gsb{display:grid;gap:12px}
+.stv-t{width:100%;border-collapse:collapse;font-size:14px}.stv-t th,.stv-t td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bd);vertical-align:top}
+.stv-t th{font-size:12px;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;font-weight:600}.stv-t td.w{white-space:pre-line}
 .sl-prev{margin-bottom:18px;border-color:var(--ac)}.sl-file{border-top:1px solid var(--bd);padding-top:10px;margin-top:10px}
 .sl-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bd)}
 .sl-act{display:flex;gap:6px;align-items:center}.sl-act select{width:auto;max-width:260px}
@@ -577,7 +579,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2148 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2205 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -912,9 +914,9 @@ function render(){
   if (!(loaded.meta && loaded.lessons)) return;
   const {v, id} = route();
   const tabs = [["woche","Notizen"],["sus","SuS"],["kalender","Kalender"],["lehrplan","Lehrplan"],["literatur","Literatur"],["daten","Einstellungen"]];
-  const cur = v === "s" || v === "bericht" ? "sus" : v;
+  const cur = v === "s" || v === "bericht" ? "sus" : v === "stv" ? "woche" : v;
   document.getElementById("nav").innerHTML = tabs.map(([k,t]) => `<a href="#${k}" class="${cur===k?"on":""}">${t}</a>`).join("");
-  ({woche:vWoche, sus:vSus, s:()=>vDetail(id), kalender:vKalender, lehrplan:vLehrplan, literatur:vLiteratur, daten:vDatenApp, bericht:()=>vBericht(id)}[v] || vWoche)();
+  ({woche:vWoche, sus:vSus, s:()=>vDetail(id), kalender:vKalender, lehrplan:vLehrplan, literatur:vLiteratur, daten:vDatenApp, stv:vStv, bericht:()=>vBericht(id)}[v] || vWoche)();
   app.querySelectorAll("textarea").forEach(autosize);
 }
 function autosize(el){ el.style.height = "auto"; el.style.height = (el.scrollHeight + 2) + "px"; }
@@ -954,6 +956,98 @@ function gnCard(){
     <textarea id="gnT" data-gn rows="3" placeholder="Gilt für alle: Absprachen, Material, Ideen, was diese Woche ansteht …" aria-label="Allgemeine Notizen">${esc(db.notiz || "")}</textarea></details>`;
 }
 document.addEventListener("toggle", e => { if (e.target.id === "gn"){ try { localStorage.setItem("kb-gn", e.target.open ? "auf" : "zu"); } catch(err) {} if (e.target.open) autosize($("gnT")); } }, true);
+/* ---------- Stellvertretung: Lektionen auswählen und als Excel exportieren ---------- */
+let stv = null;
+function stvInit(){
+  if (stv) return;
+  const von = iso(weekStart) < today() ? today() : iso(weekStart);
+  stv = {von, bis: iso(addDays(weekStart, 6)) < von ? iso(addDays(monday(parse(von)), 6)) : iso(addDays(weekStart, 6)), offTage: new Set(), offKids: new Set()};
+}
+function stvLessons(){
+  const out = []; if (!stv.von || !stv.bis || stv.bis < stv.von) return out;
+  for (let mon = monday(parse(stv.von)); iso(mon) <= stv.bis; mon = addDays(mon, 7))
+    for (const s of sorted()){ if (!s.tag) continue; const d = lessonDate(s, mon); if (d < stv.von || d > stv.bis || ferienAm(d, s)) continue; out.push({s, d}); }
+  return out.sort((a, b) => a.d.localeCompare(b.d) || (a.s.zeit || "99").localeCompare(b.s.zeit || "99"));
+}
+const stvSel = all => all.filter(x => !stv.offTage.has(x.d) && !stv.offKids.has(x.s.id));
+function stvRow({s, d}){
+  const grp = s.typ === "Gruppe", m = grp ? gMembers(s) : [];
+  const per = f => { if (!grp) return f(s); const r = m.map(x => { const v = f(x); return v ? (x.name ? x.name.split(" ")[0] + ": " : "") + v : ""; }).filter(Boolean).join("\n"); return r || f(s); };
+  const last = lessonsOf(s.id).find(l => l.datum < d && (l.inhalt || l.aufgaben));
+  return {datum: fmt(d, 1), tag: TAGE[s.tag] || "", zeit: s.zeit || "", dauer: s.dauer ? s.dauer + " Min." : "", name: s.name,
+    kinder: grp ? m.map(x => x.name + (ageOf(x.geburt) !== null ? " (" + ageOf(x.geburt) + ")" : "")).join("\n") : (alter(s) !== null ? alter(s) + " J." : ""),
+    schule: s.schule || "", stufe: s.stufe || "", instr: (s.instrumente || []).join(", "),
+    eltern: per(x => x.eltern || ""), tel: per(x => kOf(x).tel), mail: per(x => kOf(x).mail),
+    lit: curLit(s).map(x => litLabel(x) + (x.seite ? ", S. " + x.seite : "")).join("\n"),
+    letzte: last ? fmt(last.datum, 1) : "", inhalt: last ? last.inhalt || "" : "", aufgaben: last ? last.aufgaben || "" : "", bem: s.bemerkung || ""};
+}
+const STV_COLS = [["datum","Datum",11],["tag","Tag",5],["zeit","Zeit",7],["dauer","Dauer",8],["name","Schüler:in / Gruppe",22],["kinder","Kinder / Alter",22],["schule","Schule",10],["stufe","Stufe",11],["instr","Instrumente",16],
+  ["eltern","Eltern",22],["tel","Telefon",20],["mail","E-Mail",28],["lit","Aktuelle Literatur",32],["letzte","Letzte Lektion",12],["inhalt","Zuletzt gearbeitet",42],["aufgaben","Aufgaben",34],["bem","Bemerkung",24]];
+function vStv(){
+  stvInit();
+  const all = stvLessons(), sel = stvSel(all), tage = [...new Set(all.map(x => x.d))], kids = [...new Map(all.map(x => [x.s.id, x.s])).values()];
+  app.innerHTML = `<div class="row" style="margin-bottom:10px"><a href="#woche" class="muted">‹ Notizen</a></div>
+  <h2>Stellvertretung</h2>
+  <div class="card"><div class="f" style="max-width:420px">
+      <div><label for="stv-von">Von</label><input type="date" id="stv-von" data-stv="von" value="${esc(stv.von)}"></div>
+      <div><label for="stv-bis">Bis</label><input type="date" id="stv-bis" data-stv="bis" value="${esc(stv.bis)}"></div></div>
+    ${all.length ? `<label style="margin-top:12px">Tage</label><div class="row">${tage.map(d => `<button class="chip ${stv.offTage.has(d) ? "" : "on"}" data-a="stvTag" data-v="${d}">${TAGE[(parse(d).getDay() + 6) % 7 + 1] || ""} ${fmt(d)}</button>`).join("")}</div>
+    <label style="margin-top:12px">Schüler:innen</label><div class="row">${kids.map(s => `<button class="chip ${stv.offKids.has(s.id) ? "" : "on"}" data-a="stvKid" data-v="${s.id}">${esc(s.name)}</button>`).join("")}
+      <button class="ghost small" data-a="stvAll">Alle</button><button class="ghost small" data-a="stvNone">Keine</button></div>`
+    : `<p class="muted" style="margin-bottom:0">${stv.bis < stv.von ? "Das Enddatum liegt vor dem Startdatum." : "In diesem Zeitraum finden keine Lektionen statt."}</p>`}
+    <div class="row" style="margin-top:14px"><button class="pri" data-a="stvXlsx" ${sel.length ? "" : "disabled"}>Als Excel exportieren</button><span class="small muted num">${sel.length} ${sel.length === 1 ? "Lektion" : "Lektionen"}</span></div>
+    <p class="tiny" style="margin-bottom:0">Die Excel-Datei enthält pro Lektion Zeit, Kinder, Kontakte der Eltern, aktuelle Literatur, die letzte Lektion mit Aufgaben und die Bemerkung. Interne Notizen und das Stammblatt kommen nicht mit.</p></div>
+  ${sel.length ? `<h3>Vorschau</h3><div class="card" style="overflow-x:auto"><table class="stv-t"><tr><th>Datum</th><th>Zeit</th><th>Schüler:in / Gruppe</th><th>Kontakt</th><th>Literatur</th><th>Aufgaben</th></tr>
+    ${sel.map(x => { const r = stvRow(x); return `<tr><td class="num" style="white-space:nowrap">${r.tag} ${esc(r.datum)}</td><td class="num">${esc(r.zeit)}</td><td class="w"><b>${esc(r.name)}</b>${r.kinder ? "\n" + esc(r.kinder) : ""}</td><td class="w small">${esc(r.tel)}</td><td class="w small">${esc(r.lit)}</td><td class="w small">${esc(r.aufgaben)}</td></tr>`; }).join("")}</table></div>` : ""}`;
+}
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++){ let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u){ let c = 0xFFFFFFFF; for (let i = 0; i < u.length; i++) c = CRC[(c ^ u[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipStore(files, type){
+  const enc = new TextEncoder(), parts = [], cen = []; let off = 0, cnt = 0;
+  for (const [name, txt] of Object.entries(files)){
+    const n = enc.encode(name), d = enc.encode(txt), crc = crc32(d);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(12, 0x21, true);
+    h.setUint32(14, crc, true); h.setUint32(18, d.length, true); h.setUint32(22, d.length, true); h.setUint16(26, n.length, true);
+    parts.push(new Uint8Array(h.buffer), n, d);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(14, 0x21, true);
+    c.setUint32(16, crc, true); c.setUint32(20, d.length, true); c.setUint32(24, d.length, true); c.setUint16(28, n.length, true); c.setUint32(42, off, true);
+    cen.push(new Uint8Array(c.buffer), n);
+    off += 30 + n.length + d.length; cnt++;
+  }
+  const cs = cen.reduce((a, x) => a + x.length, 0), e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, cnt, true); e.setUint16(10, cnt, true); e.setUint32(12, cs, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...cen, new Uint8Array(e.buffer)], {type});
+}
+function xlsxBlob(sheetName, cols, rows){
+  const X = s => String(s ?? "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const L = i => { let s = ""; i++; while (i){ const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+  const cell = (r, i, v, st) => `<c r="${L(i)}${r}" t="inlineStr" s="${st}"><is><t xml:space="preserve">${X(v)}</t></is></c>`;
+  const all = [cols.map(c => c[1]), ...rows], last = L(cols.length - 1) + all.length;
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:${last}"/>
+<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+<cols>${cols.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${c[2]}" customWidth="1"/>`).join("")}</cols>
+<sheetData>${all.map((r, ri) => `<row r="${ri + 1}">${r.map((v, i) => cell(ri + 1, i, v, ri ? 2 : 1)).join("")}</row>`).join("")}</sheetData>
+<autoFilter ref="A1:${last}"/><pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/></worksheet>`;
+  const files = {
+    "[Content_Types].xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`,
+    "_rels/.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+    "xl/workbook.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${X(sheetName)}" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${X(sheetName)}'!$A$1:$${L(cols.length - 1)}$${all.length}</definedName></definedNames></workbook>`,
+    "xl/_rels/workbook.xml.rels": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,
+    "xl/styles.xml": `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE6E6E0"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left/><right/><top/><bottom style="thin"><color rgb="FFD0D0C8"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`,
+    "xl/worksheets/sheet1.xml": sheet
+  };
+  return zipStore(files, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+}
+async function stvExport(){
+  const sel = stvSel(stvLessons()); if (!sel.length) return;
+  const rows = sel.map(x => { const r = stvRow(x); return STV_COLS.map(c => r[c[0]]); });
+  const blob = xlsxBlob("Stellvertretung", STV_COLS, rows);
+  const name = `Stellvertretung ${stv.von}${stv.bis !== stv.von ? " bis " + stv.bis : ""}.xlsx`;
+  if (await saveFile(name, blob, blob.type)) toast("Excel-Datei erstellt");
+}
 function vWoche(){
   const mon = weekStart, sun = addDays(mon, 6);
   const evs = db.events.filter(e => e.typ !== "Ferien" && (e.bis||e.datum) >= iso(mon) && e.datum <= iso(sun));
@@ -961,7 +1055,7 @@ function vWoche(){
   let html = backupBanner() + `<div class="row" style="margin-bottom:12px">
     <button data-a="wk" data-n="-7" aria-label="Vorherige Woche">‹</button>
     <h2 style="margin:0">KW ${kw(mon)} <span class="muted num" style="font-weight:400;font-size:15px;font-family:var(--body)">${fmt(iso(mon))}–${fmt(iso(sun),1)}</span></h2>
-    <button data-a="wk" data-n="7" aria-label="Nächste Woche">›</button>
+    <button data-a="wk" data-n="7" aria-label="Nächste Woche">›</button><a class="btn ghost" href="#stv" data-a="stvGo">Stellvertretung</a>
     ${fer.map(e => `<span class="badge b-gr">${esc(e.titel)}</span>`).join("")}
     ${evs.map(e => `<span class="badge ${EVTYP[e.typ]}">${esc(e.typ)} ${fmt(e.datum)}: ${esc(e.titel)}</span>`).join("")}
     ${bdays(iso(mon), iso(sun)).map(b => `<span class="badge b-da">Geburtstag ${fmt(b.datum)}: ${esc(b.name)} (${b.alter})</span>`).join("")}</div>`;
@@ -1260,6 +1354,11 @@ document.addEventListener("click", ev => {
     case "fs": filt.schule = b.dataset.v; render(); break;
     case "slLoad": case "slMore": { const inp = document.createElement("input"); inp.type = "file"; inp.multiple = true; inp.accept = ".csv,.txt,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; inp.onchange = () => slLoad([...inp.files]); inp.click(); break; }
     case "slX": imp = null; render(); break;
+    case "stvGo": stv = null; break;
+    case "stvTag": case "stvKid": { const set = a === "stvTag" ? stv.offTage : stv.offKids, v = b.dataset.v; set.has(v) ? set.delete(v) : set.add(v); render(); break; }
+    case "stvAll": stv.offKids.clear(); stv.offTage.clear(); render(); break;
+    case "stvNone": stvLessons().forEach(x => stv.offKids.add(x.s.id)); render(); break;
+    case "stvXlsx": stvExport(); break;
     case "slOk": slApply(); break;
     case "schulAdd": { const v = $("schulNeu").value.trim(); if (!v){ $("schulNeu").focus(); return; } const l = schulen(); if (!l.includes(v)) l.push(v); db.schulen = l; save(); render(); break; }
     case "schulDel": { const l = schulen(), k = l[+b.dataset.i], n = db.students.filter(s => s.schule === k).length;
@@ -1317,6 +1416,7 @@ document.getElementById("fileIn").onchange = e => {
 document.addEventListener("input", ev => {
   const t = ev.target; if (t.tagName === "TEXTAREA") autosize(t);
   if ("gn" in t.dataset){ db.notiz = t.value; save(); return; }
+  if (stv && t.dataset.stv){ stv[t.dataset.stv] = t.value; render(); return; }
   if (imp && t.dataset.sla){ const [fi, ri] = t.dataset.sla.split(":").map(Number); imp.files[fi].rows[ri].act = t.value; render(); return; }
   if (imp && t.dataset.sls){ imp.files[+t.dataset.sls].schule = t.value; render(); return; }
   if (imp && t.dataset.slsn){ imp.files[+t.dataset.slsn].neu = t.value; return; }
