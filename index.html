@@ -98,9 +98,6 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 .ed{padding:18px 20px}.ed-name{font-family:var(--display);font-size:22px;font-weight:700;color:var(--tx);text-decoration:none}
 .ed-f{display:grid;gap:12px;margin-top:14px}.ed-2{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
 .ed textarea{font-size:16px;line-height:1.5}
-.mic-w{position:relative}.mic-w>textarea{padding-right:44px}
-.mic{position:absolute;right:6px;bottom:8px;width:34px;height:34px;border-radius:50%;border:1px solid var(--bd2);background:var(--soft);color:var(--tx2);display:grid;place-items:center;padding:0;cursor:pointer}
-.mic svg{width:18px;height:18px}.mic:hover{color:var(--tx)}
 .prev{margin-top:12px;background:var(--soft);border-radius:var(--r);padding:8px 12px;font-size:14px}.prev summary{cursor:pointer;color:var(--tx2)}.prev p{margin:6px 0;white-space:pre-wrap}
 .ed-nav{margin-top:16px;border-top:1px solid var(--bd);padding-top:12px}
 button:disabled{opacity:.4;cursor:default}
@@ -533,7 +530,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2106 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2112 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -626,28 +623,8 @@ function render(){
   document.getElementById("nav").innerHTML = tabs.map(([k,t]) => `<a href="#${k}" class="${cur===k?"on":""}">${t}</a>`).join("");
   ({woche:vWoche, sus:vSus, s:()=>vDetail(id), kalender:vKalender, lehrplan:vLehrplan, literatur:vLiteratur, daten:vDatenApp, bericht:()=>vBericht(id)}[v] || vWoche)();
   app.querySelectorAll("textarea").forEach(autosize);
-  addMics();
 }
 function autosize(el){ el.style.height = "auto"; el.style.height = (el.scrollHeight + 2) + "px"; }
-/* ---------- Diktieren: Knopf in Textfeldern führt zum Diktieren des Geräts ----------
-   (Die Browser-Spracherkennung war auf iPad und Mac unzuverlässig; das System-Diktat läuft meist auf dem Gerät.) */
-const MIC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
-function addMics(){
-  app.querySelectorAll("textarea[id]").forEach(ta => {
-    const w = ta.parentElement; if (!w || w.querySelector(":scope>.mic")) return;
-    w.classList.add("mic-w");
-    const b = document.createElement("button"); b.type = "button"; b.className = "mic"; b.dataset.mic = ta.id;
-    b.title = "Diktieren"; b.setAttribute("aria-label", "Diktieren"); b.innerHTML = MIC_SVG; w.appendChild(b);
-  });
-}
-document.addEventListener("click", ev => {
-  const b = ev.target.closest(".mic"); if (!b) return;
-  ev.preventDefault(); ev.stopPropagation();
-  const ta = document.getElementById(b.dataset.mic); if (!ta) return;
-  ta.focus(); const n = ta.value.length; ta.selectionStart = ta.selectionEnd = n;
-  const touch = matchMedia("(pointer:coarse)").matches;
-  toast(touch ? "Tippe jetzt unten auf der Tastatur auf 🎤 und sprich." : "Drücke jetzt die Diktat-Taste 🎤 (F5) oder zweimal fn und sprich.");
-}, true);
 window.addEventListener("resize", () => app.querySelectorAll("textarea").forEach(autosize));
 window.addEventListener("hashchange", () => { detailStufe = null; editBook = null; render(); window.scrollTo(0,0); });
 
