@@ -101,8 +101,6 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 .mic-w{position:relative}.mic-w>textarea{padding-right:44px}
 .mic{position:absolute;right:6px;bottom:8px;width:34px;height:34px;border-radius:50%;border:1px solid var(--bd2);background:var(--soft);color:var(--tx2);display:grid;place-items:center;padding:0;cursor:pointer}
 .mic svg{width:18px;height:18px}.mic:hover{color:var(--tx)}
-.mic.on{background:var(--da);border-color:var(--da);color:var(--card);animation:micp 1.4s ease-in-out infinite}
-@keyframes micp{50%{box-shadow:0 0 0 6px var(--dabg)}}
 .prev{margin-top:12px;background:var(--soft);border-radius:var(--r);padding:8px 12px;font-size:14px}.prev summary{cursor:pointer;color:var(--tx2)}.prev p{margin:6px 0;white-space:pre-wrap}
 .ed-nav{margin-top:16px;border-top:1px solid var(--bd);padding-top:12px}
 button:disabled{opacity:.4;cursor:default}
@@ -535,7 +533,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2101 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2106 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -631,60 +629,25 @@ function render(){
   addMics();
 }
 function autosize(el){ el.style.height = "auto"; el.style.height = (el.scrollHeight + 2) + "px"; }
-/* ---------- Diktieren: Mikrofon-Knopf in Textfeldern (Spracherkennung des Browsers) ---------- */
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+/* ---------- Diktieren: Knopf in Textfeldern führt zum Diktieren des Geräts ----------
+   (Die Browser-Spracherkennung war auf iPad und Mac unzuverlässig; das System-Diktat läuft meist auf dem Gerät.) */
 const MIC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
-let mic = null; // {rec, id, before, after, fin}
 function addMics(){
   app.querySelectorAll("textarea[id]").forEach(ta => {
     const w = ta.parentElement; if (!w || w.querySelector(":scope>.mic")) return;
     w.classList.add("mic-w");
-    const b = document.createElement("button"); b.type = "button"; b.className = "mic" + (mic && mic.id === ta.id ? " on" : ""); b.dataset.mic = ta.id;
+    const b = document.createElement("button"); b.type = "button"; b.className = "mic"; b.dataset.mic = ta.id;
     b.title = "Diktieren"; b.setAttribute("aria-label", "Diktieren"); b.innerHTML = MIC_SVG; w.appendChild(b);
   });
 }
-function micStop(){ if (!mic) return; const m = mic; mic = null; try { m.rec.stop(); } catch(e) {} document.querySelectorAll(".mic.on").forEach(b => b.classList.remove("on")); }
-function micStart(id){
-  if (!SR){ toast("Diktieren geht hier nicht direkt. Tippe ins Feld und nutze das 🎤 auf der Tastatur."); document.getElementById(id)?.focus(); return; }
-  const ta = document.getElementById(id); if (!ta) return;
-  ta.focus();
-  const s = ta.selectionStart ?? ta.value.length, e = ta.selectionEnd ?? s;
-  const rec = new SR(); rec.lang = "de-CH"; rec.continuous = true; rec.interimResults = true;
-  const m = mic = {rec, id, before: ta.value.slice(0, s), after: ta.value.slice(e), fin: ""};
-  const join = (a, b) => !a || !b || /\s$/.test(a) || /^\s/.test(b) ? a + b : a + " " + b;
-  rec.onresult = ev => {
-    if (mic !== m) return;
-    let fin = "", interim = "";
-    for (let i = 0; i < ev.results.length; i++){
-      const r = ev.results[i], txt = r[0].transcript.trim();
-      if (r.isFinal) fin = join(fin, txt); else interim = join(interim, txt);
-    }
-    m.fin = fin;
-    const el = document.getElementById(m.id); if (!el) return;
-    const mid = join(m.fin, interim), head = join(m.before, mid);
-    el.value = mid ? join(head, m.after) : m.before + m.after;
-    el.selectionStart = el.selectionEnd = head.length;
-    el.dispatchEvent(new Event("input", {bubbles: true}));
-  };
-  rec.onerror = ev => {
-    if (mic !== m) return;
-    if (ev.error === "not-allowed" || ev.error === "service-not-allowed") toast("Kein Zugriff aufs Mikrofon. Erlaube es in den Einstellungen oder nutze das 🎤 auf der Tastatur.");
-    else if (ev.error === "no-speech") toast("Nichts gehört. Tippe nochmals aufs Mikrofon.");
-    else if (ev.error !== "aborted") toast("Diktieren unterbrochen (" + ev.error + ").");
-  };
-  rec.onend = () => { if (mic === m) micStop(); };
-  try { rec.start(); } catch(err) { mic = null; toast("Diktieren konnte nicht starten."); return; }
-  document.querySelectorAll(`.mic[data-mic="${id}"]`).forEach(b => b.classList.add("on"));
-  toast("Sprich jetzt – nochmals tippen zum Beenden.");
-}
-document.addEventListener("pointerdown", ev => { if (ev.target.closest(".mic")) ev.preventDefault(); });
 document.addEventListener("click", ev => {
   const b = ev.target.closest(".mic"); if (!b) return;
   ev.preventDefault(); ev.stopPropagation();
-  const id = b.dataset.mic, was = mic && mic.id === id;
-  micStop(); if (!was) micStart(id);
+  const ta = document.getElementById(b.dataset.mic); if (!ta) return;
+  ta.focus(); const n = ta.value.length; ta.selectionStart = ta.selectionEnd = n;
+  const touch = matchMedia("(pointer:coarse)").matches;
+  toast(touch ? "Tippe jetzt unten auf der Tastatur auf 🎤 und sprich." : "Drücke jetzt die Diktat-Taste 🎤 (F5) oder zweimal fn und sprich.");
 }, true);
-window.addEventListener("hashchange", micStop);
 window.addEventListener("resize", () => app.querySelectorAll("textarea").forEach(autosize));
 window.addEventListener("hashchange", () => { detailStufe = null; editBook = null; render(); window.scrollTo(0,0); });
 
