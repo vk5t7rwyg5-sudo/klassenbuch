@@ -632,7 +632,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2248 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2252 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1495,9 +1495,12 @@ document.addEventListener("click", ev => {
     case "litGrp": litF.group = !!b.dataset.v; render(); break;
     case "litVg": { const k = b.dataset.v; litOpenV.has(k) ? litOpenV.delete(k) : litOpenV.add(k); render(); break; }
     case "litUp": document.getElementById("pdfIn").click(); break;
+    case "bkNew": { const n = {id: uid(), titel: "Neuer Play-Along", autor: "", kat: "Play-Along", ordner: "Play-Along", instr: [], seiten: 0, off: 0, teile: [], marks: [], stufen: [], links: []};
+      books.unshift(n); saveBooks(); litF.q = ""; if (litF.kat !== "Alle" && litF.kat !== "Play-Along") litF.kat = "Alle"; editBook = n.id; render();
+      setTimeout(() => { const el = document.getElementById("be-titel"); if (el){ el.scrollIntoView({block:"center"}); el.select(); } }, 0); break; }
     case "bkOpen": openPdf(b.dataset.v, +b.dataset.p || 1); break;
     case "bkEdit": editBook = b.dataset.v; render(); document.getElementById("bkEdit")?.scrollIntoView({block:"nearest"}); break;
-    case "bkCancel": editBook = null; render(); break;
+    case "bkCancel": { const bk = bookById(editBook); if (bk && bk.titel === "Neuer Play-Along" && !(bk.teile||[]).length && !(bk.links||[]).length){ books = books.filter(x => x.id !== bk.id); saveBooks(); } editBook = null; render(); break; }
     case "bkSave": { const bk = bookById(b.dataset.v), g = id => document.getElementById(id).value.trim();
       Object.assign(bk, {titel:g("be-titel") || bk.titel, autor:g("be-autor"), ordner:g("be-ordner"), kat:g("be-kat") || bk.kat, off:Math.max(0, (+g("be-off") || 1) - 1), instr:[...document.querySelectorAll("#be-instr .chip.on")].map(x => x.dataset.v), stufen:[...document.querySelectorAll("#be-stufen .chip.on")].map(x => x.dataset.v), links: parseLinks(document.getElementById("be-links").value)});
       if (!bk.links.length) delete bk.links;
@@ -1534,7 +1537,7 @@ window.addEventListener("beforeunload", () => { if (mode === "local") flush(); }
 /* ---------- Literatur: Katalog (eigenes Dokument), Zuweisungen pro SuS (s.lit), Notenviewer ---------- */
 let books = [], litRef = null, booksDirty = false, lastBooksJson = "", assetsNs = null;
 let litF = {q:"", kat:"Alle", instr:"", stufe:"", sort:"titel", group:true}, editBook = null;
-const KATS = ["Lehrmittel","Stücke","Unterrichtsblätter"];
+const KATS = ["Lehrmittel","Stücke","Unterrichtsblätter","Play-Along"];
 const STK = {"frühe Förderung":"fF","Unterstufe":"U","Mittelstufe":"M","Oberstufe":"O"};
 function lpBooks(stufe, bereich){ return books.filter(b => (b.stufen||[]).includes(stufe) && (bereich ? (b.instr||[]).includes(bereich) : !(b.instr||[]).length)).sort((a,b) => a.titel.localeCompare(b.titel, "de")); }
 function lpBookLinks(stufe, bereich){ const bs = lpBooks(stufe, bereich); return bs.length ? `<div style="margin-top:8px"><span class="badge b-ac">Im Klassenbuch</span><div class="lit-marks">${bs.map(b => `<button class="chip" data-a="bkOpen" data-v="${b.id}">${esc(b.titel)}</button>`).join("")}</div></div>` : ""; }
@@ -1575,7 +1578,8 @@ function litSection(s){
 }
 function litChips(s){
   const cur = curLit(s); if (!cur.length) return "";
-  return `<div class="row" style="margin-top:10px">${cur.map(x => `<button class="chip" data-a="litOpen" data-v="${x.id}" ${bookById(x.b)?"":"disabled"}>♪ ${esc(litLabel(x))} · S. ${esc(x.seite)}</button>${bookById(x.b) ? playBtns(bookById(x.b)) : ""}`).join("")}</div>`;
+  return `<div class="row" style="margin-top:10px">${cur.map(x => { const bk = bookById(x.b), noPdf = bk && !(bk.teile||[]).length;
+      return `<button class="chip" data-a="litOpen" data-v="${x.id}" ${bk?"":"disabled"}>${noPdf ? "♫ " + esc(litLabel(x)) : "♪ " + esc(litLabel(x)) + " · S. " + esc(x.seite)}</button>${bk && !(noPdf && (bk.links||[]).length < 2) ? playBtns(bk) : ""}`; }).join("")}</div>`;
 }
 function litReport(s){ return curLit(s).map(x => { const b = bookById(x.b); return (x.stueck ? x.stueck + " – " : "") + (b ? b.titel + (b.autor ? " (" + b.autor + ")" : "") : ""); }).filter(Boolean); }
 
@@ -1594,16 +1598,17 @@ function litVoices(arr){
 }
 function vLiteratur(){
   const q = litF.q.trim().toLowerCase();
-  const list = books.filter(b => (litF.kat === "Alle" || b.kat === litF.kat) && (!litF.instr || (b.instr||[]).includes(litF.instr)) && (!litF.stufe || (litF.stufe === "-" ? !(b.stufen||[]).length : (b.stufen||[]).includes(litF.stufe)))
+  const list = books.filter(b => (litF.kat === "Alle" || (litF.kat === "♫" ? (b.links||[]).length : b.kat === litF.kat)) && (!litF.instr || (b.instr||[]).includes(litF.instr)) && (!litF.stufe || (litF.stufe === "-" ? !(b.stufen||[]).length : (b.stufen||[]).includes(litF.stufe)))
     && (!q || [b.titel, b.autor, b.ordner, ...(b.instr||[]), ...(b.marks||[]).map(m => m.t)].join(" ").toLowerCase().includes(q)));
   const key = litF.sort || "titel", cmp = (x, y) => (x || "").localeCompare(y || "", "de");
   list.sort((a, b) => key === "seiten" ? a.seiten - b.seiten : key === "sus" ? bookUsers(b.id).length - bookUsers(a.id).length || cmp(a.titel, b.titel) : cmp(a[key], b[key]) || cmp(a.titel, b.titel));
   const kats = ["Alle", ...KATS.filter(k => books.some(b => b.kat === k)), ...new Set(books.map(b => b.kat).filter(k => !KATS.includes(k)))];
-  const cnt = k => k === "Alle" ? books.length : books.filter(b => b.kat === k).length;
+  const cnt = k => k === "Alle" ? books.length : k === "♫" ? books.filter(b => (b.links||[]).length).length : books.filter(b => b.kat === k).length;
+  if (books.some(b => (b.links||[]).length)) kats.push("♫");
   const th = (k, t, cls) => `<th class="${cls||""}"><button class="ghost th-s ${key===k?"on":""}" data-a="litSort" data-v="${k}">${t}${key===k?" ↓":""}</button></th>`;
   let html = `<div class="row" style="margin-bottom:12px"><h2 style="margin:0">Literatur</h2><span class="sp"></span>
-    ${assetsNs ? `<button data-a="litUp">PDF hinzufügen</button>` : ""}</div>
-  <div class="row" style="margin-bottom:8px"><div class="seg">${kats.map(k => `<button class="${litF.kat===k?"on":""}" data-a="litKat" data-v="${esc(k)}">${esc(k)} <span class="tiny num">${cnt(k)}</span></button>`).join("")}</div></div>
+    <button data-a="bkNew">Play-Along ohne Noten</button>${assetsNs ? `<button data-a="litUp">PDF hinzufügen</button>` : ""}</div>
+  <div class="row" style="margin-bottom:8px"><div class="seg">${kats.map(k => `<button class="${litF.kat===k?"on":""}" data-a="litKat" data-v="${esc(k)}">${k === "♫" ? "♫ Aufnahmen" : esc(k)} <span class="tiny num">${cnt(k)}</span></button>`).join("")}</div></div>
   <div class="row" style="margin-bottom:12px"><input id="litQ" type="search" placeholder="Suchen: Titel, Autor, Lesezeichen …" value="${esc(litF.q)}" style="flex:1 1 220px;width:auto" aria-label="Literatur suchen">
     <div class="seg"><button class="${litF.group?"on":""}" data-a="litGrp" data-v="1">Nach Ordnern</button><button class="${litF.group?"":"on"}" data-a="litGrp" data-v="">Liste</button></div>
     <select id="litI" style="width:auto" aria-label="Bereich"><option value="">Alle Bereiche</option>${INSTR.map(k => `<option ${litF.instr===k?"selected":""}>${k}</option>`).join("")}</select>
@@ -1611,8 +1616,8 @@ function vLiteratur(){
   if (typeof pdfMissingBanner === "function") html += pdfMissingBanner();
   if (!books.length) html += `<div class="card empty"><h2>Noch keine Literatur</h2><p class="muted">Tippe auf «PDF hinzufügen» und wähle deine Noten aus.</p></div>`;
   else if (!list.length) html += `<p class="muted">Nichts gefunden.</p>`;
-  else html += `<div class="card lit-card"><table class="lit-t"><thead><tr>${th("titel","Titel")}${th("autor","Autor","c-a")}${litF.kat==="Alle"?th("kat","Kategorie","c-k"):""}<th class="c-b">Bereiche</th><th class="c-st">Stufe</th>${th("seiten","Seiten","c-s num")}${th("sus","SuS")}<th></th></tr></thead><tbody>
-    ${(() => { const cols = litF.kat === "Alle" ? 8 : 7;
+  else html += `<div class="card lit-card"><table class="lit-t"><thead><tr>${th("titel","Titel")}${th("autor","Autor","c-a")}${litF.kat==="Alle"||litF.kat==="♫"?th("kat","Kategorie","c-k"):""}<th class="c-b">Bereiche</th><th class="c-st">Stufe</th>${th("seiten","Seiten","c-s num")}${th("sus","SuS")}<th></th></tr></thead><tbody>
+    ${(() => { const cols = litF.kat === "Alle" || litF.kat === "♫" ? 8 : 7;
       const rows = arr => litVoices(arr).map(x => x.b ? row(x.b) : vrow(x)).join("");
       if (!litF.group) return rows(list);
       const g = {}; list.forEach(b => (g[b.ordner || "Ohne Ordner"] ||= []).push(b));
@@ -1627,7 +1632,7 @@ function vLiteratur(){
       return `<tr class="lit-v ${open ? "open" : ""}">
         <td class="c-t"><button class="lit-open" data-a="litVg" data-v="${esc(x.key)}" aria-expanded="${open}">${esc(x.base)}</button><div class="tiny">${it.length} ${it.every(b => b.kat === "Stücke") || it.some(b => /partitur/i.test(b.titel)) ? "Stimmen" : "Teile"}: ${esc(names.join(", "))}</div></td>
         <td class="c-a small muted">${esc((a => a.length > 1 ? "Verschiedene" : a[0] || "")([...new Set(it.map(b => b.autor).filter(Boolean))]))}</td>
-        ${litF.kat==="Alle" ? `<td class="c-k"><span class="badge ${{Lehrmittel:"b-ac","Stücke":"b-pu","Unterrichtsblätter":"b-te"}[kat]||"b-gr"}">${esc(kat)}</span></td>` : ""}
+        ${litF.kat==="Alle"||litF.kat==="♫" ? `<td class="c-k"><span class="badge ${{Lehrmittel:"b-ac","Stücke":"b-pu","Unterrichtsblätter":"b-te","Play-Along":"b-wa"}[kat]||"b-gr"}">${esc(kat)}</span></td>` : ""}
         <td class="c-b tiny">${esc(instr.join(", "))}</td>
         <td class="c-st"><span class="stk">${st.map(s => `<abbr title="${s}">${STK[s]}</abbr>`).join("")}</span></td>
         <td class="c-s small num muted">${it.length} ×</td>
@@ -1635,7 +1640,7 @@ function vLiteratur(){
         <td></td></tr>` + (open ? it.map(b => row(b, (b.titel.match(VSPLIT) || [])[2])).join("") : "");
   }
   function row(b, voice){
-      const us = bookUsers(b.id), meta = [b.autor, (b.stufen||[]).map(s => STK[s]).join("/"), b.seiten + " S."].filter(Boolean).join(" · ");
+      const us = bookUsers(b.id), meta = [b.autor, (b.stufen||[]).map(s => STK[s]).join("/"), b.seiten ? b.seiten + " S." : "ohne Noten"].filter(Boolean).join(" · ");
       if (editBook === b.id) return `<tr><td colspan="8"><div id="bkEdit"><div class="f">
         <div style="grid-column:1/-1"><label for="be-titel">Titel</label><input id="be-titel" value="${esc(b.titel)}"></div>
         <div><label for="be-autor">Autor</label><input id="be-autor" value="${esc(b.autor)}"></div>
@@ -1650,10 +1655,10 @@ function vLiteratur(){
         <td class="c-t"><button class="lit-open" data-a="bkOpen" data-v="${b.id}">${esc(voice || b.titel)}</button>${playBtns(b, "lit-play")}<div class="tiny m-only">${esc(meta)}</div>
           ${(b.marks||[]).length ? `<div class="lit-marks">${b.marks.slice().sort((x,y) => x.p - y.p).map(m => `<button class="chip" data-a="bkOpen" data-v="${b.id}" data-p="${m.p}">${esc(m.t)} · S. ${m.p - (b.off||0)}</button>`).join("")}</div>` : ""}</td>
         <td class="c-a small muted">${esc(b.autor)}</td>
-        ${litF.kat==="Alle" ? `<td class="c-k"><span class="badge ${{Lehrmittel:"b-ac","Stücke":"b-pu","Unterrichtsblätter":"b-te"}[b.kat]||"b-gr"}">${esc(b.kat)}</span></td>` : ""}
+        ${litF.kat==="Alle"||litF.kat==="♫" ? `<td class="c-k"><span class="badge ${{Lehrmittel:"b-ac","Stücke":"b-pu","Unterrichtsblätter":"b-te","Play-Along":"b-wa"}[b.kat]||"b-gr"}">${esc(b.kat)}</span></td>` : ""}
         <td class="c-b tiny">${esc((b.instr||[]).join(", "))}</td>
         <td class="c-st"><span class="stk">${(b.stufen||[]).map(s => `<abbr title="${s}">${STK[s]}</abbr>`).join("")}</span>${b.lp ? ` <span class="tiny" title="Steht im Lehrplan AP">LP</span>` : ""}</td>
-        <td class="c-s small num muted">${b.seiten}</td>
+        <td class="c-s small num muted">${b.seiten || "–"}</td>
         <td>${us.map(s => `<a class="badge b-ac" href="#s-${s.id}" style="text-decoration:none">${esc(s.name.split(" ")[0])}</a>`).join(" ")}</td>
         <td style="text-align:right"><button class="ghost small" data-a="bkEdit" data-v="${b.id}" aria-label="${esc(b.titel)} bearbeiten">Bearbeiten</button></td></tr>`;
   }
@@ -1690,7 +1695,8 @@ const pv = {b:null, p:1, zoom:1, fit:"page", sid:null, lit:null, tok:0, task:nul
 const $ = id => document.getElementById(id);
 function openPdf(bid, p, ctx){
   const b = bookById(bid); if (!b){ toast("Dieses Heft ist nicht mehr im Katalog."); return; }
-  if (!b.teile.length || !b.teile.every(t => t.a)){ toast("Das PDF ist noch nicht hochgeladen."); return; }
+  if (!(b.teile||[]).length){ if ((b.links||[]).length) playLink(b.id, 0); else toast("Dieser Eintrag hat keine Noten. Unter «Bearbeiten» kannst du Aufnahmen verlinken."); return; }
+  if (!b.teile.every(t => t.a)){ toast("Das PDF ist noch nicht hochgeladen."); return; }
   Object.assign(pv, {b, p: Math.max(1, Math.min(b.seiten, p || 1)), zoom: 1, sid: ctx?.sid || null, lit: ctx?.lit || null, pop: null});
   $("pv").hidden = false; document.body.style.overflow = "hidden";
   ink_.on = false; ink_.undo = []; ink_.cur = null;
