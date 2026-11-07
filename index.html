@@ -76,6 +76,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;p
 .mon td{position:relative}
 .mon td.ev::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--evc)}
 .mon td.ev.s::after{left:3px;border-radius:2px 0 0 2px}.mon td.ev.e::after{right:3px;border-radius:0 2px 2px 0}.mon td.ev.s.e::after{border-radius:2px}
+.mon td.bd::before{content:"";position:absolute;top:1px;right:1px;width:5px;height:5px;border-radius:50%;background:var(--da)}
 .mon td.today{outline:1px solid var(--ac);outline-offset:-1px;border-radius:4px;font-weight:600}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
 .banner{background:var(--wabg);color:var(--wa);border-radius:var(--r);padding:8px 12px;margin-bottom:12px;font-size:14px}
@@ -198,6 +199,22 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const iso = d => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
 const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+/* Geburtstage aller aktiven SuS (Einzel und Gruppenmitglieder) zwischen zwei Daten (ISO) */
+function bdays(from, to){
+  const out = [], add = (name, g, sid) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(g || "")) return;
+    const [by, bm, bd] = g.split("-").map(Number);
+    for (let y = +from.slice(0, 4); y <= +to.slice(0, 4); y++){
+      const day = bm === 2 && bd === 29 && new Date(y, 1, 29).getMonth() !== 1 ? 28 : bd, ds = iso(new Date(y, bm - 1, day));
+      if (ds >= from && ds <= to && y > by) out.push({datum: ds, name, alter: y - by, sid});
+    }
+  };
+  for (const s of db.students){
+    if (s.aktiv === false) continue;
+    if (s.typ === "Gruppe") gMembers(s).forEach(x => add(x.name, x.geburt, s.id)); else add(s.name, (s.stammblatt || {}).geburt, s.id);
+  }
+  return out.sort((a, b) => a.datum.localeCompare(b.datum) || a.name.localeCompare(b.name));
+}
 const fmt = (s, y) => { if (!s) return ""; const d = parse(s); return d.getDate() + "." + (d.getMonth()+1) + "." + (y ? d.getFullYear() : ""); };
 const today = () => iso(new Date());
 function monday(d){ d = new Date(d); const w = (d.getDay()+6)%7; d.setDate(d.getDate()-w); return d; }
@@ -560,7 +577,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2147 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2148 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -946,7 +963,8 @@ function vWoche(){
     <h2 style="margin:0">KW ${kw(mon)} <span class="muted num" style="font-weight:400;font-size:15px;font-family:var(--body)">${fmt(iso(mon))}–${fmt(iso(sun),1)}</span></h2>
     <button data-a="wk" data-n="7" aria-label="Nächste Woche">›</button>
     ${fer.map(e => `<span class="badge b-gr">${esc(e.titel)}</span>`).join("")}
-    ${evs.map(e => `<span class="badge ${EVTYP[e.typ]}">${esc(e.typ)} ${fmt(e.datum)}: ${esc(e.titel)}</span>`).join("")}</div>`;
+    ${evs.map(e => `<span class="badge ${EVTYP[e.typ]}">${esc(e.typ)} ${fmt(e.datum)}: ${esc(e.titel)}</span>`).join("")}
+    ${bdays(iso(mon), iso(sun)).map(b => `<span class="badge b-da">Geburtstag ${fmt(b.datum)}: ${esc(b.name)} (${b.alter})</span>`).join("")}</div>`;
   html += zeitstrahl(mon) + gnCard();
   if (!db.students.length){ app.innerHTML = html + emptyState(); return; }
   const list = sorted().filter(s => !ferienAm(lessonDate(s, mon), s));
@@ -1123,6 +1141,8 @@ function vKalender(){
   if (calYear < curSY) calYear = curSY;
   const evs = db.events.filter(e => (e.bis||e.datum) >= from && e.datum <= to).sort((a,b) => a.datum.localeCompare(b.datum));
   const kommend = evs.filter(e => (e.bis||e.datum) >= today());
+  const bds = bdays(today(), to);
+  const liste = [...kommend.map(e => ({d: e.datum, e})), ...bds.map(b => ({d: b.datum, b}))].sort((x, y) => x.d.localeCompare(y.d));
   const e = editEv ? db.events.find(x => x.id === editEv) : null;
   const f = e || {datum:today(), titel:"", typ:"Konzert", ort:"", sids:[], notiz:""};
   let html = `<div class="row" style="margin-bottom:12px"><button data-a="cy" data-n="-1" aria-label="Vorheriges Schuljahr" ${calYear <= curSY ? "disabled" : ""}>‹</button><h2 style="margin:0">Schuljahr ${calYear}/${String(calYear+1).slice(2)}</h2><button data-a="cy" data-n="1" aria-label="Nächstes Schuljahr">›</button></div>
@@ -1136,7 +1156,7 @@ function vKalender(){
   <label style="margin-top:10px">Wer macht mit?</label><div class="row" id="ev_sids">${sorted().map(s => `<button class="chip ${(f.sids||[]).includes(s.id)?"on":""}" data-a="evs" data-v="${s.id}">${esc(s.name)}</button>`).join("") || '<span class="tiny">Noch keine SuS erfasst.</span>'}</div>
   <div style="margin-top:8px"><label for="ev_notiz">Notiz</label><input id="ev_notiz" value="${esc(f.notiz||"")}" placeholder="Stücke, Anmeldeschluss"></div>
   <div class="row" style="margin-top:10px"><button class="pri" data-a="evsave">${e?"Speichern":"Termin hinzufügen"}</button>${e?`<button data-a="evcancel">Abbrechen</button><span class="sp"></span><button class="del" data-a="evdel">Löschen</button>`:""}<span class="small" id="everr" style="color:var(--da)"></span></div></div>
-  <div class="row small" style="margin-bottom:8px">${Object.keys(EVTYP).map(k=>`<span><span class="dot" style="background:${EVCOL[k]}"></span>${k}</span>`).join(" ")}</div>
+  <div class="row small" style="margin-bottom:8px">${Object.keys(EVTYP).map(k=>`<span><span class="dot" style="background:${EVCOL[k]}"></span>${k}</span>`).join(" ")} <span><span class="dot" style="background:var(--da)"></span>Geburtstag</span></div>
   <div class="months">`;
   for (let m = 0; m < 12; m++){
     const y = calYear + (m+7 >= 12 ? 1 : 0), mo = (m+7)%12;
@@ -1147,12 +1167,13 @@ function vKalender(){
       const ds = iso(new Date(y, mo, d)); const ev = evs.find(x => ds >= x.datum && ds <= (x.bis||x.datum));
       const dow = (off+d-1)%7, endDs = ev ? (ev.bis||ev.datum) : "";
       const se = ev ? ((ds===ev.datum || dow===0 || d===1) ? " s" : "") + ((ds===endDs || dow===6 || d===days) ? " e" : "") : "";
-      cells += `<td class="${ev?"ev"+se:""}${ds===today()?" today":""}" ${ev?`style="--evc:${EVCOL[ev.typ]}" title="${esc(ev.titel)}"`:""}>${d}</td>`;
+      const bdh = bds.filter(x => x.datum === ds), tip = [ev ? ev.titel : "", ...bdh.map(x => "Geburtstag " + x.name)].filter(Boolean).join(", ");
+      cells += `<td class="${ev?"ev"+se:""}${bdh.length?" bd":""}${ds===today()?" today":""}" ${ev?`style="--evc:${EVCOL[ev.typ]}"`:""} ${tip?`title="${esc(tip)}"`:""}>${d}</td>`;
       if ((off+d)%7 === 0) cells += "</tr><tr>";
     }
     html += `<div class="card mon"><b class="small">${first.toLocaleDateString("de-CH",{month:"long",year:"numeric"})}</b><table><tr>${["Mo","Di","Mi","Do","Fr","Sa","So"].map(t=>`<th>${t}</th>`).join("")}</tr>${cells}</tr></table></div>`;
   }
-  html += `</div><h3>Kommende Termine</h3><div class="card">${kommend.length ? kommend.map(e => `<div class="row" style="padding:6px 0;border-bottom:1px solid var(--bd)">
+  html += `</div><h3>Kommende Termine</h3><div class="card">${liste.length ? liste.map(({e, b}) => b ? `<div class="row" style="padding:6px 0;border-bottom:1px solid var(--bd)"><span style="min-width:90px" class="small num">${fmt(b.datum,1)}</span><span class="badge b-da">Geburtstag</span><span class="sp" style="min-width:0"><b class="small">${esc(b.name)}</b> <span class="tiny">wird ${b.alter}</span></span></div>` : `<div class="row" style="padding:6px 0;border-bottom:1px solid var(--bd)">
     <span style="min-width:90px" class="small num ${(e.bis||e.datum)<today()?"muted":""}">${fmt(e.datum,1)}${e.bis?"–"+fmt(e.bis):""}</span><span class="badge ${EVTYP[e.typ]}">${esc(e.typ)}</span>
     <span class="sp" style="min-width:0"><b class="small">${esc(e.titel)}</b>${e.ort?` <span class="tiny">${esc(e.ort)}</span>`:""}<br><span class="tiny">${(e.sids||[]).map(i=>esc(S(i)?.name||"")).join(", ")}${e.notiz?" · "+esc(e.notiz):""}</span></span>
     <button class="ghost small" data-a="evedit" data-v="${e.id}">Bearbeiten</button></div>`).join("") : `<span class="muted small">Keine kommenden Termine in diesem Schuljahr. Trag oben das nächste Konzert oder den nächsten Stufentest ein.</span>`}</div>`;
