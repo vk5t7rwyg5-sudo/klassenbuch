@@ -579,7 +579,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2207 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2212 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -983,8 +983,8 @@ function stvRow({s, d}){
     sb: grp ? [((s.stammblatt || {}).gruppe || "").trim() ? "Gruppe: " + s.stammblatt.gruppe.trim() : "", ...m.filter(x => (x.info || "").trim()).map(x => (x.name || "Kind") + ": " + x.info.trim())].filter(Boolean).join("\n")
       : SB.filter(([k]) => ((s.stammblatt || {})[k] || "").trim()).map(([k, lab]) => lab + ": " + s.stammblatt[k].trim()).join("\n")};
 }
-const STV_COLS = [["datum","Datum",11],["tag","Tag",5],["zeit","Zeit",7],["dauer","Dauer",8],["name","Schüler:in / Gruppe",22],["kinder","Kinder / Alter",22],["schule","Schule",10],["stufe","Stufe",11],["instr","Instrumente",16],
-  ["eltern","Eltern",22],["tel","Telefon",20],["mail","E-Mail",28],["lit","Aktuelle Literatur",32],["letzte","Letzte Lektion",12],["inhalt","Zuletzt gearbeitet",42],["aufgaben","Aufgaben",34],["bem","Bemerkung",24],["sb","Stammblatt",50]];
+const STV_COLS = [["datum","Datum",11],["zeit","Zeit",7],["dauer","Dauer",8],["name","Schüler:in / Gruppe",22],["kinder","Kinder / Alter",22],["stufe","Stufe",11],
+  ["lit","Aktuelle Literatur",32],["letzte","Letzte Lektion",12],["inhalt","Zuletzt gearbeitet",42],["aufgaben","Aufgaben",34],["eltern","Eltern",22],["tel","Telefon",20],["mail","E-Mail",28],["sb","Stammblatt",50]];
 function vStv(){
   stvInit();
   const all = stvLessons(), sel = stvSel(all), tage = [...new Set(all.map(x => x.d))], kids = [...new Map(all.map(x => [x.s.id, x.s])).values()];
@@ -998,7 +998,7 @@ function vStv(){
       <button class="ghost small" data-a="stvAll">Alle</button><button class="ghost small" data-a="stvNone">Keine</button></div>`
     : `<p class="muted" style="margin-bottom:0">${stv.bis < stv.von ? "Das Enddatum liegt vor dem Startdatum." : "In diesem Zeitraum finden keine Lektionen statt."}</p>`}
     <div class="row" style="margin-top:14px"><button class="pri" data-a="stvXlsx" ${sel.length ? "" : "disabled"}>Als Excel exportieren</button><span class="small muted num">${sel.length} ${sel.length === 1 ? "Lektion" : "Lektionen"}</span></div>
-    <p class="tiny" style="margin-bottom:0">Die Excel-Datei enthält pro Lektion Zeit, Kinder, Kontakte der Eltern, aktuelle Literatur, die letzte Lektion mit Aufgaben, die Bemerkung und das Stammblatt (bei Gruppen die Beschreibung). Die internen Lektionsnotizen kommen nicht mit.</p></div>
+    <p class="tiny" style="margin-bottom:0">Die Excel-Datei enthält pro Lektion Zeit, Kinder, aktuelle Literatur, die letzte Lektion mit Aufgaben, die Kontakte der Eltern und das Stammblatt (bei Gruppen die Beschreibung). Die internen Lektionsnotizen kommen nicht mit.</p></div>
   ${sel.length ? `<h3>Vorschau</h3><div class="card" style="overflow-x:auto"><table class="stv-t"><tr><th>Datum</th><th>Zeit</th><th>Schüler:in / Gruppe</th><th>Kontakt</th><th>Literatur</th><th>Aufgaben</th></tr>
     ${sel.map(x => { const r = stvRow(x); return `<tr><td class="num" style="white-space:nowrap">${r.tag} ${esc(r.datum)}</td><td class="num">${esc(r.zeit)}</td><td class="w"><b>${esc(r.name)}</b>${r.kinder ? "\n" + esc(r.kinder) : ""}</td><td class="w small">${esc(r.tel)}</td><td class="w small">${esc(r.lit)}</td><td class="w small">${esc(r.aufgaben)}</td></tr>`; }).join("")}</table></div>` : ""}`;
 }
