@@ -3,11 +3,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/favicon.ico">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Klassenbuch">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#f5f5f2">
+<meta name="theme-color" content="#141414">
 <style>:root{padding-top:env(safe-area-inset-top,0px)}[hidden]{display:none!important}</style>
 </head><body>
 <title>Klassenbuch Schlagzeug</title>
@@ -19,9 +20,9 @@
 :root{--bg:#f5f5f2;--card:#fff;--soft:#ecece6;--tx:#1e1f1c;--tx2:#5c5e57;--tx3:#868880;--bd:#deded6;--bd2:#c9cac0;
 --ac:#1d5a8f;--acbg:#e3eef8;--ok:#3b6d11;--okbg:#e8f2dc;--wa:#7d4a0a;--wabg:#f8ecd6;--da:#a32d2d;--dabg:#fbe8e8;--pu:#534ab7;--pubg:#eceafd;--te:#0f6e56;--tebg:#dff3ec;
 --paper:#fff;--display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;--body:"Figtree",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--r:8px}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1a1b19;--card:#242522;--soft:#2e2f2b;--tx:#eeeee8;--tx2:#b3b4ab;--tx3:#878980;--bd:#383934;--bd2:#4a4b45;
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141414;--card:#1e1e1d;--soft:#2a2a28;--tx:#f1f1ec;--tx2:#b4b4ac;--tx3:#86867f;--bd:#33332f;--bd2:#46463f;
 --ac:#8dbbe8;--acbg:#16395a;--ok:#9fca62;--okbg:#26401a;--wa:#f2c27a;--wabg:#4f3410;--da:#f09a9a;--dabg:#5a2020;--pu:#b2acef;--pubg:#353070;--te:#68d0ad;--tebg:#0e4436;--paper:#fff;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#1a1b19;--card:#242522;--soft:#2e2f2b;--tx:#eeeee8;--tx2:#b3b4ab;--tx3:#878980;--bd:#383934;--bd2:#4a4b45;
+:root[data-theme="dark"]{--bg:#141414;--card:#1e1e1d;--soft:#2a2a28;--tx:#f1f1ec;--tx2:#b4b4ac;--tx3:#86867f;--bd:#33332f;--bd2:#46463f;
 --ac:#8dbbe8;--acbg:#16395a;--ok:#9fca62;--okbg:#26401a;--wa:#f2c27a;--wabg:#4f3410;--da:#f09a9a;--dabg:#5a2020;--pu:#b2acef;--pubg:#353070;--te:#68d0ad;--tebg:#0e4436;--paper:#fff;color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 var(--body)}
@@ -29,7 +30,10 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--bd)}
 .top{max-width:1100px;margin:auto;padding-block:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.brand{font-family:var(--display);font-weight:700;font-size:17px;margin-right:10px;letter-spacing:-.01em}
+.brand{font-family:var(--display);font-weight:700;font-size:17px;margin-right:10px;letter-spacing:-.01em;display:flex;align-items:center;gap:9px;color:var(--tx);text-decoration:none}
+.brand svg{height:30px;width:auto;display:block;flex:none}
+header,main,dialog,#toast{zoom:var(--z,1)}
+.opt{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:center}.opt label{margin:0 0 4px}
 nav{display:flex;flex-wrap:wrap;gap:2px}
 nav a{color:var(--tx2);text-decoration:none;padding:7px 12px;border-radius:var(--r);font-size:14px}
 nav a.on{background:var(--acbg);color:var(--ac);font-weight:500}
@@ -137,8 +141,9 @@ button:disabled{opacity:.4;cursor:default}
 .lit-t tr.lit-g:hover{background:none}
 @media (max-width:760px){.lit-t .c-a,.lit-t .c-b,.lit-t .c-s,.lit-t .c-k,.lit-t .c-st{display:none}.m-only{display:block}.lit-t th,.lit-t td{padding:8px 8px}}
 </style>
+<script>(function(){var t="dark",z="1";try{t=localStorage.getItem("kb-theme")||"dark";z=localStorage.getItem("kb-zoom")||"1";}catch(e){}var r=document.documentElement;if(t!=="system")r.setAttribute("data-theme",t);r.style.setProperty("--z",z);})();</script>
 
-<header class="gut"><div class="top"><span class="brand">Klassenbuch Schlagzeug</span><nav id="nav"></nav><span id="sync"></span></div></header>
+<header class="gut"><div class="top"><a class="brand" href="#woche" aria-label="Klassenbuch Schlagzeug, zur Woche"><svg xmlns="http://www.w3.org/2000/svg" viewBox="35 45 289 270" aria-hidden="true"> <defs><clipPath id="kbh0"><rect x="0" y="105" width="28" height="28"/></clipPath><clipPath id="kbh1"><rect x="84" y="105" width="28" height="28"/></clipPath><clipPath id="kbh2"><rect x="168" y="105" width="28" height="28"/></clipPath><clipPath id="kbh3"><rect x="252" y="105" width="28" height="28"/></clipPath></defs> <g transform="translate(39.2 49.21)" fill="currentColor"> <rect x="20" y="0" width="260" height="18"/> <polygon points="20,0 28,0 28,105 20,113"/><polygon points="104,0 112,0 112,105 104,113"/><polygon points="188,0 196,0 196,105 188,113"/><polygon points="272,0 280,0 280,105 272,113"/> <g fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="butt"><path clip-path="url(#kbh0)" d="M-4 101 L32 137 M32 101 L-4 137"/><path clip-path="url(#kbh1)" d="M80 101 L116 137 M116 101 L80 137"/><path clip-path="url(#kbh2)" d="M164 101 L200 137 M200 101 L164 137"/><path clip-path="url(#kbh3)" d="M248 101 L284 137 M284 101 L248 137"/></g> <path d="M0.0 259.989501953125H25.89111328125V236.149169921875L37.68310546875 222.6268310546875L60.0494384765625 259.989501953125H90.5548095703125L55.37109375 205.5797119140625L88.7603759765625 164.5H58.062744140625L39.093017578125 189.0452880859375C32.7484130859375 197.3125 28.7750244140625 203.1444091796875 25.4425048828125 209.2967529296875L25.89111328125 185.0078125V164.5H0.0ZM94.4051513671875 259.989501953125H139.3941650390625C160.09423828125 259.989501953125 172.8475341796875 248.6461181640625 172.8475341796875 232.94482421875C172.8475341796875 219.486572265625 162.9781494140625 210.7066650390625 150.6734619140625 210.258056640625V209.232666015625C161.760498046875 207.1177978515625 169.1304931640625 198.9146728515625 169.1304931640625 188.34033203125C169.1304931640625 173.856689453125 157.5948486328125 164.5 135.8052978515625 164.5H94.4051513671875ZM120.2962646484375 239.353515625V219.10205078125H132.8572998046875C140.6759033203125 219.10205078125 145.5465087890625 222.8831787109375 145.5465087890625 229.6123046875C145.5465087890625 235.9569091796875 141.12451171875 239.353515625 132.4727783203125 239.353515625ZM120.2962646484375 203.080322265625V184.879638671875H131.3192138671875C137.7279052734375 184.879638671875 142.4703369140625 188.1480712890625 142.4703369140625 193.97998046875C142.4703369140625 199.8759765625 137.7279052734375 203.080322265625 130.9346923828125 203.080322265625Z"/> </g></svg><span>Klassenbuch</span></a><nav id="nav"></nav><span id="sync"></span></div></header>
 <main id="app" class="gut"><div class="empty"><h2>Klassenbuch wird geladen</h2><p class="muted">Deine Daten werden geholt.</p></div></main>
 <input type="file" id="fileIn" accept=".json,application/json" hidden>
 <dialog id="dlg"><p id="dlgText" style="margin-top:0"></p><div class="row" style="justify-content:flex-end"><button id="dlgNo">Abbrechen</button><button id="dlgYes" class="pri">OK</button></div></dialog>
@@ -515,12 +520,12 @@ function vDatenApp(){
       ${tabs}<form id="ac-form" class="f" style="max-width:640px" onsubmit="return false">${fields}</form>
       <div class="row" style="margin-top:10px"><button class="pri" data-a="${btn[0]}">${btn[1]}</button><span class="small" id="ac-err" style="color:var(--da)"></span></div></div>`;
   }
-  app.innerHTML = `<h2>Daten</h2>${rkCard()}${card}
+  app.innerHTML = `<h2>Einstellungen</h2>${appearanceCard()}<h3>Konto und Sync</h3>${rkCard()}${card}
   <h3>Backup</h3><div class="card"><p class="small muted num" style="margin-top:0">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine · ${books.length} Hefte</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-1931 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-1939 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -562,7 +567,7 @@ document.addEventListener("click", ev => {
       g("ac-err").textContent = "Wird geändert …"; changePw(o, n).then(() => { acctView = ""; render(); toast("Passwort geändert"); }, e => { g("ac-err").textContent = acErr(e); }); break; }
     case "rkNew": g("ac-err").textContent = "Wird erzeugt …"; newRecoveryKey(g("ac-old").value).then(() => { acctView = ""; render(); }, e => { g("ac-err").textContent = acErr(e); }); break;
     case "rkCopy": navigator.clipboard.writeText(rkShow).then(() => toast("Kopiert"), () => { const r = document.createRange(); r.selectNodeContents(g("rkText")); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Markiert – jetzt kopieren"); }); break;
-    case "rkSave": saveFile("Klassenbuch Wiederherstellungsschlüssel.txt", `Klassenbuch Schlagzeug – Wiederherstellungsschlüssel\n\nKonto: ${acc ? acc.email : ""}\nSchlüssel: ${rkShow}\n\nDamit setzt du in der App unter Daten → «Passwort vergessen» ein neues Passwort.\nSicher aufbewahren und niemandem weitergeben.\n`, "text/plain"); break;
+    case "rkSave": saveFile("Klassenbuch Wiederherstellungsschlüssel.txt", `Klassenbuch Schlagzeug – Wiederherstellungsschlüssel\n\nKonto: ${acc ? acc.email : ""}\nSchlüssel: ${rkShow}\n\nDamit setzt du in der App unter Einstellungen → «Passwort vergessen» ein neues Passwort.\nSicher aufbewahren und niemandem weitergeben.\n`, "text/plain"); break;
     case "rkDone": rkShow = null; render(); break;
     case "signOut": ask("Auf diesem Gerät abmelden? Die Einträge bleiben hier gespeichert, werden aber nicht mehr abgeglichen.", "Abmelden", () => signOut(false)); break;
     case "signOutWipe": ask("Abmelden und alle Einträge und PDFs von diesem Gerät löschen? Im Konto bleiben sie erhalten.", "Abmelden und löschen", () => signOut(true)); break;
@@ -608,7 +613,7 @@ function route(){ const h = location.hash.slice(1) || "woche"; const i = h.index
 function render(){
   if (!(loaded.meta && loaded.lessons)) return;
   const {v, id} = route();
-  const tabs = [["woche","Woche"],["sus","SuS"],["kalender","Kalender"],["lehrplan","Lehrplan"],["literatur","Literatur"],["daten","Daten"]];
+  const tabs = [["woche","Woche"],["sus","SuS"],["kalender","Kalender"],["lehrplan","Lehrplan"],["literatur","Literatur"],["daten","Einstellungen"]];
   const cur = v === "s" || v === "bericht" ? "sus" : v;
   document.getElementById("nav").innerHTML = tabs.map(([k,t]) => `<a href="#${k}" class="${cur===k?"on":""}">${t}</a>`).join("");
   ({woche:vWoche, sus:vSus, s:()=>vDetail(id), kalender:vKalender, lehrplan:vLehrplan, literatur:vLiteratur, daten:vDatenApp, bericht:()=>vBericht(id)}[v] || vWoche)();
@@ -625,7 +630,7 @@ function backupBanner(){
   return "";
 }
 function emptyState(){
-  return `<div class="card empty"><h2>Noch keine SuS erfasst</h2><p class="muted" style="max-width:46ch;margin:0 auto 14px">Lege deine erste Schülerin oder deinen ersten Schüler an, oder lade ein Backup. Unter <a href="#daten">Daten</a> richtest du den Sync für alle deine Geräte ein.</p>
+  return `<div class="card empty"><h2>Noch keine SuS erfasst</h2><p class="muted" style="max-width:46ch;margin:0 auto 14px">Lege deine erste Schülerin oder deinen ersten Schüler an, oder lade ein Backup. Unter <a href="#daten">Einstellungen</a> richtest du den Sync für alle deine Geräte ein.</p>
   <div class="row" style="justify-content:center"><button class="pri" data-a="newS">Person anlegen</button><button data-a="import">Backup laden</button></div></div>`;
 }
 
@@ -873,12 +878,28 @@ function vLehrplan(){
   </div>`).join("")}${other.length ? `<div class="card"><b>Ohne Bereich</b> <span class="tiny">z. B. Body Percussion</span>${lpBookLinks(lpStufe, null)}</div>` : ""}</div>`;
 }
 
+const THEMES = [["dark","Dunkel"],["light","Hell"],["system","Wie Gerät"]], ZOOMS = [["0.9","Klein"],["1","Normal"],["1.15","Gross"],["1.3","Sehr gross"]];
+function pref(k, d){ try { return localStorage.getItem(k) || d; } catch(e) { return d; } }
+function setPref(k, v){ try { localStorage.setItem(k, v); } catch(e) {} }
+function applyLook(){
+  const t = pref("kb-theme", "dark"), r = document.documentElement;
+  if (t === "system") r.removeAttribute("data-theme"); else r.setAttribute("data-theme", t);
+  r.style.setProperty("--z", pref("kb-zoom", "1"));
+  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = getComputedStyle(document.body).backgroundColor;
+}
+function appearanceCard(){
+  const t = pref("kb-theme", "dark"), z = pref("kb-zoom", "1");
+  return `<h3>Darstellung</h3><div class="card"><div class="opt">
+    <div><label>Farbschema</label><div class="seg">${THEMES.map(([k, l]) => `<button class="${t===k?"on":""}" data-a="theme" data-v="${k}">${l}</button>`).join("")}</div></div>
+    <div><label>Schrift und Symbole</label><div class="seg">${ZOOMS.map(([k, l]) => `<button class="${z===k?"on":""}" data-a="zoom" data-v="${k}" style="font-size:${Math.round(13 * +k)}px">${l}</button>`).join("")}</div></div>
+  </div><p class="tiny" style="margin-bottom:0">Gilt für dieses Gerät.</p></div>`;
+}
 function vDaten(){
   const lb = db.lastBackup ? new Date(db.lastBackup).toLocaleString("de-CH") : "noch nie";
   const where = mode === "cloud"
     ? "Deine Daten liegen in deinem privaten Bereich dieser Seite. Nur du siehst sie, auf jedem Gerät, auf dem du mit deinem Konto angemeldet bist. Auch wenn du die Seite teilst, sehen andere nur ein leeres Klassenbuch."
     : "Deine Daten liegen nur in diesem Browser auf diesem Gerät. Lade regelmässig ein Backup herunter.";
-  app.innerHTML = `<h2>Daten</h2>
+  app.innerHTML = `<h2>Einstellungen</h2>${appearanceCard()}<h3>Daten</h3>
   <div class="card"><p style="margin-top:0;max-width:65ch">${where}</p>
   <p class="small muted num">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Startpaket oder Backup laden</button></div>
@@ -935,6 +956,8 @@ document.addEventListener("click", ev => {
       if (editEv) Object.assign(db.events.find(x => x.id === editEv), data); else db.events.push({id:uid(), ...data});
       editEv = null; save(); render(); toast("Termin gespeichert"); break;
     }
+    case "theme": setPref("kb-theme", b.dataset.v); applyLook(); render(); break;
+    case "zoom": setPref("kb-zoom", b.dataset.v); applyLook(); render(); break;
     case "export": saveFile("klassenbuch-backup-" + today() + ".json", JSON.stringify({...db, books}, null, 1), "application/json").then(ok => { if (ok){ db.lastBackup = Date.now(); save(); render(); toast("Backup gesichert"); } }); break;
     case "import": document.getElementById("fileIn").click(); break;
     case "reset": ask("Wirklich alle SuS, Lektionen und Termine löschen?", "Alles löschen", () => replaceAll({})); break;
@@ -1222,6 +1245,7 @@ $("pdfIn").onchange = async e => {
   if (ok || mapped){ render(); toast([ok ? ok + " PDF(s) hinzugefügt" : "", mapped ? mapped + " PDF(s) zugeordnet" : ""].filter(Boolean).join(", ")); }
 };
 
+applyLook();
 startApp();
 </script>
 
