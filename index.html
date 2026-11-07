@@ -320,7 +320,9 @@ async function sync(){
       cfg.outbox = cfg.outbox.filter(k => !done.includes(k)); await saveCfg();
     }
     // 2. PDFs hochladen
-    for (const id of [...cfg.uploads]){ await uploadPdf(id); cfg.uploads = cfg.uploads.filter(x => x !== id); await saveCfg(); }
+    const ups = [...cfg.uploads];
+    for (let i = 0; i < ups.length; i++){ await uploadPdf(ups[i], i + 1, ups.length); cfg.uploads = cfg.uploads.filter(x => x !== ups[i]); await saveCfg(); }
+    if (ups.length) setSync("PDFs hochgeladen, wird abgeglichen …");
     // 3. Herunterladen
     let since = Math.max(0, (cfg.since || 0) - 120000 * 1000), maxRev = cfg.since || 0, changed = false;
     const local = await idbAll("rec"), acc2 = {};
@@ -366,16 +368,27 @@ async function storePdf(id, u8, n, name){
   await idbPut("rec", "pdf:" + id, {v:{files:[], n, size: u8.length, name, pending:true}, rev:0});
   if (acc){ cfg.uploads.includes(id) || cfg.uploads.push(id); await saveCfg(); syncSoon(1000); }
 }
-async function uploadPdf(id){
+function postFile(url, fd, onProgress){
+  return new Promise((ok, no) => {
+    const x = new XMLHttpRequest(); x.open("POST", url); x.timeout = 15 * 60000;
+    x.upload.onprogress = e => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    x.onload = () => { if (x.status >= 200 && x.status < 300){ try { ok(JSON.parse(x.responseText)); } catch(e) { no(new Error("Upload: ungültige Antwort")); } } else no(new Error("Upload " + x.status)); };
+    x.onerror = () => no(new Error("Upload: keine Verbindung")); x.ontimeout = () => no(new Error("Upload: Zeitüberschreitung"));
+    x.send(fd);
+  });
+}
+async function uploadPdf(id, nr, total){
   const r = await idbGet("rec", "pdf:" + id); if (!r || !r.v.pending) return;
   const u8 = await idbGet("pdf", id); if (!u8) return;
   const enc = await encBytes(u8 instanceof Uint8Array ? u8 : new Uint8Array(u8)), files = [];
   for (let o = 0; o < enc.length; o += CHUNK){
-    setSync(`PDF wird hochgeladen … ${Math.round(o / enc.length * 100)} %`);
+    const label = (r.v.name || "PDF").replace(/\.pdf$/i, ""), mb = (enc.length / 1048576).toFixed(1);
+    const show = f => setSync(`PDF ${nr || 1} von ${total || 1} wird hochgeladen: ${label} (${mb} MB) … ${Math.round((o + f * Math.min(CHUNK, enc.length - o)) / enc.length * 100)} %`);
+    show(0);
     const {uploadUrl, uploadToken} = await api("uploadurl", {});
     const fd = new FormData(); fd.append("upload_token", uploadToken || ""); fd.append("file", new Blob([enc.subarray(o, o + CHUNK)], {type:"application/pdf"}), "kb.pdf");
-    const res = await fetch(uploadUrl, {method:"POST", body: fd}); if (!res.ok) throw new Error("Upload " + res.status);
-    const j = await res.json(); files.push((Array.isArray(j) ? j[0] : j).file_name);
+    const j = await postFile(uploadUrl, fd, show);
+    files.push((Array.isArray(j) ? j[0] : j).file_name);
   }
   const v = {...r.v, files, pending:false};
   await idbPut("rec", "pdf:" + id, {v, rev:0});
@@ -507,7 +520,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-1924 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-1931 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
