@@ -555,7 +555,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2127 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2128 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -741,7 +741,7 @@ function vWoche(){
     <button data-a="wk" data-n="7" aria-label="Nächste Woche">›</button>
     ${fer.map(e => `<span class="badge b-gr">${esc(e.titel)}</span>`).join("")}
     ${evs.map(e => `<span class="badge ${EVTYP[e.typ]}">${esc(e.typ)} ${fmt(e.datum)}: ${esc(e.titel)}</span>`).join("")}</div>`;
-  html += gnCard() + zeitstrahl(mon);
+  html += zeitstrahl(mon) + gnCard();
   if (!db.students.length){ app.innerHTML = html + emptyState(); return; }
   const list = sorted().filter(s => !ferienAm(lessonDate(s, mon), s));
   if (!list.length){ app.innerHTML = html + `<div class="card empty"><h2>${esc(fer[0]?.titel || "Ferien")}</h2><p class="muted">In dieser Woche finden keine Lektionen statt.</p><div class="row" style="justify-content:center"><button class="pri" data-a="wk" data-n="7">Zur nächsten Schulwoche</button></div></div>`; return; }
