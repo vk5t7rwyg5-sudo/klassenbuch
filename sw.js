@@ -1,5 +1,5 @@
 // Service Worker: hält die App offline verfügbar. Daten liegen in IndexedDB, nicht hier.
-const CACHE = "kb-2026.11.07-2205";
+const CACHE = "kb-2026.11.07-2207";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "anleitung.html", "vendor/pdf.min.js", "vendor/pdf.worker.min.js", "icons/icon-180.png", "icons/icon-192.png", "icons/icon-512.png", "icons/favicon.ico"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
