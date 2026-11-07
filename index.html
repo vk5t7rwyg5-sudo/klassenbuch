@@ -314,7 +314,7 @@ async function api(action, body){
 
 /* --- Lokale Datensätze: meta, books, lesson:<id>, pdf:<id> --- */
 function recOf(key){
-  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || ""};
+  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null};
   if (key === "books") return {books};
   if (key.startsWith("lesson:")) return db.lessons.find(l => l.id === key.slice(7)) || null;
   if (key.startsWith("ink:")){ const v = ink[key.slice(4)]; return v && Object.keys(v.p || {}).length ? v : null; }
@@ -344,7 +344,7 @@ function remoteRender(){ if (!(loaded.meta && loaded.lessons)) return; if (!docu
 document.addEventListener("focusout", () => setTimeout(() => { if (pendingRender && !busyTyping()){ pendingRender = false; render(); } }, 50));
 
 function applyRec(key, v){
-  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; }
+  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
   else if (key === "books") books = v ? v.books || [] : [];
   else if (key.startsWith("ink:")){ const k = key.slice(4); if (v) ink[k] = v; else delete ink[k]; if (typeof pvInkRemote === "function") pvInkRemote(k); }
   else if (key.startsWith("lesson:")){ const id = key.slice(7), i = db.lessons.findIndex(l => l.id === id); if (v){ v.id = id; if (i < 0) db.lessons.push(v); else db.lessons[i] = v; } else if (i >= 0) db.lessons.splice(i, 1); }
@@ -380,6 +380,7 @@ async function sync(){
     // 1. Hochladen
     await pushOutbox();
     // 2. PDFs hochladen
+    if (!pdfSyncOn() && cfg.uploads.length) await pdfToLocal();
     const ups = [...cfg.uploads];
     for (let i = 0; i < ups.length; i++){ await uploadPdf(ups[i], i + 1, ups.length); cfg.uploads = cfg.uploads.filter(x => x !== ups[i]); await saveCfg(); }
     if (ups.length){ setSync("PDFs hochgeladen, wird abgeglichen …"); await pushOutbox(); }
@@ -400,10 +401,11 @@ async function sync(){
       if (cfg.outbox.includes(key)) continue;
       const cur = local[key];
       if (cur && cur.rev >= g.rev) continue;
-      if (g.del){ if (cur){ await idbDel("rec", key); if (!key.startsWith("pdf:")) applyRec(key, null); changed = true; } continue; }
+      if (g.del){ if (cur){ await idbDel("rec", key); if (!key.startsWith("pdf:")) applyRec(key, null); else { const id = key.slice(4); pdfNote(id, null); try { await idbDel("pdf", id); } catch(e) {} pdfLocal.delete(id); } changed = true; } continue; }
       if (Object.keys(g.p).length !== g.parts) continue;
       let v; try { v = await decObj(Array.from({length: g.parts}, (_, i) => g.p[i]).join("")); } catch(e) { continue; }
       await idbPut("rec", key, {v, rev: g.rev});
+      if (key.startsWith("pdf:")){ pdfNote(key.slice(4), v); changed = true; }
       if (!key.startsWith("pdf:")){ applyRec(key, v); changed = true; }
     }
     cfg.since = maxRev; await saveCfg();
@@ -423,11 +425,47 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 setInterval(() => { if (document.visibilityState === "visible") sync(); }, 60000);
 window.addEventListener("pagehide", () => flush());
 
-/* --- PDFs: lokal unverschlüsselt im Gerät, auf dem Server verschlüsselt in Stücken --- */
+/* --- PDFs: lokal unverschlüsselt im Gerät, auf dem Server verschlüsselt in Stücken ---
+   Mit «Nur auf diesem Gerät» (db.pdfSync === false) gehen nur die Angaben (Name, Seiten) in den Sync, nicht die Datei. */
+const pdfMeta = {}; let pdfLocal = new Set(), pdfAny = false;
+function pdfNote(id, v){ if (!v){ delete pdfMeta[id]; return; } pdfMeta[id] = {name: v.name || "", files: (v.files || []).length, pending: !!v.pending}; if (pdfMeta[id].files) pdfAny = true; }
+async function pdfScanLocal(){ try { pdfLocal = new Set(await new Promise((ok, no) => { const r = idb.transaction("pdf").objectStore("pdf").getAllKeys(); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); })); } catch(e) {} }
+// Ohne ausdrückliche Wahl: synchronisieren nur, wenn das Konto schon PDFs auf dem Server hat (bestehende Konten)
+const pdfSyncOn = () => typeof db.pdfSync === "boolean" ? db.pdfSync : pdfAny;
+async function pdfToLocal(){
+  for (const id of cfg.uploads){ const r = await idbGet("rec", "pdf:" + id); if (r && r.v){ r.v.pending = false; r.v.local = true; await idbPut("rec", "pdf:" + id, r); pdfNote(id, r.v); cfg.outbox.includes("pdf:" + id) || cfg.outbox.push("pdf:" + id); } }
+  cfg.uploads = []; await saveCfg();
+}
+async function setPdfSync(on){
+  db.pdfSync = on; save();
+  if (on){
+    for (const id of pdfLocal){ const r = await idbGet("rec", "pdf:" + id); if (r && r.v && !(r.v.files || []).length){ r.v.pending = true; r.v.local = false; await idbPut("rec", "pdf:" + id, r); pdfNote(id, r.v); cfg.uploads.includes(id) || cfg.uploads.push(id); } }
+    await saveCfg();
+  } else await pdfToLocal();
+  syncSoon(500); render();
+}
+function pdfNameMap(){ const m = {}; for (const [id, x] of Object.entries(pdfMeta)) if (x.name && !pdfLocal.has(id)) m[x.name] = id; return m; }
+function pdfMissing(){ const ids = new Set(); for (const b of books) for (const t of b.teile || []) if (t.a && !pdfLocal.has(t.a) && !(pdfMeta[t.a] && pdfMeta[t.a].files)) ids.add(b.id); return ids.size; }
+function pdfMissingBanner(){
+  if (mode !== "app") return ""; const n = pdfMissing(); if (!n) return "";
+  return `<div class="banner">${n === 1 ? "1 Heft ist" : n + " Hefte sind"} nicht auf diesem Gerät gespeichert. Tippe auf «PDF hinzufügen» und wähle dieselben Dateien wie auf dem anderen Gerät, dann werden sie am Dateinamen erkannt und zugeordnet.</div>`;
+}
+function pdfCard(){
+  if (!acc) return ""; const on = pdfSyncOn();
+  return `<h3>PDFs</h3><div class="card"><div class="seg"><button class="${on ? "" : "on"}" data-a="pdfSync" data-v="">Nur auf diesem Gerät</button><button class="${on ? "on" : ""}" data-a="pdfSync" data-v="1">Über den Server synchronisieren</button></div>
+    <p class="small muted" style="max-width:65ch;margin-bottom:0">${on
+      ? "Neue PDFs werden verschlüsselt auf den Server geladen und erscheinen auf allen deinen Geräten. Der Speicher auf dem Server ist begrenzt und wird mit allen Lehrpersonen geteilt."
+      : "Deine PDFs bleiben auf dem Gerät und belegen keinen Platz auf dem Server. Titel, Seiten, Lesezeichen, Zuweisungen und Stiftnotizen werden trotzdem synchronisiert. Auf einem weiteren Gerät fügst du dieselben PDF-Dateien einmal hinzu, sie werden am Dateinamen erkannt."}
+      <span class="num">${pdfLocal.size} PDF${pdfLocal.size === 1 ? "" : "s"} auf diesem Gerät.</span></p></div>`;
+}
 async function storePdf(id, u8, n, name){
-  await idbPut("pdf", id, u8);
-  await idbPut("rec", "pdf:" + id, {v:{files:[], n, size: u8.length, name, pending:true}, rev:0});
-  if (acc){ cfg.uploads.includes(id) || cfg.uploads.push(id); await saveCfg(); syncSoon(1000); }
+  await idbPut("pdf", id, u8); pdfLocal.add(id);
+  const old = await idbGet("rec", "pdf:" + id);
+  if (old && old.v && (old.v.files || []).length){ pdfNote(id, old.v); return; }   // liegt schon auf dem Server
+  const up = !acc || pdfSyncOn();
+  const v = {files:[], n, size: u8.length, name, pending: up, local: !up};
+  await idbPut("rec", "pdf:" + id, {v, rev:0}); pdfNote(id, v);
+  if (acc){ if (up){ cfg.uploads.includes(id) || cfg.uploads.push(id); } else { cfg.outbox.includes("pdf:" + id) || cfg.outbox.push("pdf:" + id); } await saveCfg(); syncSoon(1000); }
 }
 function postFile(url, fd, onProgress){
   return new Promise((ok, no) => {
@@ -451,8 +489,8 @@ async function uploadPdf(id, nr, total){
     const j = await postFile(uploadUrl, fd, show);
     files.push((Array.isArray(j) ? j[0] : j).file_name);
   }
-  const v = {...r.v, files, pending:false};
-  await idbPut("rec", "pdf:" + id, {v, rev:0});
+  const v = {...r.v, files, pending:false, local:false};
+  await idbPut("rec", "pdf:" + id, {v, rev:0}); pdfNote(id, v);
   cfg.outbox.includes("pdf:" + id) || cfg.outbox.push("pdf:" + id); await saveCfg();
 }
 async function pdfBytes(id){
@@ -460,7 +498,8 @@ async function pdfBytes(id){
   if (!acc) throw new Error("Dieses PDF ist auf diesem Gerät nicht vorhanden.");
   let r = await idbGet("rec", "pdf:" + id);
   if (!r){ await sync(); r = await idbGet("rec", "pdf:" + id); }
-  if (!r || !r.v.files || !r.v.files.length) throw new Error("Dieses PDF ist noch nicht hochgeladen.");
+  if (r && r.v && r.v.local && !(r.v.files || []).length) throw new Error(`Dieses PDF${r.v.name ? " («" + r.v.name + "»)" : ""} ist nur auf einem anderen Gerät gespeichert. Füge es hier unter Literatur mit «PDF hinzufügen» hinzu.`);
+  if (!r || !r.v.files || !r.v.files.length) throw new Error("Dieses PDF ist noch nicht hochgeladen. Öffne es auf dem Gerät, auf dem du es hinzugefügt hast, oder füge es hier hinzu.");
   const parts = [];
   for (const f of r.v.files){ const x = await fetch(FILES + f); if (!x.ok) throw new Error("http " + x.status); parts.push(new Uint8Array(await x.arrayBuffer())); }
   const all = new Uint8Array(parts.reduce((a, p) => a + p.length, 0)); let o = 0; parts.forEach(p => { all.set(p, o); o += p.length; });
@@ -476,7 +515,8 @@ async function startApp(){
   cfg = Object.assign({since:0, outbox:[], uploads:[]}, await idbGet("cfg", "sync") || {});
   const a = await idbGet("cfg", "account"); if (a) await useAcc(a);
   const all = await idbAll("rec");
-  for (const [k, r] of Object.entries(all)) if (!k.startsWith("pdf:")) applyRec(k, r.v);
+  for (const [k, r] of Object.entries(all)) if (!k.startsWith("pdf:")) applyRec(k, r.v); else pdfNote(k.slice(4), r.v);
+  await pdfScanLocal();
   mode = "app"; assetsNs = true; loaded = {meta:true, lessons:true};
   setSync(acc ? "Bereit" : "Nur auf diesem Gerät");
   render();
@@ -498,7 +538,7 @@ async function finishSignIn(a, keepLocal){
     cfg.outbox = Object.keys(all).filter(k => !k.startsWith("pdf:") || !all[k].v.pending);
     cfg.uploads = Object.keys(all).filter(k => k.startsWith("pdf:") && all[k].v.pending).map(k => k.slice(4));
   } else {
-    await tx("rec", "readwrite", s => s.clear()); await tx("pdf", "readwrite", s => s.clear());
+    await tx("rec", "readwrite", s => s.clear()); await tx("pdf", "readwrite", s => s.clear()); pdfLocal = new Set();
     db = {students:[], lessons:[], events:[], lastBackup:null}; books = []; ink = {};
   }
   await saveCfg(); render(); await sync();
@@ -538,7 +578,7 @@ async function newRecoveryKey(pw){
 }
 async function signOut(wipe){
   acc = null; await idbDel("cfg", "account"); cfg = {since:0, outbox:[], uploads:[]}; await saveCfg();
-  if (wipe){ await tx("rec", "readwrite", s => s.clear()); await tx("pdf", "readwrite", s => s.clear()); db = {students:[], lessons:[], events:[], lastBackup:null}; books = []; ink = {}; }
+  if (wipe){ await tx("rec", "readwrite", s => s.clear()); await tx("pdf", "readwrite", s => s.clear()); pdfLocal = new Set(); db = {students:[], lessons:[], events:[], lastBackup:null}; books = []; ink = {}; }
   setSync("Nur auf diesem Gerät"); render();
 }
 const hasLocalData = () => db.students.length || db.lessons.length || db.events.length || books.length;
@@ -576,12 +616,12 @@ function vDatenApp(){
       ${tabs}<form id="ac-form" class="f" style="max-width:640px" onsubmit="return false">${fields}</form>
       <div class="row" style="margin-top:10px"><button class="pri" data-a="${btn[0]}">${btn[1]}</button><span class="small" id="ac-err" style="color:var(--da)"></span></div></div>`;
   }
-  app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${schulenCard()}${slCard()}<h3>Konto und Sync</h3>${rkCard()}${card}
+  app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${schulenCard()}${slCard()}<h3>Konto und Sync</h3>${rkCard()}${card}${pdfCard()}
   <h3>Backup</h3><div class="card"><p class="small muted num" style="margin-top:0">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine · ${books.length} Hefte</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2221 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2230 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -619,6 +659,9 @@ document.addEventListener("click", ev => {
     case "signUp": accountAction("up"); break;
     case "recover": accountAction("forgot"); break;
     case "syncNow": sync().then(() => render()); break;
+    case "pdfSync": { const on = !!b.dataset.v; if (on === pdfSyncOn()) break;
+      if (on) ask("PDFs ab jetzt über den Server synchronisieren? Alle PDFs dieses Geräts werden verschlüsselt hochgeladen und belegen Platz auf dem gemeinsamen Server.", "Synchronisieren", () => setPdfSync(true));
+      else setPdfSync(false); break; }
     case "pwSave": { const o = g("ac-old").value, n = g("ac-new").value; if (n.length < 10){ g("ac-err").textContent = "Das neue Passwort braucht mindestens 10 Zeichen."; return; }
       g("ac-err").textContent = "Wird geändert …"; changePw(o, n).then(() => { acctView = ""; render(); toast("Passwort geändert"); }, e => { g("ac-err").textContent = acErr(e); }); break; }
     case "rkNew": g("ac-err").textContent = "Wird erzeugt …"; newRecoveryKey(g("ac-old").value).then(() => { acctView = ""; render(); }, e => { g("ac-err").textContent = acErr(e); }); break;
@@ -1512,6 +1555,7 @@ function vLiteratur(){
     <div class="seg"><button class="${litF.group?"on":""}" data-a="litGrp" data-v="1">Nach Ordnern</button><button class="${litF.group?"":"on"}" data-a="litGrp" data-v="">Liste</button></div>
     <select id="litI" style="width:auto" aria-label="Bereich"><option value="">Alle Bereiche</option>${INSTR.map(k => `<option ${litF.instr===k?"selected":""}>${k}</option>`).join("")}</select>
     <select id="litSt" style="width:auto" aria-label="Stufe"><option value="">Alle Stufen</option>${STUFEN.map(k => `<option ${litF.stufe===k?"selected":""}>${k}</option>`).join("")}<option value="-" ${litF.stufe==="-"?"selected":""}>Ohne Stufe</option></select></div>`;
+  if (typeof pdfMissingBanner === "function") html += pdfMissingBanner();
   if (!books.length) html += `<div class="card empty"><h2>Noch keine Literatur</h2><p class="muted">Tippe auf «PDF hinzufügen» und wähle deine Noten aus.</p></div>`;
   else if (!list.length) html += `<p class="muted">Nichts gefunden.</p>`;
   else html += `<div class="card lit-card"><table class="lit-t"><thead><tr>${th("titel","Titel")}${th("autor","Autor","c-a")}${litF.kat==="Alle"?th("kat","Kategorie","c-k"):""}<th class="c-b">Bereiche</th><th class="c-st">Stufe</th>${th("seiten","Seiten","c-s num")}${th("sus","SuS")}<th></th></tr></thead><tbody>
@@ -1828,7 +1872,7 @@ $("pvInk").addEventListener("click", e => {
 /* ---------- PDFs direkt im Klassenbuch hinzufügen ---------- */
 $("pdfIn").onchange = async e => {
   const fs = [...e.target.files]; e.target.value = ""; if (!fs.length) return;
-  let ok = 0, mapped = 0; const map = (await idbGet("cfg", "pdfmap")) || {};
+  let ok = 0, mapped = 0; const map = Object.assign(pdfNameMap(), (await idbGet("cfg", "pdfmap")) || {});
   for (const f of fs){
     try {
       toast(`Lädt ${f.name} …`);
