@@ -128,6 +128,10 @@ button:disabled{opacity:.4;cursor:default}
 @media (max-width:520px){.gm-r{grid-template-columns:minmax(0,1fr) auto}.gm-r>:nth-child(1){grid-column:1}.gm-r>:nth-child(6){grid-column:2}.gm-r>:nth-child(n+2):nth-child(-n+5){grid-column:1/3}}
 .gl{margin-top:6px;display:grid;gap:2px}.gl div{display:flex;gap:8px;min-width:0}.gl b{font-weight:500;white-space:nowrap}.gl span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sl{display:grid;gap:6px;max-width:420px}.sl .row{flex-wrap:nowrap}
+.sl-prev{margin-bottom:18px;border-color:var(--ac)}.sl-file{border-top:1px solid var(--bd);padding-top:10px;margin-top:10px}
+.sl-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bd)}
+.sl-act{display:flex;gap:6px;align-items:center}.sl-act select{width:auto;max-width:260px}
+@media (max-width:600px){.sl-row{grid-template-columns:minmax(0,1fr)}.sl-act select{flex:1;max-width:none}}
 .pv-pg canvas{display:block;max-width:none}#pvC{background:var(--paper)}
 #pvI{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:multiply}
 .pv-ink #pvI{cursor:crosshair}
@@ -550,12 +554,12 @@ function vDatenApp(){
       ${tabs}<form id="ac-form" class="f" style="max-width:640px" onsubmit="return false">${fields}</form>
       <div class="row" style="margin-top:10px"><button class="pri" data-a="${btn[0]}">${btn[1]}</button><span class="small" id="ac-err" style="color:var(--da)"></span></div></div>`;
   }
-  app.innerHTML = `<h2>Einstellungen</h2>${appearanceCard()}${schulenCard()}<h3>Konto und Sync</h3>${rkCard()}${card}
+  app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${schulenCard()}${slCard()}<h3>Konto und Sync</h3>${rkCard()}${card}
   <h3>Backup</h3><div class="card"><p class="small muted num" style="margin-top:0">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine · ${books.length} Hefte</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2128 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2133 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -636,6 +640,186 @@ let weekStart = monday(new Date());
 let filt = {schule:"Alle", q:""};
 function schulen(){ return db.schulen && db.schulen.length ? db.schulen.slice() : [...new Set(db.students.map(s => s.schule).filter(Boolean))]; }
 function schulOpts(cur){ const l = schulen(); if (cur && !l.includes(cur)) l.push(cur); return (l.length ? "" : `<option value="">–</option>`) + l.map(k => `<option ${cur===k?"selected":""}>${esc(k)}</option>`).join(""); }
+/* ---------- Schülerlisten importieren (CSV oder Excel, z. B. Export aus Escada) ---------- */
+let imp = null;
+const nrm = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+function csvRows(text){
+  text = text.replace(/^﻿/, "");
+  const first = text.split(/\r?\n/)[0] || "", cnt = c => first.split(c).length;
+  const d = [";", "\t", ","].sort((a, b) => cnt(b) - cnt(a))[0];
+  const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){ if (c === '"'){ if (text[i + 1] === '"'){ f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === d){ row.push(f); f = ""; }
+    else if (c === "\n" || c === "\r"){ if (c === "\r" && text[i + 1] === "\n") i++; row.push(f); rows.push(row); row = []; f = ""; }
+    else f += c;
+  }
+  if (f || row.length){ row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => String(x).trim()));
+}
+async function unzip(buf){
+  const u = new Uint8Array(buf), dv = new DataView(buf); let e = u.length - 22;
+  while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error("zip");
+  const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true); const out = {};
+  for (let i = 0; i < n; i++){
+    const meth = dv.getUint16(p + 10, true), size = dv.getUint32(p + 20, true), nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true), lo = dv.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(u.subarray(p + 46, p + 46 + nl)); p += 46 + nl + xl + cl;
+    out[name] = async () => {
+      const s = lo + 30 + dv.getUint16(lo + 26, true) + dv.getUint16(lo + 28, true), data = u.subarray(s, s + size);
+      if (meth === 0) return new TextDecoder().decode(data);
+      return new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text();
+    };
+  }
+  return out;
+}
+async function xlsxRows(buf){
+  const z = await unzip(buf), P = s => new DOMParser().parseFromString(s, "application/xml");
+  const ss = z["xl/sharedStrings.xml"] ? [...P(await z["xl/sharedStrings.xml"]()).getElementsByTagName("si")].map(si => [...si.getElementsByTagName("t")].map(t => t.textContent).join("")) : [];
+  const sheet = z["xl/worksheets/sheet1.xml"] ? "xl/worksheets/sheet1.xml" : Object.keys(z).filter(k => /^xl\/worksheets\/[^/]+\.xml$/.test(k)).sort()[0];
+  if (!sheet) throw new Error("sheet");
+  const rows = [];
+  for (const r of P(await z[sheet]()).getElementsByTagName("row")){
+    const row = [];
+    for (const c of r.getElementsByTagName("c")){
+      const ref = (c.getAttribute("r") || "").replace(/\d+/g, ""), col = ref ? [...ref].reduce((a, ch) => a * 26 + ch.charCodeAt(0) - 64, 0) - 1 : row.length;
+      const t = c.getAttribute("t"), v = c.getElementsByTagName("v")[0]?.textContent ?? "";
+      row[col] = t === "s" ? (ss[+v] ?? "") : t === "inlineStr" ? [...c.getElementsByTagName("t")].map(x => x.textContent).join("") : v;
+    }
+    rows.push(Array.from(row, x => x ?? ""));
+  }
+  return rows.filter(r => r.some(x => String(x).trim()));
+}
+const SLH = {vor:["vorname","firstname","rufname"], nach:["name","nachname","familienname","lastname","schuler","schulerin","schulerinnen","kind"], fach:["fachbezeichnung","fach","kurs","angebot","unterricht","instrument","unterrichtsart"],
+  geb:["geburtsdatum","geburtstag","geboren","gebdatum","birthdate"], str:["strasse","adresse","address","strassenr"], nr:["hausnummer","hausnr","nr"], plz:["postleitzahl","plz"], ort:["ort","wohnort"],
+  tel:["telefon","tel","telefonprivat","telefonnummer"], mob:["mobile","natel","handy","mobil","mobiltelefon"], mail:["email","mail","emailadresse"],
+  evn:["elternvorname"], enn:["elternname","eltern","erziehungsberechtigte","erziehungsberechtigter"], estr:["elternstrasse"], enr:["elternhausnummer"], eplz:["elternpostleitzahl","elternplz"], eort:["elternort"],
+  em1:["eltern1email","elternemail"], em2:["eltern2email"], et1:["eltern1telefon","elterntelefon"], et2:["eltern2telefon"], eb1:["eltern1mobile","elternmobile","elternnatel"], eb2:["eltern2mobile"]};
+const hk = s => nrm(s).replace(/[^a-z0-9]/g, "");
+function slDate(v){
+  v = String(v || "").trim(); if (!v) return "";
+  if (/^\d{4,5}(\.\d+)?$/.test(v)){ const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(+v) * 864e5); return d.toISOString().slice(0, 10); }
+  let m = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  m = v.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})/); if (!m) return "";
+  let y = +m[3]; if (y < 100) y += y > new Date().getFullYear() % 100 ? 1900 : 2000;
+  return `${y}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+}
+function slParse(rows){
+  let hi = -1, map = {};
+  for (let i = 0; i < Math.min(rows.length, 10) && hi < 0; i++){
+    const m = {}; rows[i].forEach((h, j) => { const k = hk(h); for (const [key, syn] of Object.entries(SLH)) if (m[key] === undefined && syn.includes(k)) m[key] = j; });
+    if (m.nach !== undefined && Object.keys(m).length >= 2){ hi = i; map = m; }
+  }
+  if (hi < 0) return null;
+  const out = [];
+  for (const r of rows.slice(hi + 1)){
+    const g = k => map[k] === undefined ? "" : String(r[map[k]] ?? "").trim();
+    let vor = g("vor"), nach = g("nach");
+    if (!vor && !nach) continue;
+    if (!vor && nach.includes(",")){ [nach, vor] = nach.split(",").map(x => x.trim()); }
+    const full = [vor, nach].filter(Boolean).join(" "), L = (...a) => a.map(x => String(x || "").trim()).filter(Boolean);
+    const addr = (s, n, p, o) => L(L(s, n).join(" "), L(p, o).join(" ")).join(", ");
+    const fach = g("fach"), dm = fach.match(/(\d{2,3})\s*(?:min\.?|')?\s*$/i);
+    out.push({vor, nach, full, fach,
+      typ: /\b(GU\d*|MZ|Gruppe|Ensemble|Kurs|Band)\b/i.test(fach) ? "Gruppe" : "Einzel",
+      dauer: dm && +dm[1] >= 15 && +dm[1] <= 120 ? +dm[1] : 0,
+      geburt: slDate(g("geb")),
+      eltern: L(g("evn"), g("enn")).join(" "),
+      tel: [...new Set(L(g("mob"), g("tel"), g("eb1"), g("et1"), g("eb2"), g("et2")))].join(", "),
+      mail: [...new Set(L(g("mail"), g("em1"), g("em2")))].join(", "),
+      adresse: addr(g("str"), g("nr"), g("plz"), g("ort")) || addr(g("estr"), g("enr"), g("eplz"), g("eort"))});
+  }
+  return out;
+}
+function slMatch(r){
+  const a = nrm(r.full), b = nrm([r.nach, r.vor].join(" ")), v = nrm(r.vor);
+  for (const s of db.students) if (s.typ !== "Gruppe" && (nrm(s.name) === a || nrm(s.name) === b)) return {kind:"s", sid:s.id};
+  for (const s of db.students) if (s.typ === "Gruppe"){
+    const i = gMembers(s).findIndex(x => { const n = nrm(x.name); return n && (n === a || n === b || (!n.includes(" ") && n === v)); });
+    if (i >= 0) return {kind:"m", sid:s.id, i};
+  }
+  return null;
+}
+function slDiff(r, schule){
+  if (!r.m) return 0;
+  const s = S(r.m.sid); if (!s) return 0;
+  const x = r.m.kind === "s" ? s : gMembers(s)[r.m.i]; if (!x) return 0;
+  const k = kOf(x); let n = 0;
+  for (const f of ["tel","mail","adresse"]) if (r[f] && r[f] !== k[f]) n++;
+  if (r.eltern && r.eltern !== (x.eltern || "")) n++;
+  const geb = r.m.kind === "s" ? (s.stammblatt || {}).geburt : x.geburt; if (r.geburt && r.geburt !== geb) n++;
+  if (r.m.kind === "s" && schule && s.schule !== schule) n++;
+  return n;
+}
+async function slLoad(files){
+  for (const f of files){
+    try {
+      const buf = await f.arrayBuffer(); let rows;
+      if (/\.xlsx$/i.test(f.name)) rows = await xlsxRows(buf);
+      else if (/\.xls$/i.test(f.name)){ toast(`${f.name}: bitte in Excel als .xlsx oder .csv speichern.`); continue; }
+      else { let text = new TextDecoder("utf-8").decode(buf); if (text.includes("�")) text = new TextDecoder("windows-1252").decode(buf); rows = csvRows(text); }
+      const recs = slParse(rows);
+      if (!recs || !recs.length){ toast(`In ${f.name} habe ich keine Spalten mit Namen gefunden.`); continue; }
+      recs.forEach(r => { r.m = slMatch(r); r.act = r.m ? "u" : r.typ === "Gruppe" ? "ng" : "e"; });
+      (imp ||= {files: []}).files.push({name: f.name, schule: schulen()[0] || "", neu: "", rows: recs});
+    } catch(e) { toast(`${f.name} konnte nicht gelesen werden.`); }
+  }
+  if (imp){ location.hash = "daten"; render(); window.scrollTo(0, 0); }
+}
+function slCard(){
+  return `<h3>Schülerlisten</h3><div class="card"><p style="margin-top:0;max-width:65ch">Lade eine oder mehrere Schülerlisten, zum Beispiel den Export aus Escada (CSV oder Excel). Neue Schüler:innen werden angelegt, bestehende anhand des Namens erkannt und ihre Kontakte und Geburtsdaten ergänzt. Vor dem Übernehmen siehst du alles in einer Vorschau.</p>
+    <button class="pri" data-a="slLoad">Schülerliste laden</button></div>`;
+}
+function slOpts(r, groups){
+  const o = [];
+  if (r.m){ const s = S(r.m.sid); o.push(["u", r.m.kind === "s" ? "Aktualisieren" : `Aktualisieren in ${s ? s.name : "Gruppe"}`]); }
+  o.push(["e", "Neu als Einzelperson"], ["ng", `Neue Gruppe «${r.fach || "Gruppe"}»`], ...groups.map(g => ["g:" + g.id, `Zur Gruppe ${g.name}`]), ["skip", "Nicht übernehmen"]);
+  return o.map(([v, t]) => `<option value="${esc(v)}" ${r.act === v ? "selected" : ""}>${esc(t)}</option>`).join("");
+}
+function slPreview(){
+  if (!imp) return "";
+  const groups = db.students.filter(s => s.typ === "Gruppe");
+  return `<div class="card sl-prev"><h3 style="margin-top:0">Schülerliste übernehmen</h3>
+    <p class="small muted" style="margin:0 0 10px;max-width:70ch">Prüfe pro Person, was passieren soll. Bei bestehenden SuS übernehme ich Eltern, Telefon, E-Mail, Adresse und Geburtsdatum aus der Liste. Notizen, Lektionen und Lehrplan bleiben, wie sie sind.</p>
+    ${imp.files.map((f, fi) => `<div class="sl-file"><div class="row"><b class="small" style="min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(f.name)}</b><span class="tiny num">${f.rows.length} Personen</span><span class="sp"></span>
+        <label class="small" for="sls-${fi}" style="margin:0">Schule</label><select id="sls-${fi}" data-sls="${fi}" style="width:auto">${schulOpts(f.schule)}</select>
+        <input data-slsn="${fi}" value="${esc(f.neu)}" placeholder="oder neue Schule" aria-label="Neue Schule" style="width:150px"></div>
+      ${f.rows.map((r, ri) => { const d = slDiff(r, f.neu || f.schule); return `<div class="sl-row"><div style="min-width:0"><b>${esc(r.full)}</b> <span class="tiny">${esc([r.fach, r.geburt ? fmt(r.geburt, 1) : ""].filter(Boolean).join(" · "))}</span>
+          <div class="tiny">${esc([r.eltern, r.tel.split(",")[0], r.mail.split(",")[0]].filter(Boolean).join(" · "))}</div></div>
+        <div class="sl-act"><select data-sla="${fi}:${ri}" aria-label="Was mit ${esc(r.full)} passieren soll">${slOpts(r, groups)}</select>${r.m && r.act === "u" ? `<span class="badge ${d ? "b-wa" : "b-ok"}">${d ? d + (d === 1 ? " Änderung" : " Änderungen") : "aktuell"}</span>` : r.act === "skip" ? "" : `<span class="badge b-ok">neu</span>`}</div></div>`; }).join("")}</div>`).join("")}
+    <div class="row" style="margin-top:12px"><button class="pri" data-a="slOk">Übernehmen</button><button data-a="slMore">Weitere Liste laden</button><button class="ghost" data-a="slX">Abbrechen</button></div></div>`;
+}
+function slApply(){
+  let neu = 0, upd = 0; const ng = {}, touched = new Set();
+  const mem = r => ({name: r.full, eltern: r.eltern, tel: r.tel, mail: r.mail, adresse: r.adresse, geburt: r.geburt, kontakt: kJoin(r)});
+  const fresh = (name, schule, typ, r) => ({id: uid(), name, schule, typ, mitglieder: "", tag: 0, zeit: "", dauer: (r && r.dauer) || 30, stufe: "Unterstufe", instrumente: ["Snare Drum"], seit: "", eltern: "", tel: "", mail: "", adresse: "", kontakt: "", bemerkung: "", lp: {}, aktiv: true, stammblatt: {}});
+  for (const f of imp.files){
+    const schule = f.neu.trim() || f.schule;
+    if (schule){ const l = schulen(); if (!l.includes(schule)){ l.push(schule); db.schulen = l; } }
+    for (const r of f.rows){
+      if (r.act === "skip") continue;
+      if (r.act === "u" && r.m){
+        const s = S(r.m.sid); if (!s) continue;
+        if (r.m.kind === "m" && !Array.isArray(s.members)) s.members = gMembers(s);
+        const x = r.m.kind === "s" ? s : s.members[r.m.i]; if (!x) continue;
+        kOf(x); for (const k of ["eltern","tel","mail","adresse"]) if (r[k]) x[k] = r[k];
+        x.kontakt = kJoin(x);
+        if (r.m.kind === "s"){ if (r.geburt) (s.stammblatt ||= {}).geburt = r.geburt; if (schule) s.schule = schule; }
+        else { if (r.geburt) x.geburt = r.geburt; if (r.full) x.name = r.full; s.members = gMembers(s); touched.add(s); }
+        upd++; continue;
+      }
+      if (r.act === "e"){ const n = fresh(r.full, schule, "Einzel", r); Object.assign(n, {eltern: r.eltern, tel: r.tel, mail: r.mail, adresse: r.adresse, kontakt: kJoin(r)}); if (r.geburt) n.stammblatt.geburt = r.geburt; db.students.push(n); neu++; continue; }
+      if (r.act === "ng"){ const k = schule + "|" + (r.fach || "Gruppe"); (ng[k] ||= {schule, fach: r.fach || "Neue Gruppe", r, rows: []}).rows.push(r); continue; }
+      if (r.act.startsWith("g:")){ const s = S(r.act.slice(2)); if (s){ const m = gMembers(s); m.push(mem(r)); s.members = m; touched.add(s); neu++; } }
+    }
+  }
+  for (const g of Object.values(ng)){ const n = fresh(g.fach, g.schule, "Gruppe", g.r); n.members = g.rows.map(mem); db.students.push(n); touched.add(n); neu += g.rows.length; }
+  touched.forEach(s => { s.mitglieder = gMembers(s).map(x => x.name).filter(Boolean).join(", "); });
+  imp = null; save(); render();
+  toast(`Übernommen: ${neu} neu, ${upd} aktualisiert`);
+}
 function schulenCard(){
   const l = schulen();
   return `<h3>Schulen</h3><div class="card"><div class="sl">
@@ -989,7 +1173,7 @@ function vDaten(){
   const where = mode === "cloud"
     ? "Deine Daten liegen in deinem privaten Bereich dieser Seite. Nur du siehst sie, auf jedem Gerät, auf dem du mit deinem Konto angemeldet bist. Auch wenn du die Seite teilst, sehen andere nur ein leeres Klassenbuch."
     : "Deine Daten liegen nur in diesem Browser auf diesem Gerät. Lade regelmässig ein Backup herunter.";
-  app.innerHTML = `<h2>Einstellungen</h2>${appearanceCard()}${schulenCard()}<h3>Daten</h3>
+  app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${schulenCard()}${slCard()}<h3>Daten</h3>
   <div class="card"><p style="margin-top:0;max-width:65ch">${where}</p>
   <p class="small muted num">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Startpaket oder Backup laden</button></div>
@@ -1033,6 +1217,9 @@ document.addEventListener("click", ev => {
     case "newL": { const d = document.getElementById("newLd").value; if (d){ const l = getLesson(sid, d, true); saveL(l.id); weekStart = monday(parse(d)); location.hash = "woche"; } break; }
     case "pick": selSid = b.dataset.v; render(); if (window.matchMedia("(max-width:760px)").matches) document.querySelector(".ed")?.scrollIntoView({block:"start"}); else window.scrollTo(0,0); break;
     case "fs": filt.schule = b.dataset.v; render(); break;
+    case "slLoad": case "slMore": { const inp = document.createElement("input"); inp.type = "file"; inp.multiple = true; inp.accept = ".csv,.txt,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; inp.onchange = () => slLoad([...inp.files]); inp.click(); break; }
+    case "slX": imp = null; render(); break;
+    case "slOk": slApply(); break;
     case "schulAdd": { const v = $("schulNeu").value.trim(); if (!v){ $("schulNeu").focus(); return; } const l = schulen(); if (!l.includes(v)) l.push(v); db.schulen = l; save(); render(); break; }
     case "schulDel": { const l = schulen(), k = l[+b.dataset.i], n = db.students.filter(s => s.schule === k).length;
       if (n){ toast(`${k} ist noch bei ${n} SuS eingetragen. Ändere zuerst dort die Schule.`); return; }
@@ -1089,6 +1276,9 @@ document.getElementById("fileIn").onchange = e => {
 document.addEventListener("input", ev => {
   const t = ev.target; if (t.tagName === "TEXTAREA") autosize(t);
   if ("gn" in t.dataset){ db.notiz = t.value; save(); return; }
+  if (imp && t.dataset.sla){ const [fi, ri] = t.dataset.sla.split(":").map(Number); imp.files[fi].rows[ri].act = t.value; render(); return; }
+  if (imp && t.dataset.sls){ imp.files[+t.dataset.sls].schule = t.value; render(); return; }
+  if (imp && t.dataset.slsn){ imp.files[+t.dataset.slsn].neu = t.value; return; }
   if (t.dataset.gm){ const s = S(t.closest("[data-sid]")?.dataset.sid); if (!s) return; const [i, f] = t.dataset.gm.split(":"); const m = gMembers(s); if (m[+i]){ m[+i][f] = t.value; m[+i].kontakt = kJoin(m[+i]); s.members = m; s.mitglieder = m.map(x => x.name).filter(Boolean).join(", "); save(); } return; }
   if (t.dataset.sn){ const i = +t.dataset.sn, list = schulen(), alt = list[i], neu = t.value.trim(); if (!neu || alt === undefined || list.includes(neu)) return; list[i] = neu; db.schulen = list; db.students.forEach(s => { if (s.schule === alt) s.schule = neu; }); if (filt.schule === alt) filt.schule = neu; save(); return; }
   const card = t.closest("[data-sid]"); if (!card) return;
