@@ -426,6 +426,7 @@ async function sync(){
     const local = await idbAll("rec"), acc2 = {};
     for (;;){
       const r = await api("pull", {since});
+      if (r.profile === false) askProfile();
       for (const it of r.items){
         since = Math.max(since, it.rev); maxRev = Math.max(maxRev, it.rev);
         const g = acc2[it.key] ||= {parts: it.parts, p: {}, del: false, rev: 0};
@@ -587,9 +588,9 @@ async function finishSignIn(a, keepLocal){
   }
   await saveCfg(); render(); await sync();
 }
-async function signUp(email, pw, invite){
+async function signUp(email, pw, invite, vorname, name){
   const d = await derive(email, pw), dek = crypto.getRandomValues(new Uint8Array(32)), rk = genRk(), r = await deriveRk(email, normRk(rk));
-  await api("register", {acct: d.acct, auth: d.auth, rauth: r.rauth, wrapPw: await wrapKey(dek, d.kek), wrapRk: await wrapKey(dek, r.kek), invite});
+  await api("register", {acct: d.acct, auth: d.auth, rauth: r.rauth, wrapPw: await wrapKey(dek, d.kek), wrapRk: await wrapKey(dek, r.kek), invite, vorname, name, email: d.email});
   rkShow = rk;
   await finishSignIn({email: d.email, acct: d.acct, auth: d.auth, raw: b64(dek)}, true);
 }
@@ -645,7 +646,7 @@ function vDatenApp(){
   if (acc){
     card = `<div class="card"><div class="row"><b>Sync ist eingerichtet</b><span class="badge b-ok">${esc(acc.email)}</span><span class="sp"></span><button class="pri" data-a="syncNow">Jetzt synchronisieren</button></div>
       <p class="small muted" style="margin-bottom:0">Letzter Abgleich: ${ls}${cfg.outbox.length ? ` · ${cfg.outbox.length} Änderung(en) warten` : ""}${cfg.uploads.length ? ` · ${cfg.uploads.length} PDF(s) warten auf Upload` : ""}${syncErr ? ` · <span style="color:var(--da)">${esc(syncErr)}</span>` : ""}</p>
-      <p class="tiny" style="max-width:65ch">Alles wird auf dem Gerät verschlüsselt, bevor es auf den Server geht. Niemand ausser dir kann die Daten lesen.</p>
+      <p class="tiny" style="max-width:65ch">Deine Einträge werden auf dem Gerät verschlüsselt, bevor sie auf den Server gehen. Niemand ausser dir kann sie lesen. Name und E-Mail sind zu deinem Konto gespeichert.</p>
       ${acctView === "pw" ? `<div class="f" style="max-width:640px;margin-top:8px">${f("ac-old","Aktuelles Passwort","password","current-password")}${f("ac-new","Neues Passwort (mind. 10 Zeichen)","password","new-password")}</div>
         <div class="row" style="margin-top:8px"><button class="pri" data-a="pwSave">Passwort ändern</button><button data-a="acView" data-v="">Abbrechen</button><span class="small" id="ac-err" style="color:var(--da)"></span></div>`
       : acctView === "rk" ? `<div class="f" style="max-width:640px;margin-top:8px">${f("ac-old","Aktuelles Passwort","password","current-password")}</div>
@@ -656,10 +657,10 @@ function vDatenApp(){
     const tabs = `<div class="seg" style="margin:8px 0 10px">${[["in","Anmelden"],["up","Neues Konto"],["forgot","Passwort vergessen"]].map(([k,t]) => `<button class="${acctView===k?"on":""}" data-a="acView" data-v="${k}">${t}</button>`).join("")}</div>`;
     const fields = acctView === "forgot"
       ? f("ac-mail","E-Mail","email","username") + f("ac-rk","Wiederherstellungsschlüssel","text","off",'placeholder="KB-XXXX-XXXX-…" spellcheck="false"') + f("ac-pw","Neues Passwort (mind. 10 Zeichen)","password","new-password")
-      : f("ac-mail","E-Mail","email","username") + f("ac-pw", acctView === "up" ? "Passwort (mind. 10 Zeichen)" : "Passwort", "password", acctView === "up" ? "new-password" : "current-password") + (acctView === "up" ? f("ac-inv","Einladungscode","text","off") : "");
+      : (acctView === "up" ? f("ac-vor","Vorname","text","given-name") + f("ac-nach","Name","text","family-name") : "") + f("ac-mail","E-Mail","email","username") + f("ac-pw", acctView === "up" ? "Passwort (mind. 10 Zeichen)" : "Passwort", "password", acctView === "up" ? "new-password" : "current-password") + (acctView === "up" ? f("ac-inv","Einladungscode","text","off") : "");
     const btn = {in:["signIn","Anmelden"], up:["signUp","Konto erstellen"], forgot:["recover","Neues Passwort setzen"]}[acctView];
     card = `<div class="card" id="acct"><b>Sync einrichten</b>
-      <p class="small muted" style="max-width:65ch;margin-top:4px">Mit einem Konto sind deine Einträge auf allen Geräten gleich. Alles wird auf dem Gerät verschlüsselt, der Server sieht nur unlesbare Daten. Beim Erstellen bekommst du einen <b>Wiederherstellungsschlüssel</b>, falls du das Passwort einmal vergisst. <a href="anleitung.html#konto">Mehr in der Anleitung</a></p>
+      <p class="small muted" style="max-width:65ch;margin-top:4px">Mit einem Konto sind deine Einträge auf allen Geräten gleich. Deine Einträge werden auf dem Gerät verschlüsselt, der Server sieht nur unlesbare Daten. Name und E-Mail werden zu deinem Konto gespeichert. Beim Erstellen bekommst du einen <b>Wiederherstellungsschlüssel</b>, falls du das Passwort einmal vergisst. <a href="anleitung.html#konto">Mehr in der Anleitung</a></p>
       ${tabs}<form id="ac-form" class="f" style="max-width:640px" onsubmit="return false">${fields}</form>
       <div class="row" style="margin-top:10px"><button class="pri" data-a="${btn[0]}">${btn[1]}</button><span class="small" id="ac-err" style="color:var(--da)"></span></div></div>`;
   }
@@ -668,7 +669,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.09-1858 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.09-1915 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -678,17 +679,34 @@ function acErr(e){
     : c === "old" ? "Dieses Konto stammt aus einer Testversion. Bitte ein neues Konto erstellen."
     : (e && e.name === "OperationError") ? "Der Schlüssel passt nicht zu diesem Konto." : "Keine Verbindung zum Server. Bitte später nochmals versuchen.";
 }
+// Bestehende Konten ohne Profil: einmal Vorname und Name nachfragen
+function askProfile(){
+  if (!acc || document.getElementById("profDlg")) return;
+  const d = document.createElement("dialog"); d.id = "profDlg";
+  d.innerHTML = `<b>Bitte ergänze dein Konto</b><p class="small muted" style="max-width:48ch">Wir brauchen neu deinen Namen zum Konto. Deine Einträge bleiben verschlüsselt.</p>
+    <div class="f"><div><label for="pf-vor">Vorname</label><input id="pf-vor" autocomplete="given-name"></div><div><label for="pf-nach">Name</label><input id="pf-nach" autocomplete="family-name"></div></div>
+    <div class="row" style="margin-top:12px"><span class="small" id="pf-err" style="color:var(--da)"></span><span class="sp"></span><button class="pri" id="pf-ok">Speichern</button></div>`;
+  d.addEventListener("cancel", e => e.preventDefault());
+  document.body.appendChild(d); d.showModal();
+  d.querySelector("#pf-ok").onclick = async () => {
+    const vorname = d.querySelector("#pf-vor").value.trim(), name = d.querySelector("#pf-nach").value.trim(), err = d.querySelector("#pf-err");
+    if (!vorname || !name){ err.textContent = "Bitte beide Felder ausfüllen."; return; }
+    err.textContent = "Wird gespeichert …";
+    try { await api("profile", {vorname, name, email: acc.email}); d.close(); d.remove(); toast("Gespeichert"); } catch(e) { err.textContent = "Das hat nicht geklappt. Prüfe die Verbindung."; }
+  };
+}
 async function accountAction(kind){
   const g = id => document.getElementById(id), err = g("ac-err"), v = id => (g(id) ? g(id).value : "");
   const email = v("ac-mail").trim(), pw = v("ac-pw");
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ err.textContent = "Bitte eine gültige E-Mail eingeben."; return; }
   if (kind !== "in" && pw.length < 10){ err.textContent = "Das Passwort braucht mindestens 10 Zeichen."; return; }
   if (!pw){ err.textContent = "Bitte das Passwort eingeben."; return; }
+  if (kind === "up" && (!v("ac-vor").trim() || !v("ac-nach").trim())){ err.textContent = "Bitte Vorname und Name eingeben."; return; }
   if (kind === "up" && !v("ac-inv").trim()){ err.textContent = "Für ein neues Konto brauchst du den Einladungscode."; return; }
   const run = async keep => {
     err.textContent = "Wird eingerichtet … (das dauert ein paar Sekunden)";
     try {
-      if (kind === "up") await signUp(email, pw, v("ac-inv").trim());
+      if (kind === "up") await signUp(email, pw, v("ac-inv").trim(), v("ac-vor").trim(), v("ac-nach").trim());
       else if (kind === "forgot") await recoverAcc(email, v("ac-rk"), pw, keep);
       else await logIn(email, pw, keep);
       acctView = "in"; toast(kind === "forgot" ? "Neues Passwort gesetzt" : "Sync ist eingerichtet"); render();
