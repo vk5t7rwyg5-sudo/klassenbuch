@@ -140,6 +140,7 @@ button:disabled{opacity:.4;cursor:default}
 .play{min-height:0;padding:2px 8px;font-size:12px;border-radius:999px}
 .lit-play{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
 .stv-t{width:100%;border-collapse:collapse;font-size:14px}.stv-t th,.stv-t td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bd);vertical-align:top}
+.stv-t td.hl{background:var(--wabg)}
 .stv-t th{font-size:12px;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;font-weight:600}.stv-t td.w{white-space:pre-line}
 .sl-prev{margin-bottom:18px;border-color:var(--ac)}.sl-file{border-top:1px solid var(--bd);padding-top:10px;margin-top:10px}
 .sl-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bd)}
@@ -325,7 +326,7 @@ async function api(action, body){
 
 /* --- Lokale Datensätze: meta, books, lesson:<id>, pdf:<id> --- */
 function recOf(key){
-  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null};
+  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, stvCols: db.stvCols || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null};
   if (key === "books") return {books};
   if (key.startsWith("lesson:")) return db.lessons.find(l => l.id === key.slice(7)) || null;
   if (key.startsWith("ink:")){ const v = ink[key.slice(4)]; return v && Object.keys(v.p || {}).length ? v : null; }
@@ -355,7 +356,7 @@ function remoteRender(){ if (!(loaded.meta && loaded.lessons)) return; if (!docu
 document.addEventListener("focusout", () => setTimeout(() => { if (pendingRender && !busyTyping()){ pendingRender = false; render(); } }, 50));
 
 function applyRec(key, v){
-  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
+  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.stvCols = v ? v.stvCols || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
   else if (key === "books") books = v ? v.books || [] : [];
   else if (key.startsWith("ink:")){ const k = key.slice(4); if (v) ink[k] = v; else delete ink[k]; if (typeof pvInkRemote === "function") pvInkRemote(k); }
   else if (key.startsWith("lesson:")){ const id = key.slice(7), i = db.lessons.findIndex(l => l.id === id); if (v){ v.id = id; if (i < 0) db.lessons.push(v); else db.lessons[i] = v; } else if (i >= 0) db.lessons.splice(i, 1); }
@@ -634,7 +635,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-0658 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-0700 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1048,12 +1049,14 @@ function stvRow({s, d}){
     sb: grp ? [((s.stammblatt || {}).gruppe || "").trim() ? "Gruppe: " + s.stammblatt.gruppe.trim() : "", ...m.filter(x => (x.info || "").trim()).map(x => (x.name || "Kind") + ": " + x.info.trim())].filter(Boolean).join("\n")
       : SB.filter(([k]) => ((s.stammblatt || {})[k] || "").trim()).map(([k, lab]) => lab + ": " + s.stammblatt[k].trim()).join("\n")};
 }
-const STV_COLS = [["datum","Datum",11],["zeit","Zeit",7],["dauer","Dauer",8],["name","Schüler:in / Gruppe",22],["kinder","Kinder / Alter",22],["stufe","Stufe",11],
-  ["lit","Aktuelle Literatur",32],["inhalt","Zuletzt gearbeitet",48,1],["aufgaben","Aufgaben",34],["eltern","Eltern",22],["tel","Telefon",20],["mail","E-Mail",28],["sb","Stammblatt",90]];
+// [Schlüssel, Überschrift, Breite, hervorgehoben, standardmässig aus]
+const STV_COLS = [["datum","Datum",11],["tag","Tag",5,0,1],["zeit","Zeit",7],["dauer","Dauer",8],["name","Schüler:in / Gruppe",22],["kinder","Kinder / Alter",22],["schule","Schule",10,0,1],["stufe","Stufe",11],["instr","Instrumente",16,0,1],
+  ["lit","Aktuelle Literatur",32],["letzte","Letzte Lektion",12,0,1],["inhalt","Zuletzt gearbeitet",48,1],["aufgaben","Aufgaben",34],["bem","Bemerkung",24,0,1],["eltern","Eltern",22],["tel","Telefon",20],["mail","E-Mail",28],["sb","Stammblatt",90]];
+const stvCols = () => STV_COLS.filter(c => db.stvCols ? db.stvCols.includes(c[0]) : !c[4]);
 function vStv(){
   if (!feat("stv")){ location.hash = "woche"; return; }
   stvInit();
-  const all = stvLessons(), sel = stvSel(all), tage = [...new Set(all.map(x => x.d))], kids = [...new Map(all.map(x => [x.s.id, x.s])).values()];
+  const cols = stvCols(), all = stvLessons(), sel = stvSel(all), tage = [...new Set(all.map(x => x.d))], kids = [...new Map(all.map(x => [x.s.id, x.s])).values()];
   app.innerHTML = `<div class="row" style="margin-bottom:10px"><a href="#woche" class="muted">‹ Notizen</a></div>
   <h2>Stellvertretung</h2>
   <div class="card"><div class="f" style="max-width:420px">
@@ -1063,10 +1066,12 @@ function vStv(){
     <label style="margin-top:12px">Schüler:innen</label><div class="row">${kids.map(s => `<button class="chip ${stv.offKids.has(s.id) ? "" : "on"}" data-a="stvKid" data-v="${s.id}">${esc(s.name)}</button>`).join("")}
       <button class="ghost small" data-a="stvAll">Alle</button><button class="ghost small" data-a="stvNone">Keine</button></div>`
     : `<p class="muted" style="margin-bottom:0">${stv.bis < stv.von ? "Das Enddatum liegt vor dem Startdatum." : "In diesem Zeitraum finden keine Lektionen statt."}</p>`}
-    <div class="row" style="margin-top:14px"><button class="pri" data-a="stvXlsx" ${sel.length ? "" : "disabled"}>Als Excel exportieren</button><span class="small muted num">${sel.length} ${sel.length === 1 ? "Lektion" : "Lektionen"}</span></div>
-    <p class="tiny" style="margin-bottom:0">Die Excel-Datei enthält pro Lektion Zeit, Kinder, aktuelle Literatur, das zuletzt Gearbeitete (gelb hervorgehoben) mit Aufgaben, die Kontakte der Eltern und das Stammblatt (bei Gruppen die Beschreibung). Die internen Lektionsnotizen kommen nicht mit.</p></div>
-  ${sel.length ? `<h3>Vorschau</h3><div class="card" style="overflow-x:auto"><table class="stv-t"><tr><th>Datum</th><th>Zeit</th><th>Schüler:in / Gruppe</th><th>Kontakt</th><th>Literatur</th><th>Aufgaben</th></tr>
-    ${sel.map(x => { const r = stvRow(x); return `<tr><td class="num" style="white-space:nowrap">${r.tag} ${esc(r.datum)}</td><td class="num">${esc(r.zeit)}</td><td class="w"><b>${esc(r.name)}</b>${r.kinder ? "\n" + esc(r.kinder) : ""}</td><td class="w small">${esc(r.tel)}</td><td class="w small">${esc(r.lit)}</td><td class="w small">${esc(r.aufgaben)}</td></tr>`; }).join("")}</table></div>` : ""}`;
+    <label style="margin-top:12px">Spalten in der Excel-Datei</label><div class="row">${STV_COLS.map(c => `<button class="chip ${cols.includes(c) ? "on" : ""}" data-a="stvCol" data-v="${c[0]}" aria-pressed="${cols.includes(c)}">${esc(c[1])}</button>`).join("")}
+      <button class="ghost small" data-a="stvColsDef">Standard</button></div>
+    <div class="row" style="margin-top:14px"><button class="pri" data-a="stvXlsx" ${sel.length && cols.length ? "" : "disabled"}>Als Excel exportieren</button><span class="small muted num">${sel.length} ${sel.length === 1 ? "Lektion" : "Lektionen"}</span></div>
+    <p class="tiny" style="margin-bottom:0">Die Excel-Datei hat eine Zeile pro Lektion mit den gewählten Spalten. Deine Auswahl bleibt gespeichert. Die internen Lektionsnotizen kommen nie mit.</p></div>
+  ${sel.length && cols.length ? `<h3>Vorschau</h3><div class="card" style="overflow-x:auto"><table class="stv-t"><tr>${cols.map(c => `<th>${esc(c[1])}</th>`).join("")}</tr>
+    ${sel.map(x => { const r = stvRow(x); return `<tr>${cols.map(c => `<td class="w small${c[3] ? " hl" : ""}" style="min-width:${Math.min(c[2] * 6, 260)}px">${esc(r[c[0]])}</td>`).join("")}</tr>`; }).join("")}</table></div>` : ""}`;
 }
 const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++){ let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 function crc32(u){ let c = 0xFFFFFFFF; for (let i = 0; i < u.length; i++) c = CRC[(c ^ u[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
@@ -1110,9 +1115,9 @@ function xlsxBlob(sheetName, cols, rows){
   return zipStore(files, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 }
 async function stvExport(){
-  const sel = stvSel(stvLessons()); if (!sel.length) return;
-  const rows = sel.map(x => { const r = stvRow(x); return STV_COLS.map(c => r[c[0]]); });
-  const blob = xlsxBlob("Stellvertretung", STV_COLS, rows);
+  const sel = stvSel(stvLessons()), cols = stvCols(); if (!sel.length || !cols.length) return;
+  const rows = sel.map(x => { const r = stvRow(x); return cols.map(c => r[c[0]]); });
+  const blob = xlsxBlob("Stellvertretung", cols, rows);
   const name = `Stellvertretung ${stv.von}${stv.bis !== stv.von ? " bis " + stv.bis : ""}.xlsx`;
   if (await saveFile(name, blob, blob.type)) toast("Excel-Datei erstellt");
 }
@@ -1435,7 +1440,7 @@ async function saveFile(filename, data, type){
 }
 function replaceAll(d){
   delL.clear(); db.lessons.forEach(l => delL.add(l.id)); dirtyL.clear();
-  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null, schulen:d.schulen||null, notiz:d.notiz||"", features:d.features||null};
+  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null, schulen:d.schulen||null, notiz:d.notiz||"", features:d.features||null, stvCols:d.stvCols||null};
   db.lessons.forEach(l => { delL.delete(l.id); dirtyL.add(l.id); });
   if (Array.isArray(d.books)){ books = d.books; saveBooks(); }
   if (d.ink && typeof d.ink === "object"){ Object.keys(ink).forEach(k => { if (!d.ink[k]){ delete ink[k]; saveInk(k); } }); Object.entries(d.ink).forEach(([k, v]) => { ink[k] = v; saveInk(k); }); }
@@ -1471,6 +1476,8 @@ document.addEventListener("click", ev => {
     case "stvAll": stv.offKids.clear(); stv.offTage.clear(); render(); break;
     case "stvNone": stvLessons().forEach(x => stv.offKids.add(x.s.id)); render(); break;
     case "stvXlsx": stvExport(); break;
+    case "stvCol": { const k = b.dataset.v, cur = stvCols().map(c => c[0]); db.stvCols = cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k]; save(); render(); break; }
+    case "stvColsDef": db.stvCols = null; save(); render(); break;
     case "slOk": slApply(); break;
     case "schulAdd": { const v = $("schulNeu").value.trim(); if (!v){ $("schulNeu").focus(); return; } const l = schulen(); if (!l.includes(v)) l.push(v); db.schulen = l; save(); render(); break; }
     case "schulDel": { const l = schulen(), k = l[+b.dataset.i], n = db.students.filter(s => s.schule === k).length;
