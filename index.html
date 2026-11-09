@@ -131,6 +131,8 @@ button:disabled{opacity:.4;cursor:default}
 .gl{margin-top:6px;display:grid;gap:2px}.gl div{display:flex;gap:8px;min-width:0}.gl b{font-weight:500;white-space:nowrap}.gl span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sl{display:grid;gap:6px;max-width:420px}.sl .row{flex-wrap:nowrap}
 .gsb{display:grid;gap:12px}
+.card.sel{border-color:var(--ac);background:var(--acbg)}.tick{display:inline-grid;place-items:center;width:20px;height:20px;border:1px solid var(--bd2);border-radius:5px;font-size:13px;color:var(--ac);flex:none}
+.sus-bar{margin:-4px 0 12px;position:sticky;top:60px;z-index:3;background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:6px 10px}
 .rg-l{display:grid;margin-top:6px}.rg-r{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bd);margin:0;font-size:15px;color:var(--tx);text-transform:none;letter-spacing:0}.rg-r input{width:auto;flex:none}
 .rg-i{padding:8px 0;border-bottom:1px solid var(--bd)}.rg-i:last-child{border-bottom:0}
 .fl{display:grid;gap:10px;max-width:560px}
@@ -643,7 +645,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-1245 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-1249 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -944,7 +946,7 @@ function slPreview(){
         <input data-slsn="${fi}" value="${esc(f.neu)}" placeholder="oder neue Schule" aria-label="Neue Schule" style="width:150px"></div>
       ${f.rows.map((r, ri) => { const d = slDiff(r, f.neu || f.schule); return `<div class="sl-row"><div style="min-width:0"><b>${esc(r.full)}</b> <span class="tiny">${esc([r.fach, r.geburt ? fmt(r.geburt, 1) : ""].filter(Boolean).join(" · "))}</span>
           <div class="tiny">${esc([r.eltern, r.tel.split(",")[0], r.mail.split(",")[0]].filter(Boolean).join(" · "))}</div></div>
-        <div class="sl-act"><select data-sla="${fi}:${ri}" aria-label="Was mit ${esc(r.full)} passieren soll">${slOpts(r, groups)}</select>${r.m && r.act === "u" ? `<span class="badge ${d ? "b-wa" : "b-ok"}">${d ? d + (d === 1 ? " Änderung" : " Änderungen") : "aktuell"}</span>` : r.act === "skip" ? "" : `<span class="badge b-ok">neu</span>`}</div></div>`; }).join("")}</div>`).join("")}
+        <div class="sl-act"><select data-sla="${fi}:${ri}" aria-label="Was mit ${esc(r.full)} passieren soll">${slOpts(r, groups)}</select>${r.m && r.act === "u" ? `<span class="badge ${d ? "b-wa" : "b-ok"}">${d ? d + (d === 1 ? " Änderung" : " Änderungen") : "aktuell"}</span>` : r.act === "skip" ? "" : `<span class="badge b-ok">neu</span>`}<button class="ghost del" data-a="slRm" data-i="${fi}:${ri}" aria-label="${esc(r.full)} entfernen" title="Aus der Liste entfernen">×</button></div></div>`; }).join("")}</div>`).join("")}
     <div class="row" style="margin-top:12px"><button class="pri" data-a="slOk">Übernehmen</button><button data-a="slMore">Weitere Liste laden</button><button class="ghost" data-a="slX">Abbrechen</button></div></div>`;
 }
 function slApply(){
@@ -1538,18 +1540,27 @@ function vWoche(){
   const on = app.querySelector(".pk.on"); if (on && on.scrollIntoView && window.matchMedia("(max-width:760px)").matches) on.scrollIntoView({block:"nearest", inline:"center"});
 }
 
+let susSel = null;
+function delStudent(sid){
+  db.students = db.students.filter(x => x.id !== sid);
+  db.lessons.filter(l => l.sid === sid).forEach(l => dropL(l.id)); db.lessons = db.lessons.filter(l => l.sid !== sid);
+  db.events.forEach(e => e.sids = (e.sids || []).filter(x => x !== sid));
+  Object.keys(ink).filter(k => k.startsWith(sid + ":")).forEach(k => { delete ink[k]; saveInk(k); });
+}
+window.addEventListener("hashchange", () => { susSel = null; });
 function vSus(){
   const list = sorted().filter(s => (filt.schule==="Alle" || s.schule===filt.schule) && s.name.toLowerCase().includes(filt.q.toLowerCase()));
   const inactive = db.students.filter(s => s.aktiv === false);
   let html = backupBanner() + `<div class="row" style="margin-bottom:12px"><h2 style="margin:0">Alle SuS <span class="muted num" style="font-weight:400">(${list.length})</span></h2><span class="sp"></span>
     ${schulen().length > 1 ? `<div class="seg">${["Alle", ...schulen()].map(k => `<button class="${filt.schule===k?"on":""}" data-a="fs" data-v="${esc(k)}">${esc(k)}</button>`).join("")}</div>` : ""}
-    <input id="q" placeholder="Suchen" value="${esc(filt.q)}" style="width:140px" aria-label="SuS suchen"><button class="pri" data-a="newS">Neu</button></div>`;
+    <input id="q" placeholder="Suchen" value="${esc(filt.q)}" style="width:140px" aria-label="SuS suchen"><button class="pri" data-a="newS">Neu</button>${db.students.length ? `<button class="${susSel ? "on" : "ghost"}" data-a="susMode">${susSel ? "Fertig" : "Auswählen"}</button>` : ""}</div>
+    ${susSel ? `<div class="row sus-bar"><b class="small num">${susSel.size} ausgewählt</b><button class="ghost small" data-a="susAll" data-v="${list.map(s => s.id).join(",")}">Alle</button><button class="ghost small" data-a="susNone">Keine</button><span class="sp"></span><button class="del" data-a="susDel" ${susSel.size ? "" : "disabled"}>Löschen</button></div>` : ""}`;
   if (!db.students.length){ app.innerHTML = html + emptyState(); return; }
   html += `<div class="grid">`;
   list.forEach(s => {
     const p = progress(s), a = attendance(s.id), ne = nextEvent(s.id), last = lessonsOf(s.id).find(l => l.aufgaben);
-    html += `<a href="#s-${s.id}" class="card" style="text-decoration:none;color:inherit;display:block">
-      <div class="row"><b>${esc(s.name)}</b><span class="sp"></span><span class="tiny num">${s.tag?TAGE[s.tag]:""} ${esc(s.zeit)}${s.dauer?" · "+s.dauer+"'":""}</span></div>
+    html += `<a href="#s-${s.id}" class="card ${susSel && susSel.has(s.id) ? "sel" : ""}" ${susSel ? `data-a="susTog" data-v="${s.id}" aria-pressed="${susSel.has(s.id)}"` : ""} style="text-decoration:none;color:inherit;display:block">
+      <div class="row">${susSel ? `<span class="tick">${susSel.has(s.id) ? "✓" : ""}</span>` : ""}<b>${esc(s.name)}</b><span class="sp"></span><span class="tiny num">${s.tag?TAGE[s.tag]:""} ${esc(s.zeit)}${s.dauer?" · "+s.dauer+"'":""}</span></div>
       <div class="small muted">${alterTxt(s)?esc(alterTxt(s))+" · ":""}${esc(s.stufe)} · ${esc(s.schule)}${s.typ==="Gruppe"?" · Gruppe":""}</div>
       <div class="tiny">${esc((s.instrumente||[]).join(", "))}</div>
       ${s.typ==="Gruppe" ? gList(s) : ""}
@@ -1786,6 +1797,12 @@ document.addEventListener("click", ev => {
     case "fs": filt.schule = b.dataset.v; render(); break;
     case "slLoad": case "slMore": { const inp = document.createElement("input"); inp.type = "file"; inp.multiple = true; inp.accept = ".csv,.txt,.xlsx,.xls,.pdf,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; inp.onchange = () => slLoad([...inp.files]); inp.click(); break; }
     case "slX": imp = null; render(); break;
+    case "slRm": { const [fi, ri] = b.dataset.i.split(":").map(Number); imp.files[fi].rows.splice(ri, 1); if (!imp.files[fi].rows.length) imp.files.splice(fi, 1); if (!imp.files.length) imp = null; render(); break; }
+    case "susMode": susSel = susSel ? null : new Set(); render(); break;
+    case "susTog": { ev.preventDefault(); const v = b.dataset.v; susSel.has(v) ? susSel.delete(v) : susSel.add(v); render(); break; }
+    case "susAll": b.dataset.v.split(",").forEach(v => susSel.add(v)); render(); break;
+    case "susNone": susSel.clear(); render(); break;
+    case "susDel": { const ids = [...susSel]; if (ids.length) ask(`${ids.length === 1 ? "1 Person" : ids.length + " Personen"} und alle zugehörigen Lektionen löschen? Das lässt sich nicht rückgängig machen.`, "Löschen", () => { ids.forEach(delStudent); susSel = null; save(); render(); toast("Gelöscht"); }); break; }
     case "rgPick": rgSel(b.dataset.v); render(); break;
     case "rgMake": rgMake(); break;
     case "rgAgain": rgAgain(b.dataset.v); break;
