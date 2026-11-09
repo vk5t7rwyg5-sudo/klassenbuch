@@ -646,7 +646,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-1252 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-1259 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1777,6 +1777,7 @@ function appearanceCard(){
   return `<h3>Darstellung</h3><div class="card"><div class="opt">
     <div><label>Farbschema</label><div class="seg">${THEMES.map(([k, l]) => `<button class="${t===k?"on":""}" data-a="theme" data-v="${k}">${l}</button>`).join("")}</div></div>
     <div><label>Schrift und Symbole</label><div class="seg">${ZOOMS.map(([k, l]) => `<button class="${z===k?"on":""}" data-a="zoom" data-v="${k}" style="font-size:${Math.round(13 * +k)}px">${l}</button>`).join("")}</div></div>
+    <div><label>PDFs öffnen in</label><div class="seg">${[["viewer","Viewer im Klassenbuch"],["extern","Externe App"]].map(([k, l]) => `<button class="${pref("kb-pdfopen","viewer")===k?"on":""}" data-a="pdfo" data-v="${k}">${l}</button>`).join("")}</div></div>
     ${feat("audio") ? `<div><label>Spotify-Links öffnen in</label><div class="seg">${[["app","Spotify-App"],["player","Player im Klassenbuch"]].map(([k, l]) => `<button class="${spPref()===k?"on":""}" data-a="spot" data-v="${k}">${l}</button>`).join("")}</div></div>` : ""}
   </div><p class="tiny" style="margin-bottom:0">Gilt für dieses Gerät.</p></div>`;
 }
@@ -1851,6 +1852,7 @@ document.addEventListener("click", ev => {
     case "feat": { const k = b.dataset.v; (db.features ||= {})[k] = !feat(k); if (k === "audio" && !feat(k) && litF.kat === "♫") litF.kat = "Alle"; save(); render(); break; }
     case "play": playLink(b.dataset.v, +b.dataset.i || 0, b.dataset.list === "1"); break;
     case "spot": setPref("kb-spotify", b.dataset.v); render(); break;
+    case "pdfo": setPref("kb-pdfopen", b.dataset.v); render(); break;
     case "stvGo": stv = null; break;
     case "stvTag": case "stvKid": { const set = a === "stvTag" ? stv.offTage : stv.offKids, v = b.dataset.v; set.has(v) ? set.delete(v) : set.add(v); render(); break; }
     case "stvAll": stv.offKids.clear(); stv.offTage.clear(); render(); break;
@@ -2106,10 +2108,25 @@ function getDoc(a){
 function locate(b, p){ let r = p; for (const t of b.teile){ if (r <= t.n) return {t, lp: r}; r -= t.n; } const t = b.teile[b.teile.length-1]; return {t, lp: t.n}; }
 const pv = {b:null, p:1, zoom:1, fit:"page", sid:null, lit:null, tok:0, task:null, pop:null};
 const $ = id => document.getElementById(id);
+/* PDFs wahlweise in einer externen App öffnen (pro Gerät): iPad/iPhone über das Teilen-Menü, am Computer als Download */
+async function pdfExtern(b, p){
+  const page = Math.max(1, Math.min(b.seiten, p || 1)), {t} = locate(b, page), nr = b.teile.indexOf(t);
+  const name = (b.titel + (b.teile.length > 1 ? " Teil " + (nr + 1) : "")).replace(/[\/\\:*?"<>|]+/g, "-") + ".pdf", hint = page > 1 ? ` Seite ${page - (b.off || 0)}.` : "";
+  let u8; try { toast("PDF wird vorbereitet …"); u8 = await pdfBytes(t.a); } catch(e) { toast(e && /PDF/.test(e.message || "") ? e.message : "Das PDF konnte nicht geladen werden."); return; }
+  const file = new File([u8], name, {type: "application/pdf"});
+  if (matchMedia("(pointer:coarse)").matches && navigator.canShare && navigator.canShare({files: [file]})){
+    const go = () => navigator.share({files: [file]}).catch(() => {});
+    try { await navigator.share({files: [file]}); if (hint) toast("Gesucht:" + hint); } catch(e) { if (e && e.name === "NotAllowedError") ask(`«${b.titel}» in einer anderen App öffnen?${hint}`, "Öffnen", go); }
+    return;
+  }
+  const url = URL.createObjectURL(file), a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast("PDF heruntergeladen. Öffne es in deiner App." + hint);
+}
 function openPdf(bid, p, ctx){
   const b = bookById(bid); if (!b){ toast("Dieses Heft ist nicht mehr im Katalog."); return; }
   if (!(b.teile||[]).length){ if ((b.links||[]).length) playLink(b.id, 0, b.links.length > 3); else toast("Dieser Eintrag hat keine Noten. Unter «Bearbeiten» kannst du Aufnahmen verlinken."); return; }
   if (!b.teile.every(t => t.a)){ toast("Das PDF ist noch nicht hochgeladen."); return; }
+  if (pref("kb-pdfopen", "viewer") === "extern"){ pdfExtern(b, p); return; }
   Object.assign(pv, {b, p: Math.max(1, Math.min(b.seiten, p || 1)), zoom: 1, sid: ctx?.sid || null, lit: ctx?.lit || null, pop: null});
   $("pv").hidden = false; document.body.style.overflow = "hidden";
   ink_.on = false; ink_.undo = []; ink_.cur = null;
