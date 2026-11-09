@@ -891,7 +891,7 @@ async function pdfRows(buf){
     const clusters = []; items.filter(i => i.y > start).forEach(i => { const c = clusters[clusters.length - 1]; if (c && i.y - c.y <= 3) c.items.push(i); else clusters.push({y: i.y, items: [i]}); });
     let fach = pdfRows.fach || "", cur = null; const recs = [];
     clusters.forEach(c => { const first = c.items.filter(i => colOf(i) === 0), rest = c.items.filter(i => colOf(i) > 0);
-      if (first.length && /^\d/.test(first[0].s)){ cur = null; return; } // Summenzeilen
+      if (first.length && /^\d|\d$/.test(first.map(i => i.s).join(" "))){ cur = null; return; } // Summenzeilen
       if (first.length && rest.length){ cur = {y: c.y, fach, cells: {}}; recs.push(cur); } else if (first.length){ fach = first.map(i => i.s).join(" ").replace(/\s+\d+-\S+$/, ""); cur = null; return; }
       if (cur) c.items.forEach(i => (cur.cells[colOf(i)] ||= []).push({dy: i.y - cur.y, s: i.s})); });
     pdfRows.fach = fach;
