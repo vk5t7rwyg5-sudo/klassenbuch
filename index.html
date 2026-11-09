@@ -643,7 +643,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-0739 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-0805 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1145,6 +1145,11 @@ async function stvExport(){
   if (await saveFile(name, blob, blob.type)) toast("Excel-Datei erstellt");
 }
 /* ---------- Aufnahmen: Links pro Heft/Stück und eingebetteter Player ---------- */
+function bkSections(text){
+  const out = []; let cur = null;
+  String(text || "").split(/\n/).forEach(l => { const m = l.match(/^#\s*(\S.*)$/); if (m){ cur = {titel: m[1].trim(), lines: []}; out.push(cur); } else if (cur) cur.lines.push(l); });
+  return out.map(s => ({titel: s.titel, links: parseLinks(s.lines.join("\n"))})).filter(s => s.links.length);
+}
 function parseLinks(text){
   return String(text || "").split(/\n+/).map(line => { const m = line.match(/https?:\/\/\S+/); if (!m) return null; const t = line.slice(0, m.index).replace(/[\s:–-]+$/, "").trim(); return t ? {t, u: m[0]} : {u: m[0]}; }).filter(Boolean);
 }
@@ -1792,6 +1797,13 @@ document.addEventListener("click", ev => {
     case "bkEdit": editBook = b.dataset.v; render(); document.getElementById("bkEdit")?.scrollIntoView({block:"nearest"}); break;
     case "bkCancel": { const bk = bookById(editBook); if (bk && bk.titel === "Neuer Play-Along" && !(bk.teile||[]).length && !(bk.links||[]).length){ books = books.filter(x => x.id !== bk.id); saveBooks(); } editBook = null; render(); break; }
     case "bkSave": { const bk = bookById(b.dataset.v), g = id => document.getElementById(id).value.trim();
+      const secs = bkSections(document.getElementById("be-links").value);
+      if (secs.length){ // Zeilen «# Name» legen je einen eigenen Play-Along-Eintrag an
+        const instr = [...document.querySelectorAll("#be-instr .chip.on")].map(x => x.dataset.v), stufen = [...document.querySelectorAll("#be-stufen .chip.on")].map(x => x.dataset.v), kat = g("be-kat") || bk.kat, autor = g("be-autor"), ordner = g("be-ordner");
+        if (!(bk.teile || []).length) books = books.filter(x => x !== bk);
+        secs.forEach(x => { const old = books.find(y => y.titel === x.titel && !(y.teile || []).length), m = x.titel.match(VSPLIT);
+          if (old) old.links = x.links; else books.push({id: uid(), titel: x.titel, autor, kat, ordner: ordner && ordner !== "Play-Along" ? ordner : (m ? m[1].trim() : "Play-Along"), instr, stufen, seiten: 0, off: 0, teile: [], marks: [], links: x.links}); });
+        editBook = null; saveBooks(); render(); toast(secs.length + " Einträge angelegt"); break; }
       Object.assign(bk, {titel:g("be-titel") || bk.titel, autor:g("be-autor"), ordner:g("be-ordner"), kat:g("be-kat") || bk.kat, off:Math.max(0, (+g("be-off") || 1) - 1), instr:[...document.querySelectorAll("#be-instr .chip.on")].map(x => x.dataset.v), stufen:[...document.querySelectorAll("#be-stufen .chip.on")].map(x => x.dataset.v), links: parseLinks(document.getElementById("be-links").value)});
       if (!bk.links.length) delete bk.links;
       editBook = null; saveBooks(); render(); toast("Gespeichert"); break; }
