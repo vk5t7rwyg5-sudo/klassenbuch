@@ -650,7 +650,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-1306 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-1807 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -755,7 +755,7 @@ function alterTxt(s){ const a = alter(s); if (a !== null) return a + " J.";
 let weekStart = monday(new Date());
 let filt = {schule:"Alle", q:""};
 /* Funktionen, die jede Person unter Einstellungen selbst ein- und ausschaltet (Standard: ein; gilt fürs ganze Konto) */
-const FEATS = [["gn","Allgemeine Notizen","Notizfeld für alle in der Wochenansicht"],["stv","Stellvertretung","Excel-Export für Stellvertretungen"],["bd","Geburtstage","Im Kalender und in der Wochenansicht"],["ink","Stiftnotizen","Zeichnen und markieren im Notenviewer"],["audio","Aufnahmen und Player","Links zu Songs, Play-Alongs ohne Noten"],["voices","Stimmen als Ordner","Stimmen eines Stücks in der Literatur zusammenfassen"],["rg","Rechnungen","Privatlektionen abrechnen"]];
+const FEATS = [["lp","Lehrplan","Reiter, Ziele bei den SuS und im Elternbericht"],["gn","Allgemeine Notizen","Notizfeld für alle in der Wochenansicht"],["stv","Stellvertretung","Excel-Export für Stellvertretungen"],["bd","Geburtstage","Im Kalender und in der Wochenansicht"],["ink","Stiftnotizen","Zeichnen und markieren im Notenviewer"],["audio","Aufnahmen und Player","Links zu Songs, Play-Alongs ohne Noten"],["voices","Stimmen als Ordner","Stimmen eines Stücks in der Literatur zusammenfassen"],["rg","Rechnungen","Privatlektionen abrechnen"]];
 const feat = k => !(db.features && db.features[k] === false);
 function featCard(){
   return `<h3>Funktionen</h3><div class="card"><div class="fl">${FEATS.map(([k, n, d]) => `<div class="row" style="flex-wrap:nowrap"><div style="flex:1;min-width:0"><b class="small">${n}</b><div class="tiny">${d}</div></div><button class="chip ${feat(k) ? "on" : ""}" data-a="feat" data-v="${k}" aria-pressed="${feat(k)}" aria-label="${n}">${feat(k) ? "Ein" : "Aus"}</button></div>`).join("")}</div><p class="tiny" style="margin-bottom:0">Gilt für alle deine Geräte. Ausgeschaltete Funktionen werden nur ausgeblendet, deine Einträge bleiben erhalten.</p></div>`;
@@ -1036,7 +1036,7 @@ function route(){ const h = location.hash.slice(1) || "woche"; const i = h.index
 function render(){
   if (!(loaded.meta && loaded.lessons)) return;
   const {v, id} = route();
-  const tabs = [["woche","Notizen"],["sus","SuS"],["kalender","Kalender"],["lehrplan","Lehrplan"],["literatur","Literatur"]];
+  const tabs = [["woche","Notizen"],["sus","SuS"],["kalender","Kalender"],...(feat("lp") ? [["lehrplan","Lehrplan"]] : []),["literatur","Literatur"]];
   const cur = v === "s" || v === "bericht" ? "sus" : v === "stv" ? "woche" : v;
   document.getElementById("nav").innerHTML = tabs.map(([k,t]) => `<a href="#${k}" class="${cur===k?"on":""}">${t}</a>`).join("");
   const svgI = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -1518,7 +1518,7 @@ function vWoche(){
   const i = list.findIndex(s => s.id === selSid), s = list[i];
   const d = lessonDate(s, mon), l = getLesson(s.id, d) || {}, f = ferienAm(d, s);
   const prev = lessonsOf(s.id).find(x => x.datum < d && (x.inhalt || x.aufgaben));
-  const open = lpItems(s.stufe, s.instrumente||[]).filter(it => (s.lp||{})[it.id] === 1);
+  const open = feat("lp") ? lpItems(s.stufe, s.instrumente||[]).filter(it => (s.lp||{})[it.id] === 1) : [];
   const pS = list[i-1], nS = list[i+1];
   const editor = `<div class="card ed" data-sid="${s.id}" data-d="${d}">
     <div class="row"><div style="min-width:0"><a href="#s-${s.id}" class="ed-name">${esc(s.name)}</a>
@@ -1539,7 +1539,7 @@ function vWoche(){
       </div>
     </div>
     ${open.length ? `<div style="margin-top:12px"><label>Lehrplanziele in Arbeit: antippen, wenn erreicht</label><div class="row">${open.map(it => `<button class="chip" data-a="lpdone" data-i="${esc(it.id)}" title="${esc(it.bereich)}">${esc(it.text)}</button>`).join("")}</div></div>` : ""}
-    ${(l.lpDone||[]).length ? `<div class="row small" style="margin-top:6px">${l.lpDone.map(id => `<span class="chip on">✓ ${esc(id.split("|")[1])}: ${esc(lpText(id))}</span>`).join("")}</div>` : ""}
+    ${feat("lp") && (l.lpDone||[]).length ? `<div class="row small" style="margin-top:6px">${l.lpDone.map(id => `<span class="chip on">✓ ${esc(id.split("|")[1])}: ${esc(lpText(id))}</span>`).join("")}</div>` : ""}
     <div class="row ed-nav"><button ${pS?`data-a="pick" data-v="${pS.id}"`:"disabled"}>‹ ${pS?esc(pS.name):""}</button><span class="sp tiny" style="text-align:center">${i+1} von ${list.length} · wird automatisch gespeichert</span><button ${nS?`data-a="pick" data-v="${nS.id}"`:"disabled"}>${nS?esc(nS.name):""} ›</button></div>
   </div>`;
   app.innerHTML = html + `<div class="wk"><nav class="pk-list" aria-label="SuS dieser Woche">${items}</nav>${editor}</div>`;
@@ -1570,8 +1570,8 @@ function vSus(){
       <div class="small muted">${alterTxt(s)?esc(alterTxt(s))+" · ":""}${esc(s.stufe)} · ${esc(s.schule)}${s.typ==="Gruppe"?" · Gruppe":""}</div>
       <div class="tiny">${esc((s.instrumente||[]).join(", "))}</div>
       ${s.typ==="Gruppe" ? gList(s) : ""}
-      <div class="bar" style="margin:8px 0 3px"><i style="width:${p.pct}%"></i></div>
-      <div class="small muted num">Lehrplan ${p.pct} % (${p.done}/${p.total}) · Präsenz ${a.n?a.a+"/"+a.n:"–"}${a.u?` · <span style="color:var(--da)">${a.u} unentsch.</span>`:""}</div>
+      ${feat("lp") ? `<div class="bar" style="margin:8px 0 3px"><i style="width:${p.pct}%"></i></div>` : ""}
+      <div class="small muted num" ${feat("lp") ? "" : 'style="margin-top:8px"'}>${feat("lp") ? `Lehrplan ${p.pct} % (${p.done}/${p.total}) · ` : ""}Präsenz ${a.n?a.a+"/"+a.n:"–"}${a.u?` · <span style="color:var(--da)">${a.u} unentsch.</span>`:""}</div>
       ${last ? `<div class="tiny" style="margin-top:4px">Aufgaben: ${esc(last.aufgaben)}</div>` : ""}
       ${ne ? `<div style="margin-top:6px"><span class="badge ${EVTYP[ne.typ]}">${esc(ne.typ)} ${fmt(ne.datum)}</span></div>` : ""}
       ${sbDone(s) < sbN(s) ? `<div style="margin-top:6px"><span class="badge b-wa">${s.typ==="Gruppe"?"Beschreibung":"Stammblatt"} ${sbDone(s)}/${sbN(s)}</span></div>` : ""}
@@ -1622,12 +1622,12 @@ function vDetail(id){
 
   ${litSection(s)}
 
-  <h3>Lehrplan</h3>
+  ${feat("lp") ? `<h3>Lehrplan</h3>
   <div class="row" style="margin-bottom:8px"><div class="seg">${STUFEN.map(k => `<button class="${st===k?"on":""}" data-a="dstufe" data-v="${k}">${k}${k===s.stufe?" ●":""}</button>`).join("")}</div>
     <span class="sp"></span><span class="small muted num">${st===s.stufe?`${p.done}/${p.total} erreicht · `:""}○ offen · ◐ in Arbeit · ● erreicht</span></div>
   <div class="cols">${Object.entries(groups).map(([b, its]) => `<div class="card"><b>${esc(b)}</b>
     ${its.map(i => { const v = s.lp[i.id]||0; return `<div class="lp-item"><button class="st s${v}" data-a="lp" data-i="${esc(i.id)}" aria-label="Status ändern">${["○","◐","●"][v]}</button><span class="small">${i.kind==="praxis"?'<span class="badge b-te">Spielpraxis</span> ':""}${esc(i.text)}</span></div>`; }).join("")}
-    ${(lit[b]||[]).length ? `<div class="tiny" style="margin-top:6px">Literatur: ${lit[b].map(esc).join(" · ")}</div>` : ""}${lpBookLinks(st, b)}</div>`).join("")}</div>
+    ${(lit[b]||[]).length ? `<div class="tiny" style="margin-top:6px">Literatur: ${lit[b].map(esc).join(" · ")}</div>` : ""}${lpBookLinks(st, b)}</div>`).join("")}</div>` : ""}
 
   <h3>Termine</h3>
   <div class="card">${eventsOf(s.id).length ? eventsOf(s.id).map(e => `<div class="row small" style="padding:3px 0"><span class="badge ${EVTYP[e.typ]}">${esc(e.typ)}</span> <span class="num">${fmt(e.datum,1)}</span> ${esc(e.titel)} ${(e.bis||e.datum)<today()?'<span class="tiny">vorbei</span>':""}</div>`).join("") : `<span class="small muted">Keine Termine. Im Kalender eintragen und ${esc(s.name)} zuordnen.</span>`}</div>
@@ -1642,9 +1642,9 @@ function vDetail(id){
 }
 
 function reportText(s){
-  const p = progress(s), items = lpItems(s.stufe, s.instrumente||[]);
+  const p = progress(s), items = feat("lp") ? lpItems(s.stufe, s.instrumente||[]) : [];
   const groups = {}; items.forEach(i => (groups[i.bereich] ||= []).push(i));
-  const lines = [`Lernstand ${s.name}`, `Schlagzeug / Perkussion, ${s.schule}, Stand ${fmt(today(),1)}`, "", `Förderstufe: ${s.stufe}`, `Lehrplanziele dieser Stufe erreicht: ${p.done} von ${p.total} (${p.pct} %)`];
+  const lines = [`Lernstand ${s.name}`, `Schlagzeug / Perkussion, ${s.schule}, Stand ${fmt(today(),1)}`, "", `Förderstufe: ${s.stufe}`, ...(feat("lp") ? [`Lehrplanziele dieser Stufe erreicht: ${p.done} von ${p.total} (${p.pct} %)`] : [])];
   Object.entries(groups).forEach(([b, its]) => { const d = its.filter(i=>s.lp[i.id]===2), w = its.filter(i=>s.lp[i.id]===1); if (!d.length && !w.length) return;
     lines.push("", b); if (d.length) lines.push("Erreicht:", ...d.map(i=>"- "+i.text)); if (w.length) lines.push("Daran arbeiten wir:", ...w.map(i=>"- "+i.text)); });
   const lr = litReport(s); if (lr.length) lines.push("", "Aktuelle Literatur:", ...lr.map(x => "- " + x));
@@ -1656,7 +1656,7 @@ function vBericht(id){
   const s = S(id); if (!s){ location.hash = "sus"; return; }
   s.lp ||= {};
   const p = progress(s), a = attendance(s.id);
-  const items = lpItems(s.stufe, s.instrumente||[]);
+  const items = feat("lp") ? lpItems(s.stufe, s.instrumente||[]) : [];
   const groups = {}; items.forEach(i => (groups[i.bereich] ||= []).push(i));
   const recent = lessonsOf(s.id).filter(l => l.inhalt || l.aufgaben).slice(0, 6);
   const up = eventsOf(s.id).filter(e => e.datum >= today());
@@ -1666,7 +1666,7 @@ function vBericht(id){
   <h2 style="margin-bottom:2px">Lernstand ${esc(s.name)}</h2>
   <div class="muted small">Schlagzeug / Perkussion · ${esc(s.schule)} · Stand ${fmt(today(),1)}</div>
   <p>Förderstufe: <b>${esc(s.stufe)}</b> · Bereiche: ${esc((s.instrumente||[]).join(", "))}<br>
-  Lehrplanziele dieser Stufe erreicht: <b class="num">${p.done} von ${p.total}</b> (${p.pct} %)${a.n?` · Präsenz: ${a.a} von ${a.n} Lektionen`:""}</p>
+  ${[feat("lp") ? `Lehrplanziele dieser Stufe erreicht: <b class="num">${p.done} von ${p.total}</b> (${p.pct} %)` : "", a.n ? `Präsenz: ${a.a} von ${a.n} Lektionen` : ""].filter(Boolean).join(" · ")}</p>
   ${Object.entries(groups).map(([b, its]) => { const done = its.filter(i=>s.lp[i.id]===2), wip = its.filter(i=>s.lp[i.id]===1); if(!done.length && !wip.length) return ""; return `<h3>${esc(b)}</h3>
     ${done.length?`<div class="small"><b>Erreicht</b><ul class="plain">${done.map(i=>`<li>${esc(i.text)}</li>`).join("")}</ul></div>`:""}
     ${wip.length?`<div class="small" style="margin-top:6px"><b>Daran arbeiten wir</b><ul class="plain">${wip.map(i=>`<li>${esc(i.text)}</li>`).join("")}</ul></div>`:""}`; }).join("")}
@@ -1749,6 +1749,7 @@ function lpSave(){ const st = lpStufe, neu = lpRead(), base = lpSame(neu, LP_AP.
 function lpReset(){ const st = lpStufe, neu = LP_AP.stufen[st], n = lpLost(st, neu);
   ask(`${st} wieder auf den Lehrplan AP zurücksetzen? Deine Änderungen in dieser Stufe gehen verloren${n ? `, ebenso ${n} Markierung${n === 1 ? "" : "en"} bei deinen SuS` : ""}.`, "Zurücksetzen", () => { lpApply(st, neu, true); toast("Zurückgesetzt"); }); }
 function vLehrplan(){
+  if (!feat("lp")){ location.hash = "woche"; return; }
   const st = LP.stufen[lpStufe];
   const bs = LP.bereiche.filter(b => (st.ziele[b]||[]).length || (st.spielpraxis[b]||[]).length || (st.literatur[b]||[]).length || lpBooks(lpStufe, b).length);
   const other = lpBooks(lpStufe, null), own = !!(db.lehrplan && db.lehrplan[lpStufe]);
