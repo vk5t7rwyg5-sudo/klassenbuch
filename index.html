@@ -642,7 +642,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-0715 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-0724 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1241,17 +1241,106 @@ function rgCard(){
     ${f("tarif", "Tarif CHF pro 30 Min.", "", "number")}${f("frist", "Zahlungsfrist (Tage)", "", "number")}
     <div style="grid-column:1/-1"><label for="rgs-name">Absender: Name</label><input id="rgs-name" data-rgs="name" value="${esc(c.name)}"></div>
     <div style="grid-column:1/-1"><label for="rgs-adresse">Absender: Adresse, Telefon, E-Mail (eine Angabe pro Zeile)</label><textarea id="rgs-adresse" data-rgs="adresse" rows="3">${esc(c.adresse)}</textarea></div>
-    ${f("iban", "Bankverbindung: IBAN", "CH00 0000 0000 0000 0000 0")}${f("bank", "Bank und Kontoinhaber:in", "")}</div>
-    <label style="margin-top:12px">Einzahlungsschein oder QR-Rechnung als PDF (wird jeder Rechnung angehängt)</label>
+    ${f("iban", "IBAN", "CH00 0000 0000 0000 0000 0")}${f("bank", "Bank (nur ohne QR-Einzahlungsschein)", "")}</div>
+    <p class="small" id="rgQrS" style="margin:12px 0 0">${esc(rgQrMsg())}</p>
+    <label style="margin-top:12px">Eigener Einzahlungsschein als PDF (wird nur angehängt, wenn kein QR-Einzahlungsschein erstellt werden kann)</label>
     <div class="row"><span class="small" id="rgAttN">…</span><span class="sp"></span><button data-a="rgAtt">PDF wählen</button><button class="ghost del" id="rgAttD" data-a="rgAttDel" hidden>Entfernen</button></div>
-    <p class="tiny" style="margin-bottom:0">Trage eine Bankverbindung ein oder hinterlege ein PDF, oder beides. Diese Angaben sind verschlüsselt und nur für dich sichtbar.</p></div>`;
+    <p class="tiny" style="margin-bottom:0">Mit deiner IBAN und einer Absenderadresse mit Strasse und PLZ/Ort erstellt die App bei jeder Rechnung einen QR-Einzahlungsschein mit dem richtigen Betrag. Diese Angaben sind verschlüsselt und nur für dich sichtbar.</p></div>`;
 }
+function rgQrMsg(){ const q = rgQr(rgCfg()); return q.ok ? "✓ Bei jeder Rechnung wird ein QR-Einzahlungsschein mit dem Betrag erstellt." : q.why; }
 function rgFile(){
   const inp = document.createElement("input"); inp.type = "file"; inp.accept = "application/pdf,.pdf";
   inp.onchange = async () => { const f = inp.files[0]; if (!f) return; if (f.size > 2 * 1048576){ toast("Das PDF ist grösser als 2 MB."); return; }
     const u8 = new Uint8Array(await f.arrayBuffer()); if (String.fromCharCode(...u8.subarray(0, 4)) !== "%PDF"){ toast("Das ist kein PDF."); return; }
     await attSet("qr", {name: f.name, b64: attEnc(u8)}); render(); toast("PDF hinterlegt"); };
   inp.click();
+}
+/* ---------- Swiss QR-Rechnung: QR-Code (Byte-Modus, Fehlerkorrektur M) und Daten ---------- */
+function qrMatrix(text){
+  const data = [...new TextEncoder().encode(text)];
+  const ECC = [0,10,16,26,18,24,16,18,22,22,26,30,22,22,24,24,28,28,26,26,26,26,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28], BLK = [0,1,1,1,2,2,4,4,4,5,5,5,8,9,9,10,10,11,13,14,16,17,17,18,20,21,23,25,26,28,29,31,33,35,37,38,40,43,45,47,49];
+  const raw = v => { let r = (16 * v + 128) * v + 64; if (v >= 2){ const n = Math.floor(v / 7) + 2; r -= (25 * n - 10) * n - 55; if (v >= 7) r -= 36; } return r; };
+  const cap = v => Math.floor(raw(v) / 8) - ECC[v] * BLK[v];
+  let ver = 1; while (ver <= 40 && 4 + (ver < 10 ? 8 : 16) + data.length * 8 > cap(ver) * 8) ver++;
+  if (ver > 40) throw new Error("QR zu lang");
+  const bits = [], add = (v, n) => { for (let i = n - 1; i >= 0; i--) bits.push((v >>> i) & 1); };
+  add(4, 4); add(data.length, ver < 10 ? 8 : 16); data.forEach(b => add(b, 8));
+  add(0, Math.min(4, cap(ver) * 8 - bits.length)); add(0, (8 - bits.length % 8) % 8);
+  for (let p = 0xEC; bits.length < cap(ver) * 8; p ^= 0xEC ^ 0x11) add(p, 8);
+  const cw = []; for (let i = 0; i < bits.length; i += 8) cw.push(parseInt(bits.slice(i, i + 8).join(""), 2));
+  const mul = (x, y) => { let z = 0; for (let i = 7; i >= 0; i--){ z = (z << 1) ^ ((z >>> 7) * 0x11D); z ^= ((y >>> i) & 1) * x; } return z & 255; };
+  const ecLen = ECC[ver], div = new Array(ecLen).fill(0); div[ecLen - 1] = 1;
+  for (let i = 0, root = 1; i < ecLen; i++){ for (let j = 0; j < ecLen; j++){ div[j] = mul(div[j], root); if (j + 1 < ecLen) div[j] ^= div[j + 1]; } root = mul(root, 2); }
+  const rem = d => { const r = new Array(ecLen).fill(0); d.forEach(b => { const f = b ^ r.shift(); r.push(0); div.forEach((c, i) => r[i] ^= mul(c, f)); }); return r; };
+  const nb = BLK[ver], total = Math.floor(raw(ver) / 8), nShort = nb - total % nb, shortLen = Math.floor(total / nb), blocks = [];
+  for (let i = 0, k = 0; i < nb; i++){ const len = shortLen - ecLen + (i < nShort ? 0 : 1), d = cw.slice(k, k + len); k += len; const e = rem(d); blocks.push(i < nShort ? [...d, 0, ...e] : [...d, ...e]); }
+  const out = []; for (let i = 0; i < blocks[0].length; i++) blocks.forEach((b, j) => { if (i !== shortLen - ecLen || j >= nShort) out.push(b[i]); });
+  const size = ver * 4 + 17, M = [...Array(size)].map(() => new Array(size).fill(false)), F = [...Array(size)].map(() => new Array(size).fill(false));
+  const set = (x, y, d) => { M[y][x] = d; F[y][x] = true; };
+  for (let i = 0; i < size; i++){ set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+  const finder = (cx, cy) => { for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++){ const d = Math.max(Math.abs(dx), Math.abs(dy)), x = cx + dx, y = cy + dy; if (x >= 0 && x < size && y >= 0 && y < size) set(x, y, d !== 2 && d !== 4); } };
+  finder(3, 3); finder(size - 4, 3); finder(3, size - 4);
+  const pos = []; if (ver > 1){ const n = Math.floor(ver / 7) + 2, step = ver === 32 ? 26 : Math.ceil((ver * 4 + 4) / (n * 2 - 2)) * 2; pos.push(6); for (let p = size - 7, a = []; a.length < n - 1; p -= step){ a.push(p); if (a.length === n - 1) pos.push(...a.reverse()); } }
+  pos.forEach((y, i) => pos.forEach((x, j) => { if ((i === 0 && j === 0) || (i === 0 && j === pos.length - 1) || (i === pos.length - 1 && j === 0)) return; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(x + dx, y + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1); }));
+  const fmtBits = mask => { const d = mask; let r = d; for (let i = 0; i < 10; i++) r = (r << 1) ^ ((r >>> 9) * 0x537); const b = (d << 10 | r) ^ 0x5412, g = i => ((b >>> i) & 1) === 1;
+    for (let i = 0; i <= 5; i++) set(8, i, g(i)); set(8, 7, g(6)); set(8, 8, g(7)); set(7, 8, g(8)); for (let i = 9; i < 15; i++) set(14 - i, 8, g(i));
+    for (let i = 0; i < 8; i++) set(size - 1 - i, 8, g(i)); for (let i = 8; i < 15; i++) set(8, size - 15 + i, g(i)); set(8, size - 8, true); };
+  fmtBits(0);
+  if (ver >= 7){ let r = ver; for (let i = 0; i < 12; i++) r = (r << 1) ^ ((r >>> 11) * 0x1F25); const b = ver << 12 | r; for (let i = 0; i < 18; i++){ const d = ((b >>> i) & 1) === 1, a = size - 11 + i % 3, c = Math.floor(i / 3); set(a, c, d); set(c, a, d); } }
+  let i = 0; for (let right = size - 1; right >= 1; right -= 2){ if (right === 6) right = 5; for (let vert = 0; vert < size; vert++) for (let j = 0; j < 2; j++){ const x = right - j, up = ((right + 1) & 2) === 0, y = up ? size - 1 - vert : vert; if (!F[y][x] && i < out.length * 8){ M[y][x] = ((out[i >>> 3] >>> (7 - (i & 7))) & 1) === 1; i++; } } }
+  const MASK = [(x, y) => (x + y) % 2 === 0, (x, y) => y % 2 === 0, x => x % 3 === 0, (x, y) => (x + y) % 3 === 0, (x, y) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0, (x, y) => x * y % 2 + x * y % 3 === 0, (x, y) => (x * y % 2 + x * y % 3) % 2 === 0, (x, y) => ((x + y) % 2 + x * y % 3) % 2 === 0];
+  const apply = k => { for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) if (!F[y][x] && MASK[k](x, y)) M[y][x] = !M[y][x]; };
+  const penalty = () => { let p = 0, dark = 0; const line = get => { let run = 1, s = ""; for (let i = 0; i < size; i++){ s += get(i) ? "1" : "0"; if (i && get(i) === get(i - 1)){ run++; if (run === 5) p += 3; else if (run > 5) p++; } else run = 1; } p += 40 * ((s.match(/(?=1011101(0000|$))/g) || []).length + (s.match(/(?=(^|0000)1011101)/g) || []).length); };
+    for (let k = 0; k < size; k++){ line(i => M[k][i]); line(i => M[i][k]); }
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++){ if (M[y][x]) dark++; if (x < size - 1 && y < size - 1 && M[y][x] === M[y][x + 1] && M[y][x] === M[y + 1][x] && M[y][x] === M[y + 1][x + 1]) p += 3; }
+    return p + (Math.ceil(Math.abs(dark * 20 - size * size * 10) / (size * size)) - 1) * 10; };
+  let best = 0, min = Infinity; for (let k = 0; k < 8; k++){ apply(k); fmtBits(k); const p = penalty(); if (p < min){ min = p; best = k; } apply(k); }
+  apply(best); fmtBits(best);
+  return M;
+}
+function ibanOk(s){ const v = String(s || "").replace(/\s+/g, "").toUpperCase(); if (!/^(CH|LI)\d{19}$/.test(v) && !/^(CH|LI)\d{7}[A-Z0-9]{12}$/.test(v)) return null; const n = (v.slice(4) + v.slice(0, 4)).replace(/[A-Z]/g, c => c.charCodeAt(0) - 55); let r = 0; for (const c of n) r = (r * 10 + +c) % 97; return r === 1 ? v : null; }
+function addrParse(lines){
+  const i = lines.findIndex(l => /^(CH-)?\d{4}\s+\S/i.test(l.trim())); if (i < 1) return null;
+  const m = lines[i].trim().match(/^(?:CH-)?(\d{4})\s+(.+)$/i), st = lines[i - 1].trim(), h = st.match(/^(.*\S)\s+(\d+\s?[a-zA-Z]?)$/);
+  return {street: h ? h[1] : st, no: h ? h[2].replace(/\s/g, "") : "", plz: m[1], ort: m[2], land: /^94(8[5-9]|9[0-8])$/.test(m[1]) ? "LI" : "CH"};
+}
+const addrLines = a => [a.street + (a.no ? " " + a.no : ""), a.plz + " " + a.ort];
+function rgQr(c, inv){
+  const iban = ibanOk(c.iban), lines = String(c.adresse || "").split(/\n+/).map(x => x.trim()).filter(Boolean), cr = addrParse(lines);
+  if (!iban) return {why: c.iban ? "Die IBAN ist ungültig oder nicht aus der Schweiz oder Liechtenstein." : "Für den QR-Einzahlungsschein fehlt die IBAN."};
+  const iid = +iban.slice(4, 9); if (iid >= 30000 && iid <= 31999) return {why: "Das ist eine QR-IBAN. Trage bitte deine normale IBAN ein."};
+  if (!c.name || !cr) return {why: "Für den QR-Einzahlungsschein braucht es Name, Strasse und eine Zeile mit PLZ und Ort beim Absender."};
+  if (!inv) return {ok: true};
+  const dl = String(inv.addr || "").split(/\n+/).map(x => x.trim()).filter(Boolean), da = addrParse(dl), info = "Rechnung " + inv.nr + ", " + inv.name, amount = (+inv.total).toFixed(2);
+  const A = (n, a) => ["S", n.slice(0, 70), a.street.slice(0, 70), a.no.slice(0, 16), a.plz, a.ort.slice(0, 35), a.land];
+  const payload = ["SPC", "0200", "1", iban, ...A(c.name, cr), "", "", "", "", "", "", "", amount, "CHF", ...(da ? A(dl[0], da) : ["", "", "", "", "", "", ""]), "NON", "", info.slice(0, 140), "EPD"].join("\r\n");
+  return {ok: true, iban, payload, matrix: qrMatrix(payload), cr, da, debtor: da ? dl[0] : "", info, amount};
+}
+function qrSlip(q, c, T, TR, op){
+  const P = 72 / 25.4, X = v => v * P, Y = v => (105 - v) * P, gi = q.iban.replace(/(.{4})/g, "$1 ").trim(), amt = q.amount.replace(/\B(?=(\d{3})+\.)/g, " ");
+  const sw = 595.28; op(`0.4 w [3 2] 0 d 0 ${Y(0).toFixed(2)} m ${sw} ${Y(0).toFixed(2)} l S ${X(62).toFixed(2)} 0 m ${X(62).toFixed(2)} ${Y(0).toFixed(2)} l S [] 0 d\n`);
+  const cut = "Vor der Einzahlung abzutrennen"; T((sw - pdfW(cut, 7)) / 2, Y(0) + 3, cut, 7);
+  const cred = [gi, c.name, ...addrLines(q.cr)], deb = q.da ? [q.debtor, ...addrLines(q.da)] : null;
+  const corners = (x, y, w, h) => { const l = 3 * P, x2 = x + w, y2 = y - h; op(`0.75 w ${x} ${y - l} m ${x} ${y} l ${x + l} ${y} l S ${x2 - l} ${y} m ${x2} ${y} l ${x2} ${y - l} l S ${x} ${y2 + l} m ${x} ${y2} l ${x + l} ${y2} l S ${x2 - l} ${y2} m ${x2} ${y2} l ${x2} ${y2 + l} l S\n`); };
+  // Empfangsschein
+  T(X(5), Y(9), "Empfangsschein", 11, true); let y = Y(15);
+  const block = (x, head, vals, hz, vz, st) => { T(x, y, head, hz, true); y -= st; vals.forEach(v => { T(x, y, v, vz); y -= st; }); y -= st; };
+  block(X(5), "Konto / Zahlbar an", cred, 6, 8, 9);
+  if (deb) block(X(5), "Zahlbar durch", deb, 6, 8, 9); else { T(X(5), y, "Zahlbar durch (Name/Adresse)", 6, true); corners(X(5), y - 4, X(52), X(20)); }
+  T(X(5), Y(71), "Währung", 6, true); T(X(22), Y(71), "Betrag", 6, true); T(X(5), Y(75), "CHF", 8); T(X(22), Y(75), amt, 8);
+  TR(X(57), Y(85), "Annahmestelle", 6, true);
+  // Zahlteil
+  T(X(67), Y(9), "Zahlteil", 11, true);
+  const n = q.matrix.length, m = X(46) / n, x0 = X(67), y0 = Y(17); let r = "0 g\n";
+  q.matrix.forEach((row, yy) => row.forEach((d, xx) => { if (d) r += `${(x0 + xx * m).toFixed(3)} ${(y0 - (yy + 1) * m).toFixed(3)} ${m.toFixed(3)} ${m.toFixed(3)} re\n`; }));
+  op(r + "f\n");
+  const cx = x0 + X(23), cy = y0 - X(23), sq = (w, h, g) => op(`${g} g ${(cx - w / 2).toFixed(3)} ${(cy - h / 2).toFixed(3)} ${w.toFixed(3)} ${h.toFixed(3)} re f\n`);
+  sq(X(7), X(7), 1); sq(X(6.2), X(6.2), 0); sq(X(3.9), X(1.2), 1); sq(X(1.2), X(3.9), 1); op("0 g\n");
+  T(X(67), Y(71), "Währung", 8, true); T(X(89), Y(71), "Betrag", 8, true); T(X(67), Y(76), "CHF", 10); T(X(89), Y(76), amt, 10);
+  y = Y(8);
+  block(X(118), "Konto / Zahlbar an", cred, 8, 10, 11);
+  block(X(118), "Zusätzliche Informationen", [q.info], 8, 10, 11);
+  if (deb) block(X(118), "Zahlbar durch", deb, 8, 10, 11); else { T(X(118), y, "Zahlbar durch (Name/Adresse)", 8, true); corners(X(118), y - 5, X(65), X(25)); }
 }
 /* Kleiner PDF-Baukasten: Helvetica in WinAnsi, JPEG-Bilder */
 const HLV = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
@@ -1299,10 +1388,9 @@ async function rgPdf(inv){
   if (y < 190){ flush(); y = H - 70; }
   y += 8; LN(y); y -= 18; T(L, y, "Total", 12, true); TR(R, y, "CHF " + chf(inv.total), 12, true); y -= 34;
   T(L, y, `Zahlbar innert ${+c.frist || 30} Tagen. Vielen Dank.`, 10); y -= 18;
-  if (c.iban){ T(L, y, "IBAN: " + c.iban, 10); y -= 14; }
-  if (c.bank){ T(L, y, c.bank, 10); y -= 14; }
-  const att = await attGet("qr");
-  if (att) T(L, y, "Der Einzahlungsschein liegt bei.", 10);
+  const q = rgQr(c, inv), att = q.ok ? null : await attGet("qr");
+  if (!q.ok){ if (c.iban){ T(L, y, "IBAN: " + c.iban, 10); y -= 14; } if (c.bank){ T(L, y, c.bank, 10); y -= 14; } if (att) T(L, y, "Der Einzahlungsschein liegt bei.", 10); }
+  else { if (y < 325) flush(); qrSlip(q, c, T, TR, s => { ops += s; }); }
   flush();
   if (att){
     const lib = await loadPdfjs(), doc = await lib.getDocument({data: attBytes(att), isEvalSupported: false}).promise;
@@ -1717,7 +1805,7 @@ document.getElementById("fileIn").onchange = e => {
 document.addEventListener("input", ev => {
   const t = ev.target; if (t.tagName === "TEXTAREA") autosize(t);
   if ("gn" in t.dataset){ db.notiz = t.value; save(); return; }
-  if (t.dataset.rgs){ const k = t.dataset.rgs; db.rechnung = {...rgCfg(), [k]: t.type === "number" ? +t.value || 0 : t.value}; save(); return; }
+  if (t.dataset.rgs){ const k = t.dataset.rgs; db.rechnung = {...rgCfg(), [k]: t.type === "number" ? +t.value || 0 : t.value}; save(); const m = document.getElementById("rgQrS"); if (m) m.textContent = rgQrMsg(); return; }
   if (t.dataset.rgf){ rg[t.dataset.rgf] = t.value; render(); return; }
   if ("rga" in t.dataset){ rg.addr = t.value; return; }
   if (t.dataset.rgc){ const d = t.dataset.rgc; rg.on.delete(d); rg.off.delete(d); (t.checked ? rg.on : rg.off).add(d); render(); return; }
