@@ -130,6 +130,8 @@ button:disabled{opacity:.4;cursor:default}
 .gl{margin-top:6px;display:grid;gap:2px}.gl div{display:flex;gap:8px;min-width:0}.gl b{font-weight:500;white-space:nowrap}.gl span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sl{display:grid;gap:6px;max-width:420px}.sl .row{flex-wrap:nowrap}
 .gsb{display:grid;gap:12px}
+.rg-l{display:grid;margin-top:6px}.rg-r{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bd);margin:0;font-size:15px;color:var(--tx);text-transform:none;letter-spacing:0}.rg-r input{width:auto;flex:none}
+.rg-i{padding:8px 0;border-bottom:1px solid var(--bd)}.rg-i:last-child{border-bottom:0}
 .fl{display:grid;gap:10px;max-width:560px}
 #mp{position:fixed;z-index:40;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));width:min(440px,calc(100vw - 24px));background:var(--card);border:1px solid var(--bd2);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.35);overflow:hidden}
 .mp-bar{display:flex;gap:6px;align-items:center;padding:6px 6px 6px 12px;border-bottom:1px solid var(--bd)}
@@ -326,7 +328,7 @@ async function api(action, body){
 
 /* --- Lokale Datensätze: meta, books, lesson:<id>, pdf:<id> --- */
 function recOf(key){
-  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, stvCols: db.stvCols || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null};
+  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, rechnung: db.rechnung || null, invoices: db.invoices || [], stvCols: db.stvCols || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null};
   if (key === "books") return {books};
   if (key.startsWith("lesson:")) return db.lessons.find(l => l.id === key.slice(7)) || null;
   if (key.startsWith("ink:")){ const v = ink[key.slice(4)]; return v && Object.keys(v.p || {}).length ? v : null; }
@@ -356,7 +358,7 @@ function remoteRender(){ if (!(loaded.meta && loaded.lessons)) return; if (!docu
 document.addEventListener("focusout", () => setTimeout(() => { if (pendingRender && !busyTyping()){ pendingRender = false; render(); } }, 50));
 
 function applyRec(key, v){
-  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.stvCols = v ? v.stvCols || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
+  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.rechnung = v ? v.rechnung || null : null; db.invoices = v ? v.invoices || [] : []; db.stvCols = v ? v.stvCols || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
   else if (key === "books") books = v ? v.books || [] : [];
   else if (key.startsWith("ink:")){ const k = key.slice(4); if (v) ink[k] = v; else delete ink[k]; if (typeof pvInkRemote === "function") pvInkRemote(k); }
   else if (key.startsWith("lesson:")){ const id = key.slice(7), i = db.lessons.findIndex(l => l.id === id); if (v){ v.id = id; if (i < 0) db.lessons.push(v); else db.lessons[i] = v; } else if (i >= 0) db.lessons.splice(i, 1); }
@@ -522,6 +524,11 @@ async function pdfBytes(id){
   return u8;
 }
 
+/* --- Anhänge (z. B. Einzahlungsschein): verschlüsselt als eigener Datensatz att:<name> --- */
+async function attGet(k){ const r = await idbGet("rec", "att:" + k); return r ? r.v : null; }
+async function attSet(k, v){ const key = "att:" + k; if (v) await idbPut("rec", key, {v, rev:0}); else await idbDel("rec", key); if (acc){ cfg.outbox.includes(key) || cfg.outbox.push(key); await saveCfg(); syncSoon(500); } }
+const attBytes = v => unb64(v.b64), attEnc = u8 => b64(u8);
+
 /* --- Start --- */
 async function startApp(){
   try { idb = await idbOpen(); } catch(e) { mode = "app"; loaded = {meta:true, lessons:true}; setSync("Speicher nicht verfügbar"); render(); return; }
@@ -630,12 +637,12 @@ function vDatenApp(){
       ${tabs}<form id="ac-form" class="f" style="max-width:640px" onsubmit="return false">${fields}</form>
       <div class="row" style="margin-top:10px"><button class="pri" data-a="${btn[0]}">${btn[1]}</button><span class="small" id="ac-err" style="color:var(--da)"></span></div></div>`;
   }
-  app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${featCard()}${schulenCard()}${slCard()}<h3>Konto und Sync</h3>${rkCard()}${card}${pdfCard()}
+  app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${featCard()}${rgCard()}${schulenCard()}${slCard()}<h3>Konto und Sync</h3>${rkCard()}${card}${pdfCard()}
   <h3>Backup</h3><div class="card"><p class="small muted num" style="margin-top:0">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine · ${books.length} Hefte</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-0703 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-0713 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -739,7 +746,7 @@ function alterTxt(s){ const a = alter(s); if (a !== null) return a + " J.";
 let weekStart = monday(new Date());
 let filt = {schule:"Alle", q:""};
 /* Funktionen, die jede Person unter Einstellungen selbst ein- und ausschaltet (Standard: ein; gilt fürs ganze Konto) */
-const FEATS = [["gn","Allgemeine Notizen","Notizfeld für alle in der Wochenansicht"],["stv","Stellvertretung","Excel-Export für Stellvertretungen"],["bd","Geburtstage","Im Kalender und in der Wochenansicht"],["ink","Stiftnotizen","Zeichnen und markieren im Notenviewer"],["audio","Aufnahmen und Player","Links zu Songs, Play-Alongs ohne Noten"],["voices","Stimmen als Ordner","Stimmen eines Stücks in der Literatur zusammenfassen"]];
+const FEATS = [["gn","Allgemeine Notizen","Notizfeld für alle in der Wochenansicht"],["stv","Stellvertretung","Excel-Export für Stellvertretungen"],["bd","Geburtstage","Im Kalender und in der Wochenansicht"],["ink","Stiftnotizen","Zeichnen und markieren im Notenviewer"],["audio","Aufnahmen und Player","Links zu Songs, Play-Alongs ohne Noten"],["voices","Stimmen als Ordner","Stimmen eines Stücks in der Literatur zusammenfassen"],["rg","Rechnungen","Privatlektionen abrechnen"]];
 const feat = k => !(db.features && db.features[k] === false);
 function featCard(){
   return `<h3>Funktionen</h3><div class="card"><div class="fl">${FEATS.map(([k, n, d]) => `<div class="row" style="flex-wrap:nowrap"><div style="flex:1;min-width:0"><b class="small">${n}</b><div class="tiny">${d}</div></div><button class="chip ${feat(k) ? "on" : ""}" data-a="feat" data-v="${k}" aria-pressed="${feat(k)}" aria-label="${n}">${feat(k) ? "Ein" : "Aus"}</button></div>`).join("")}</div><p class="tiny" style="margin-bottom:0">Gilt für alle deine Geräte. Ausgeschaltete Funktionen werden nur ausgeblendet, deine Einträge bleiben erhalten.</p></div>`;
@@ -978,10 +985,10 @@ function route(){ const h = location.hash.slice(1) || "woche"; const i = h.index
 function render(){
   if (!(loaded.meta && loaded.lessons)) return;
   const {v, id} = route();
-  const tabs = [["woche","Notizen"],["sus","SuS"],["kalender","Kalender"],["lehrplan","Lehrplan"],["literatur","Literatur"],["daten","Einstellungen"]];
+  const tabs = [["woche","Notizen"],["sus","SuS"],["kalender","Kalender"],["lehrplan","Lehrplan"],["literatur","Literatur"],...(feat("rg") && sorted().some(isPriv) ? [["rechnung","Rechnungen"]] : []),["daten","Einstellungen"]];
   const cur = v === "s" || v === "bericht" ? "sus" : v === "stv" ? "woche" : v;
   document.getElementById("nav").innerHTML = tabs.map(([k,t]) => `<a href="#${k}" class="${cur===k?"on":""}">${t}</a>`).join("");
-  ({woche:vWoche, sus:vSus, s:()=>vDetail(id), kalender:vKalender, lehrplan:vLehrplan, literatur:vLiteratur, daten:vDatenApp, stv:vStv, bericht:()=>vBericht(id)}[v] || vWoche)();
+  ({woche:vWoche, sus:vSus, s:()=>vDetail(id), kalender:vKalender, lehrplan:vLehrplan, literatur:vLiteratur, daten:vDatenApp, stv:vStv, rechnung:vRechnung, bericht:()=>vBericht(id)}[v] || vWoche)();
   app.querySelectorAll("textarea").forEach(autosize);
 }
 function autosize(el){ el.style.height = "auto"; el.style.height = (el.scrollHeight + 2) + "px"; }
@@ -1055,6 +1062,7 @@ const STV_COLS = [["datum","Datum",11],["tag","Tag",5,0,1],["zeit","Zeit",7],["d
 const stvCols = () => STV_COLS.filter(c => db.stvCols ? db.stvCols.includes(c[0]) : !c[4]);
 function vStv(){
   if (!feat("stv")){ location.hash = "woche"; return; }
+  if (stvLogo === undefined){ stvLogo = null; fetch("icons/logo-excel.png").then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) stvLogo = new Uint8Array(b); }).catch(() => {}); }
   stvInit();
   const cols = stvCols(), all = stvLessons(), sel = stvSel(all), tage = [...new Set(all.map(x => x.d))], kids = [...new Map(all.map(x => [x.s.id, x.s])).values()];
   app.innerHTML = `<div class="row" style="margin-bottom:10px"><a href="#woche" class="muted">‹ Notizen</a></div>
@@ -1127,8 +1135,7 @@ function xlsxBlob(sheetName, cols, rows, head){
 async function stvExport(){
   const sel = stvSel(stvLessons()), cols = stvCols(); if (!sel.length || !cols.length) return;
   const rows = sel.map(x => { const r = stvRow(x); return cols.map(c => r[c[0]]); });
-  let logo = null; try { const r = await fetch("icons/logo-excel.png"); if (r.ok) logo = new Uint8Array(await r.arrayBuffer()); } catch(e) {}
-  const blob = xlsxBlob("Stellvertretung", cols, rows, {logo, title: `Stellvertretung ${fmt(stv.von, 1)}${stv.bis !== stv.von ? " – " + fmt(stv.bis, 1) : ""}`});
+  const blob = xlsxBlob("Stellvertretung", cols, rows, {logo: stvLogo, title: `Stellvertretung ${fmt(stv.von, 1)}${stv.bis !== stv.von ? " – " + fmt(stv.bis, 1) : ""}`});
   const name = `Stellvertretung ${stv.von}${stv.bis !== stv.von ? " bis " + stv.bis : ""}.xlsx`;
   if (await saveFile(name, blob, blob.type)) toast("Excel-Datei erstellt");
 }
@@ -1174,6 +1181,156 @@ function playLink(bid, i){
   $("mp").hidden = false;
 }
 document.addEventListener("click", ev => { if (ev.target.closest('[data-mp="x"]')){ $("mpF").innerHTML = ""; $("mp").hidden = true; mpCur = null; } });
+/* ---------- Rechnungen für Privatlektionen ---------- */
+const rg = {sid: null, on: new Set(), off: new Set(), addr: null, bis: "", datum: ""};
+let stvLogo;
+const rgCfg = () => Object.assign({tarif: 40, name: "", adresse: "", iban: "", bank: "", frist: 30}, db.rechnung || {});
+const isPriv = s => s.verr ? s.verr === "privat" : /privat/i.test(s.schule || "");
+const rgKey = (sid, d) => sid + "|" + d, chf = n => (+n).toFixed(2);
+const rgDay = d => (TAGE[(parse(d).getDay() + 6) % 7 + 1] || "So") + " " + fmt(d, 1);
+function rgBilled(){ const m = {}; (db.invoices || []).forEach(i => i.items.forEach(x => m[rgKey(i.sid, x.d)] = i)); return m; }
+function rgItems(s){
+  const bill = rgBilled(), t = rg.bis || today(), min = s.dauer || 30, price = Math.round(rgCfg().tarif * min / 30 * 20) / 20, main = [], more = [], by = {};
+  const ls = lessonsOf(s.id).filter(l => l.status || l.inhalt || l.aufgaben || l.warmup || l.notiz); ls.forEach(l => by[l.datum] = l);
+  ls.slice().reverse().forEach(l => { if (l.datum <= t && !bill[rgKey(s.id, l.datum)]) main.push({d: l.datum, min, chf: price, st: l.status || "", def: l.status !== "ausgefallen" && l.status !== "entschuldigt"}); });
+  if (s.tag){
+    const now = new Date(), sy = (now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1) + "-08-01";
+    const lastB = (db.invoices || []).filter(i => i.sid === s.id).flatMap(i => i.items.map(x => x.d)).sort().pop() || "";
+    let start = ls.length ? ls[ls.length - 1].datum : sy; if (lastB >= start) start = iso(addDays(parse(lastB), 1));
+    for (let mon = monday(parse(start)); iso(mon) <= t; mon = addDays(mon, 7)){
+      const d = lessonDate(s, mon); if (d < start || d > t || by[d] || bill[rgKey(s.id, d)] || ferienAm(d, s)) continue;
+      more.push({d, min, chf: price, st: "kein Eintrag", def: false});
+    }
+  }
+  return {main, more};
+}
+const rgIsOn = x => rg.on.has(x.d) || (x.def && !rg.off.has(x.d));
+function rgPrefill(s){
+  let name = s.eltern || s.name, ad = kOf(s).adresse;
+  if (s.typ === "Gruppe"){ const m = gMembers(s).find(x => x.adresse) || gMembers(s)[0]; if (m){ name = m.eltern || m.name || name; ad = m.adresse || ad; } }
+  return [name, ...String(ad || "").split(/\s*,\s*/).filter(Boolean)].join("\n");
+}
+function rgSel(id){ rg.sid = id; rg.on.clear(); rg.off.clear(); rg.addr = null; }
+function vRechnung(){
+  if (!feat("rg")){ location.hash = "woche"; return; }
+  const list = sorted().filter(isPriv);
+  if (!list.length){ app.innerHTML = `<h2>Rechnungen</h2><div class="card empty"><p class="muted">Noch keine privaten Schüler:innen. Stelle bei einer Person unter SuS die Verrechnung auf «Privat».</p></div>`; return; }
+  if (!list.some(s => s.id === rg.sid)) rgSel(list[0].id);
+  const s = S(rg.sid), cfg = rgCfg(), {main, more} = rgItems(s), sel = [...main, ...more].filter(rgIsOn), total = sel.reduce((a, x) => a + x.chf, 0), done = (db.invoices || []).filter(i => i.sid === s.id);
+  const row = x => `<label class="rg-r"><input type="checkbox" data-rgc="${x.d}" ${rgIsOn(x) ? "checked" : ""}><span class="num">${rgDay(x.d)}</span><span class="tiny">${esc(x.st)}</span><span class="sp"></span><span class="tiny num">${x.min} Min.</span><span class="num">${chf(x.chf)}</span></label>`;
+  app.innerHTML = `<h2>Rechnungen</h2>
+  <div class="row" style="margin-bottom:12px">${list.map(p => { const o = rgItems(p).main.filter(x => x.def).length; return `<button class="chip ${p.id === s.id ? "on" : ""}" data-a="rgPick" data-v="${p.id}">${esc(p.name)}${o ? ` <span class="num">· ${o}</span>` : ""}</button>`; }).join("")}</div>
+  ${cfg.name ? "" : `<div class="banner">Trage zuerst unter <a href="#daten">Einstellungen → Rechnungen</a> deinen Namen und deine Adresse ein.</div>`}
+  <div class="card"><div class="row"><b>Noch nicht verrechnet</b><span class="sp"></span><label class="small" for="rg-bis" style="margin:0">Termine bis</label><input type="date" id="rg-bis" data-rgf="bis" value="${esc(rg.bis || today())}" style="width:auto"></div>
+    <div class="rg-l">${main.map(row).join("") || `<p class="muted small">Keine offenen Termine mit Eintrag.</p>`}</div>
+    ${more.length ? `<details style="margin-top:8px"><summary class="small">${more.length} weitere Termine laut Stundenplan, ohne Eintrag</summary><div class="rg-l">${more.map(row).join("")}</div></details>` : ""}
+    <div class="row" style="margin-top:12px"><b>Total CHF <span class="num">${chf(total)}</span></b><span class="small muted num">${sel.length} ${sel.length === 1 ? "Termin" : "Termine"} · ${chf(cfg.tarif)} pro 30 Min.</span></div>
+    <div class="f" style="margin-top:12px"><div><label for="rg-addr">Rechnungsadresse</label><textarea id="rg-addr" data-rga rows="4">${esc(rg.addr === null ? rgPrefill(s) : rg.addr)}</textarea></div>
+      <div><label for="rg-dat">Rechnungsdatum</label><input type="date" id="rg-dat" data-rgf="datum" value="${esc(rg.datum || today())}"></div></div>
+    <div class="row" style="margin-top:12px"><button class="pri" data-a="rgMake" ${sel.length && cfg.name ? "" : "disabled"}>Rechnung als PDF erstellen</button></div></div>
+  <h3>Bereits verrechnet</h3><div class="card">${done.length ? done.slice().reverse().map(i => `<div class="rg-i"><div class="row"><b class="num">${esc(i.nr)}</b><span class="small muted num">${fmt(i.datum, 1)}</span><span class="sp"></span><b class="num">CHF ${chf(i.total)}</b>
+      <button class="chip ${i.paid ? "on" : ""}" data-a="rgPaid" data-v="${i.id}">${i.paid ? "✓ bezahlt" : "offen"}</button><button class="ghost small" data-a="rgAgain" data-v="${i.id}">PDF</button><button class="ghost del small" data-a="rgDel" data-v="${i.id}" aria-label="Rechnung löschen">×</button></div>
+      <div class="tiny num">✓ ${i.items.map(x => fmt(x.d)).join(" · ")}</div></div>`).join("") : `<span class="muted small">Noch keine Rechnung.</span>`}</div>`;
+  app.querySelectorAll("textarea").forEach(autosize);
+}
+function rgCard(){
+  if (!feat("rg")) return "";
+  const c = rgCfg(), f = (k, l, ph, type) => `<div><label for="rgs-${k}">${l}</label><input id="rgs-${k}" data-rgs="${k}" ${type ? `type="${type}" inputmode="decimal"` : ""} value="${esc(c[k])}" placeholder="${ph || ""}"></div>`;
+  setTimeout(() => { attGet("qr").then(v => { const n = $("rgAttN"), d = $("rgAttD"); if (n){ n.textContent = v ? v.name : "Kein PDF hinterlegt."; d.hidden = !v; } }).catch(() => {}); }, 0);
+  return `<h3>Rechnungen</h3><div class="card"><div class="f">
+    ${f("tarif", "Tarif CHF pro 30 Min.", "", "number")}${f("frist", "Zahlungsfrist (Tage)", "", "number")}
+    <div style="grid-column:1/-1"><label for="rgs-name">Absender: Name</label><input id="rgs-name" data-rgs="name" value="${esc(c.name)}"></div>
+    <div style="grid-column:1/-1"><label for="rgs-adresse">Absender: Adresse, Telefon, E-Mail (eine Angabe pro Zeile)</label><textarea id="rgs-adresse" data-rgs="adresse" rows="3">${esc(c.adresse)}</textarea></div>
+    ${f("iban", "Bankverbindung: IBAN", "CH00 0000 0000 0000 0000 0")}${f("bank", "Bank und Kontoinhaber:in", "")}</div>
+    <label style="margin-top:12px">Einzahlungsschein oder QR-Rechnung als PDF (wird jeder Rechnung angehängt)</label>
+    <div class="row"><span class="small" id="rgAttN">…</span><span class="sp"></span><button data-a="rgAtt">PDF wählen</button><button class="ghost del" id="rgAttD" data-a="rgAttDel" hidden>Entfernen</button></div>
+    <p class="tiny" style="margin-bottom:0">Trage eine Bankverbindung ein oder hinterlege ein PDF, oder beides. Diese Angaben sind verschlüsselt und nur für dich sichtbar.</p></div>`;
+}
+function rgFile(){
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = "application/pdf,.pdf";
+  inp.onchange = async () => { const f = inp.files[0]; if (!f) return; if (f.size > 2 * 1048576){ toast("Das PDF ist grösser als 2 MB."); return; }
+    const u8 = new Uint8Array(await f.arrayBuffer()); if (String.fromCharCode(...u8.subarray(0, 4)) !== "%PDF"){ toast("Das ist kein PDF."); return; }
+    await attSet("qr", {name: f.name, b64: attEnc(u8)}); render(); toast("PDF hinterlegt"); };
+  inp.click();
+}
+/* Kleiner PDF-Baukasten: Helvetica in WinAnsi, JPEG-Bilder */
+const HLV = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
+const pdfW = (s, z) => [...String(s)].reduce((a, c) => a + (HLV[c.charCodeAt(0) - 32] || 556), 0) * z / 1000;
+function pdfHex(s){ const M = {"–": 0x96, "—": 0x97, "’": 0x92, "€": 0x80, "…": 0x85, "•": 0x95}; return "<" + [...String(s)].map(c => { const n = M[c] ?? c.charCodeAt(0); return (n > 255 ? 63 : n).toString(16).padStart(2, "0"); }).join("") + ">"; }
+function pdfBuild(pages){
+  const enc = new TextEncoder(), parts = [], off = []; let pos = 0, n = 0;
+  const put = x => { const u = typeof x === "string" ? enc.encode(x) : x; parts.push(u); pos += u.length; };
+  const obj = (id, body) => { off[id] = pos; put(`${id} 0 obj\n`); body(); put("\nendobj\n"); };
+  const stream = (id, dict, data) => obj(id, () => { put(`<<${dict}/Length ${data.length}>>\nstream\n`); put(data); put("\nendstream"); });
+  put("%PDF-1.4\n"); n = 4;
+  const kids = [];
+  const plan = pages.map(p => { const page = ++n, content = ++n; kids.push(page); return {p, page, content, imgs: (p.images || []).map(i => ({i, id: ++n}))}; });
+  obj(1, () => put("<</Type/Catalog/Pages 2 0 R>>"));
+  obj(2, () => put(`<</Type/Pages/Count ${kids.length}/Kids[${kids.map(k => k + " 0 R").join(" ")}]>>`));
+  obj(3, () => put("<</Type/Font/Subtype/Type1/BaseFont/Helvetica/Encoding/WinAnsiEncoding>>"));
+  obj(4, () => put("<</Type/Font/Subtype/Type1/BaseFont/Helvetica-Bold/Encoding/WinAnsiEncoding>>"));
+  for (const {p, page, content, imgs} of plan){
+    obj(page, () => put(`<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${p.w} ${p.h}]/Contents ${content} 0 R/Resources<</Font<</F1 3 0 R/F2 4 0 R>>/XObject<<${imgs.map((x, k) => `/I${k} ${x.id} 0 R`).join("")}>>>>>>`));
+    stream(content, "", enc.encode(p.ops));
+    imgs.forEach(({i, id}) => stream(id, `/Type/XObject/Subtype/Image/Width ${i.w}/Height ${i.h}/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode`, i.data));
+  }
+  const xr = pos; put(`xref\n0 ${n + 1}\n0000000000 65535 f \n`);
+  for (let i = 1; i <= n; i++) put(String(off[i]).padStart(10, "0") + " 00000 n \n");
+  put(`trailer\n<</Size ${n + 1}/Root 1 0 R>>\nstartxref\n${xr}\n%%EOF\n`);
+  return new Blob(parts, {type: "application/pdf"});
+}
+const cvJpeg = async (cv, q) => { const b = await new Promise(ok => cv.toBlob(ok, "image/jpeg", q)); return {data: new Uint8Array(await b.arrayBuffer()), w: cv.width, h: cv.height}; };
+async function logoJpeg(){
+  try { const im = new Image(); im.src = "icons/logo-excel.png"; await im.decode(); const cv = document.createElement("canvas"); cv.width = im.naturalWidth; cv.height = im.naturalHeight; const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(im, 0, 0); return await cvJpeg(cv, .9); } catch(e) { return null; }
+}
+async function rgPdf(inv){
+  const c = rgCfg(), W = 595, H = 842, L = 57, R = W - 57, pages = [], logo = await logoJpeg();
+  let ops = "", y = 0, first = true;
+  const T = (x, yy, s, z, b) => { ops += `BT /F${b ? 2 : 1} ${z} Tf ${x.toFixed(2)} ${yy.toFixed(2)} Td ${pdfHex(s)} Tj ET\n`; };
+  const TR = (x, yy, s, z, b) => T(x - pdfW(s, z), yy, s, z, b), LN = yy => { ops += `0.5 w ${L} ${yy} m ${R} ${yy} l S\n`; };
+  const flush = () => { pages.push({w: W, h: H, ops, images: first && logo ? [logo] : []}); ops = ""; first = false; };
+  if (logo) ops += `q 56 0 0 56 ${R - 56} ${H - 100} cm /I0 Do Q\n`;
+  y = H - 60; T(L, y, c.name, 11, true); String(c.adresse || "").split(/\n+/).filter(Boolean).forEach(l => { y -= 13; T(L, y, l, 10); });
+  y = H - 190; String(inv.addr || "").split(/\n+/).filter(Boolean).forEach(l => { T(L, y, l, 11); y -= 14; });
+  y = H - 290; TR(R, y, "Datum: " + fmt(inv.datum, 1), 10); T(L, y, "Rechnung " + inv.nr, 16, true);
+  y -= 20; T(L, y, "Instrumentalunterricht Perkussion: " + inv.name, 11);
+  y -= 26; const head = () => { T(L, y, "Datum", 10, true); T(L + 150, y, "Leistung", 10, true); TR(R, y, "CHF", 10, true); y -= 6; LN(y); y -= 16; }; head();
+  inv.items.forEach(x => { if (y < 120){ flush(); y = H - 70; head(); } T(L, y, rgDay(x.d), 10); T(L + 150, y, `Lektion ${x.min} Min.`, 10); TR(R, y, chf(x.chf), 10); y -= 16; });
+  if (y < 190){ flush(); y = H - 70; }
+  y += 8; LN(y); y -= 18; T(L, y, "Total", 12, true); TR(R, y, "CHF " + chf(inv.total), 12, true); y -= 34;
+  T(L, y, `Zahlbar innert ${+c.frist || 30} Tagen. Vielen Dank.`, 10); y -= 18;
+  if (c.iban){ T(L, y, "IBAN: " + c.iban, 10); y -= 14; }
+  if (c.bank){ T(L, y, c.bank, 10); y -= 14; }
+  const att = await attGet("qr");
+  if (att) T(L, y, "Der Einzahlungsschein liegt bei.", 10);
+  flush();
+  if (att){
+    const lib = await loadPdfjs(), doc = await lib.getDocument({data: attBytes(att), isEvalSupported: false}).promise;
+    for (let i = 1; i <= doc.numPages; i++){
+      const pg = await doc.getPage(i), v1 = pg.getViewport({scale: 1}), vp = pg.getViewport({scale: 4}), cv = document.createElement("canvas"); cv.width = Math.floor(vp.width); cv.height = Math.floor(vp.height);
+      const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, cv.width, cv.height);
+      await pg.render({canvasContext: g, viewport: vp, intent: "print"}).promise;
+      const img = await cvJpeg(cv, .92); pages.push({w: Math.round(v1.width), h: Math.round(v1.height), ops: `q ${Math.round(v1.width)} 0 0 ${Math.round(v1.height)} 0 0 cm /I0 Do Q\n`, images: [img]});
+    }
+    doc.destroy();
+  }
+  return pdfBuild(pages);
+}
+function rgNr(datum){ const y = datum.slice(0, 4), max = (db.invoices || []).filter(i => i.nr.startsWith(y + "-")).reduce((a, i) => Math.max(a, +i.nr.slice(5) || 0), 0); return y + "-" + String(max + 1).padStart(3, "0"); }
+async function rgMake(){
+  const s = S(rg.sid), {main, more} = rgItems(s), sel = [...main, ...more].filter(rgIsOn).sort((a, b) => a.d.localeCompare(b.d)); if (!s || !sel.length) return;
+  const datum = rg.datum || today(), inv = {id: uid(), nr: rgNr(datum), sid: s.id, name: s.name, datum, addr: rg.addr === null ? rgPrefill(s) : rg.addr, total: Math.round(sel.reduce((a, x) => a + x.chf, 0) * 100) / 100, paid: false, items: sel.map(({d, min, chf}) => ({d, min, chf}))};
+  toast("Rechnung wird erstellt …");
+  let blob; try { blob = await rgPdf(inv); } catch(e) { toast("Die Rechnung konnte nicht erstellt werden. Prüfe das hinterlegte PDF."); return; }
+  ask(`Rechnung ${inv.nr} über CHF ${chf(inv.total)} ist bereit. Sichern oder teilen und die ${inv.items.length} Termine als verrechnet markieren?`, "Sichern", async () => {
+    if (await saveFile(`Rechnung ${inv.nr} ${s.name}.pdf`, blob, "application/pdf")){ (db.invoices ||= []).push(inv); rg.on.clear(); rg.off.clear(); rg.addr = null; save(); render(); toast("Termine als verrechnet markiert"); }
+  });
+}
+async function rgAgain(id){
+  const inv = (db.invoices || []).find(i => i.id === id); if (!inv) return;
+  let blob; try { blob = await rgPdf(inv); } catch(e) { toast("Die Rechnung konnte nicht erstellt werden."); return; }
+  ask(`Rechnung ${inv.nr} ist bereit.`, "Sichern", () => saveFile(`Rechnung ${inv.nr} ${inv.name}.pdf`, blob, "application/pdf"));
+}
 function vWoche(){
   const mon = weekStart, sun = addDays(mon, 6);
   const evs = db.events.filter(e => e.typ !== "Ferien" && (e.bis||e.datum) >= iso(mon) && e.datum <= iso(sun));
@@ -1215,6 +1372,7 @@ function vWoche(){
       <span class="sp"></span>
       <div class="seg">${STATUS.map(([k,t]) => `<button class="${l.status===k?"on s-"+k:""}" data-a="att" data-st="${k}">${t}</button>`).join("")}</div></div>
     ${litChips(s)}
+    ${feat("rg") && isPriv(s) && rgBilled()[rgKey(s.id, d)] ? `<div class="row" style="margin-top:8px"><span class="badge b-ok">✓ verrechnet · Rechnung ${esc(rgBilled()[rgKey(s.id, d)].nr)}</span></div>` : ""}
     ${f ? `<div class="banner" style="margin:10px 0 0">${esc(f.titel)}: an diesem Tag ist schulfrei.</div>` : ""}
     ${prev ? `<details class="prev" ${prev.aufgaben?"open":""}><summary>Letzte Lektion, ${fmt(prev.datum,1)}${prev.aufgaben?" · Aufgaben: "+esc(prev.aufgaben.replace(/\n+/g," · ")):""}</summary>
       ${prev.inhalt?`<p><b>Gearbeitet</b><br>${esc(prev.inhalt)}</p>`:""}${prev.aufgaben?`<p><b>Aufgaben</b><br>${esc(prev.aufgaben)}</p>`:""}${prev.notiz?`<p class="muted"><b>Notiz</b><br>${esc(prev.notiz)}</p>`:""}</details>` : ""}
@@ -1277,6 +1435,7 @@ function vDetail(id){
   <div class="card"><div class="f">
     <div><label for="sf-name">Name</label><input id="sf-name" data-sf="name" value="${esc(s.name)}"></div>
     <div><label for="sf-schule">Schule</label><select id="sf-schule" data-sf="schule">${schulOpts(s.schule)}</select></div>
+    <div><label for="sf-verr">Verrechnung</label><select id="sf-verr" data-sf="verr" data-rr><option value="schule" ${isPriv(s) ? "" : "selected"}>Über die Schule</option><option value="privat" ${isPriv(s) ? "selected" : ""}>Privat</option></select></div>
     <div><label for="sf-typ">Einzel/Gruppe</label><select id="sf-typ" data-sf="typ" data-rr>${["Einzel","Gruppe"].map(k=>`<option ${s.typ===k?"selected":""}>${k}</option>`).join("")}</select></div>
     <div><label for="sf-tag">Wochentag</label><select id="sf-tag" data-sf="tag" data-num>${TAGE.map((t,i)=>`<option value="${i}" ${s.tag==i?"selected":""}>${t||"–"}</option>`).join("")}</select></div>
     <div><label for="sf-zeit">Zeit</label><input id="sf-zeit" type="time" data-sf="zeit" value="${esc(s.zeit)}"></div>
@@ -1434,7 +1593,7 @@ function vDaten(){
   const where = mode === "cloud"
     ? "Deine Daten liegen in deinem privaten Bereich dieser Seite. Nur du siehst sie, auf jedem Gerät, auf dem du mit deinem Konto angemeldet bist. Auch wenn du die Seite teilst, sehen andere nur ein leeres Klassenbuch."
     : "Deine Daten liegen nur in diesem Browser auf diesem Gerät. Lade regelmässig ein Backup herunter.";
-  app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${featCard()}${schulenCard()}${slCard()}<h3>Daten</h3>
+  app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${featCard()}${rgCard()}${schulenCard()}${slCard()}<h3>Daten</h3>
   <div class="card"><p style="margin-top:0;max-width:65ch">${where}</p>
   <p class="small muted num">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Startpaket oder Backup laden</button></div>
@@ -1451,7 +1610,7 @@ async function saveFile(filename, data, type){
 }
 function replaceAll(d){
   delL.clear(); db.lessons.forEach(l => delL.add(l.id)); dirtyL.clear();
-  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null, schulen:d.schulen||null, notiz:d.notiz||"", features:d.features||null, stvCols:d.stvCols||null};
+  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null, schulen:d.schulen||null, notiz:d.notiz||"", features:d.features||null, stvCols:d.stvCols||null, rechnung:d.rechnung||null, invoices:d.invoices||[]};
   db.lessons.forEach(l => { delL.delete(l.id); dirtyL.add(l.id); });
   if (Array.isArray(d.books)){ books = d.books; saveBooks(); }
   if (d.ink && typeof d.ink === "object"){ Object.keys(ink).forEach(k => { if (!d.ink[k]){ delete ink[k]; saveInk(k); } }); Object.entries(d.ink).forEach(([k, v]) => { ink[k] = v; saveInk(k); }); }
@@ -1480,6 +1639,13 @@ document.addEventListener("click", ev => {
     case "fs": filt.schule = b.dataset.v; render(); break;
     case "slLoad": case "slMore": { const inp = document.createElement("input"); inp.type = "file"; inp.multiple = true; inp.accept = ".csv,.txt,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; inp.onchange = () => slLoad([...inp.files]); inp.click(); break; }
     case "slX": imp = null; render(); break;
+    case "rgPick": rgSel(b.dataset.v); render(); break;
+    case "rgMake": rgMake(); break;
+    case "rgAgain": rgAgain(b.dataset.v); break;
+    case "rgPaid": { const i = (db.invoices || []).find(x => x.id === b.dataset.v); if (i){ i.paid = !i.paid; save(); render(); } break; }
+    case "rgDel": { const i = (db.invoices || []).find(x => x.id === b.dataset.v); if (i) ask(`Rechnung ${i.nr} löschen? Ihre Termine gelten danach wieder als nicht verrechnet.`, "Löschen", () => { db.invoices = db.invoices.filter(x => x !== i); save(); render(); }); break; }
+    case "rgAtt": rgFile(); break;
+    case "rgAttDel": ask("Das hinterlegte PDF entfernen?", "Entfernen", () => attSet("qr", null).then(() => render())); break;
     case "feat": { const k = b.dataset.v; (db.features ||= {})[k] = !feat(k); if (k === "audio" && !feat(k) && litF.kat === "♫") litF.kat = "Alle"; save(); render(); break; }
     case "play": playLink(b.dataset.v, +b.dataset.i || 0); break;
     case "stvGo": stv = null; break;
@@ -1551,6 +1717,10 @@ document.getElementById("fileIn").onchange = e => {
 document.addEventListener("input", ev => {
   const t = ev.target; if (t.tagName === "TEXTAREA") autosize(t);
   if ("gn" in t.dataset){ db.notiz = t.value; save(); return; }
+  if (t.dataset.rgs){ const k = t.dataset.rgs; db.rechnung = {...rgCfg(), [k]: t.type === "number" ? +t.value || 0 : t.value}; save(); return; }
+  if (t.dataset.rgf){ rg[t.dataset.rgf] = t.value; render(); return; }
+  if ("rga" in t.dataset){ rg.addr = t.value; return; }
+  if (t.dataset.rgc){ const d = t.dataset.rgc; rg.on.delete(d); rg.off.delete(d); (t.checked ? rg.on : rg.off).add(d); render(); return; }
   if (stv && t.dataset.stv){ stv[t.dataset.stv] = t.value; render(); return; }
   if (imp && t.dataset.sla){ const [fi, ri] = t.dataset.sla.split(":").map(Number); imp.files[fi].rows[ri].act = t.value; render(); return; }
   if (imp && t.dataset.sls){ imp.files[+t.dataset.sls].schule = t.value; render(); return; }
