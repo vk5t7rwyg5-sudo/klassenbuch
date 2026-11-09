@@ -131,6 +131,7 @@ button:disabled{opacity:.4;cursor:default}
 .gl{margin-top:6px;display:grid;gap:2px}.gl div{display:flex;gap:8px;min-width:0}.gl b{font-weight:500;white-space:nowrap}.gl span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sl{display:grid;gap:6px;max-width:420px}.sl .row{flex-wrap:nowrap}
 .gsb{display:grid;gap:12px}
+.pw{position:relative}.pw input{padding-right:44px}.pw button{position:absolute;right:2px;top:50%;transform:translateY(-50%);width:38px;height:38px;min-height:0;padding:0;display:grid;place-items:center;color:var(--tx2);background:none;border:0}.pw svg{width:20px;height:20px}
 .card.sel{border-color:var(--ac);background:var(--acbg)}.tick{display:inline-grid;place-items:center;width:20px;height:20px;border:1px solid var(--bd2);border-radius:5px;font-size:13px;color:var(--ac);flex:none}
 .sus-bar{margin:-4px 0 12px;position:sticky;top:60px;z-index:3;background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:6px 10px}
 .rg-l{display:grid;margin-top:6px}.rg-r{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bd);margin:0;font-size:15px;color:var(--tx);text-transform:none;letter-spacing:0}.rg-r input{width:auto;flex:none}
@@ -615,10 +616,13 @@ function rkCard(){
     <div class="num" id="rkText" style="font:600 18px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.03em;background:var(--soft);border-radius:var(--r);padding:10px 12px;user-select:all;word-break:break-all">${esc(rkShow)}</div>
     <div class="row" style="margin-top:10px"><button data-a="rkCopy">Kopieren</button><button data-a="rkSave">Als Datei sichern</button><span class="sp"></span><button class="pri" data-a="rkDone">Ich habe ihn sicher aufbewahrt</button></div></div>`;
 }
+const EYE = ['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.2A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.5 6.7A17 17 0 0 0 2 12s3.6 7 10 7a10 10 0 0 0 4.4-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>'];
 function vDatenApp(){
   const lb = db.lastBackup ? new Date(db.lastBackup).toLocaleString("de-CH") : "noch nie";
   const ls = lastSync ? new Date(lastSync).toLocaleTimeString("de-CH", {hour:"2-digit", minute:"2-digit"}) : "–";
-  const f = (id, label, type, ac, extra) => `<div><label for="${id}">${label}</label><input id="${id}" type="${type}" ${ac ? `autocomplete="${ac}"` : ""} autocapitalize="off" ${extra || ""}></div>`;
+  const f = (id, label, type, ac, extra) => { const inp = `<input id="${id}" type="${type}" ${ac ? `autocomplete="${ac}"` : ""} autocapitalize="off" ${type === "password" ? 'autocorrect="off" spellcheck="false"' : ""} ${extra || ""}>`;
+    return `<div><label for="${id}">${label}</label>${type === "password" ? `<div class="pw">${inp}<button type="button" class="ghost" data-a="pwEye" aria-label="Passwort anzeigen" aria-pressed="false" title="Passwort anzeigen">${EYE[0]}</button></div>` : inp}</div>`; };
   let card;
   if (acc){
     card = `<div class="card"><div class="row"><b>Sync ist eingerichtet</b><span class="badge b-ok">${esc(acc.email)}</span><span class="sp"></span><button class="pri" data-a="syncNow">Jetzt synchronisieren</button></div>
@@ -637,7 +641,7 @@ function vDatenApp(){
       : f("ac-mail","E-Mail","email","username") + f("ac-pw", acctView === "up" ? "Passwort (mind. 10 Zeichen)" : "Passwort", "password", acctView === "up" ? "new-password" : "current-password") + (acctView === "up" ? f("ac-inv","Einladungscode","text","off") : "");
     const btn = {in:["signIn","Anmelden"], up:["signUp","Konto erstellen"], forgot:["recover","Neues Passwort setzen"]}[acctView];
     card = `<div class="card" id="acct"><b>Sync einrichten</b>
-      <p class="small muted" style="max-width:65ch;margin-top:4px">Mit einem Konto sind deine Einträge und PDFs auf allen Geräten gleich. Alles wird auf dem Gerät verschlüsselt, der Server sieht nur unlesbare Daten. Beim Erstellen bekommst du einen <b>Wiederherstellungsschlüssel</b>, falls du das Passwort einmal vergisst. <a href="anleitung.html#konto">Mehr in der Anleitung</a></p>
+      <p class="small muted" style="max-width:65ch;margin-top:4px">Mit einem Konto sind deine Einträge auf allen Geräten gleich. Alles wird auf dem Gerät verschlüsselt, der Server sieht nur unlesbare Daten. Beim Erstellen bekommst du einen <b>Wiederherstellungsschlüssel</b>, falls du das Passwort einmal vergisst. <a href="anleitung.html#konto">Mehr in der Anleitung</a></p>
       ${tabs}<form id="ac-form" class="f" style="max-width:640px" onsubmit="return false">${fields}</form>
       <div class="row" style="margin-top:10px"><button class="pri" data-a="${btn[0]}">${btn[1]}</button><span class="small" id="ac-err" style="color:var(--da)"></span></div></div>`;
   }
@@ -646,7 +650,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-1259 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-1306 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -683,6 +687,7 @@ document.addEventListener("click", ev => {
     case "signIn": accountAction("in"); break;
     case "signUp": accountAction("up"); break;
     case "recover": accountAction("forgot"); break;
+    case "pwEye": { const i = b.previousElementSibling, show = i.type === "password"; i.type = show ? "text" : "password"; b.innerHTML = EYE[show ? 1 : 0]; b.setAttribute("aria-pressed", show); b.setAttribute("aria-label", show ? "Passwort verbergen" : "Passwort anzeigen"); b.title = b.getAttribute("aria-label"); break; }
     case "syncNow": sync().then(() => render()); break;
     case "pdfSync": { const on = !!b.dataset.v; if (on === pdfSyncOn()) break;
       if (on) ask("PDFs ab jetzt über den Server synchronisieren? Alle PDFs dieses Geräts werden verschlüsselt hochgeladen und belegen Platz auf dem gemeinsamen Server.", "Synchronisieren", () => setPdfSync(true));
