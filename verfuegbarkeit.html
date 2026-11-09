@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="de-CH"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Klassenbuch – Verfügbarkeit</title>
+<link rel="icon" href="icons/icon-192.png">
+<style>
+:root{--bg:#f5f5f2;--card:#fff;--soft:#ecece6;--tx:#1e1f1c;--tx2:#5c5e57;--bd:#deded6;--bd2:#c9cac0;--ac:#1d5a8f;--ok:#3b6d11;--okbg:#d9ecc4;--wa:#7d4a0a;--wabg:#f8e2b8;--da:#a32d2d;--off:#e4e4dd}
+@media (prefers-color-scheme:dark){:root{--bg:#141414;--card:#1e1e1d;--soft:#2a2a28;--tx:#f1f1ec;--tx2:#b4b4ac;--bd:#33332f;--bd2:#46463f;--ac:#8dbbe8;--ok:#b5dc7f;--okbg:#2f4f1f;--wa:#f2c27a;--wabg:#5c3d13;--da:#f09a9a;--off:#232321;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+.wrap{max-width:720px;margin:auto;padding-block:max(20px,env(safe-area-inset-top,0px)) 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{font-size:13px;color:var(--tx2);margin:0 0 14px}
+h1{font-size:24px;line-height:1.2;margin:0 0 6px;text-wrap:balance}
+p{margin:6px 0}.s{font-size:14px;color:var(--tx2)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin:14px 0}
+.leg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;margin:0 0 12px}.leg span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:20px;height:20px;border-radius:5px;display:inline-grid;place-items:center;font-size:13px;font-weight:700;border:1px solid var(--bd2)}
+.c2{background:var(--okbg);color:var(--ok);border-color:transparent}.c1{background:var(--wabg);color:var(--wa);border-color:transparent}
+.gridw{overflow-x:auto}
+table{border-collapse:separate;border-spacing:3px;width:100%;table-layout:fixed}
+th{font-size:13px;font-weight:600;padding:0}
+th.t,td.t{width:48px;font-size:12px;color:var(--tx2);font-weight:400;text-align:right;padding-right:4px;font-variant-numeric:tabular-nums}
+th button{width:100%;font:inherit;font-weight:600;color:var(--tx);background:none;border:0;padding:6px 0;cursor:pointer;border-radius:6px}
+td{padding:0}
+.cell{display:grid;place-items:center;width:100%;height:38px;border-radius:6px;border:1px solid var(--bd2);background:var(--card);font-size:15px;font-weight:700;color:inherit;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
+.cell.c2{background:var(--okbg);color:var(--ok);border-color:transparent}.cell.c1{background:var(--wabg);color:var(--wa);border-color:transparent}
+.no{height:38px;border-radius:6px;background:var(--off)}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+label{display:block;font-size:14px;color:var(--tx2);margin:0 0 4px}
+textarea{font:inherit;width:100%;min-height:70px;border:1px solid var(--bd2);border-radius:8px;padding:8px;background:var(--card);color:var(--tx);resize:vertical}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:15px;color:var(--tx);margin:12px 0 0}.chk input{margin-top:4px;flex:none}
+.save{font:inherit;font-weight:600;background:var(--ac);color:var(--card);border:0;border-radius:8px;padding:11px 20px;cursor:pointer;min-height:44px}
+.save:disabled{opacity:.6}
+.act{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
+#msg{font-size:14px;min-width:0}#msg.err{color:var(--da)}#msg.ok{color:var(--ok)}
+.res{font-size:22px;font-weight:600;margin:6px 0}
+a{color:var(--ac)}
+</style></head><body><main class="wrap" id="p"><p class="s">Wird geladen …</p></main>
+<script>
+const API = "https://www.adrianpopp.ch/_functions/kb/";
+const DAYS = ["", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"], SHORT = ["", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+const p = document.getElementById("p"), te = new TextEncoder(), td = new TextDecoder();
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fromUrl = s => { const b = atob(s.replace(/-/g, "+").replace(/_/g, "/")), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+const toB64 = u => { let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
+const unB64 = s => fromUrl(s.replace(/\+/g, "-").replace(/\//g, "_"));
+const M = t => { const [h, m] = String(t).split(":").map(Number); return h * 60 + (m || 0); };
+const T = m => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+const dat = s => { const [y, m, d] = String(s).split("-").map(Number); return d && m ? `${d}.${m}.${y}` : ""; };
+function stop(title, text){ p.innerHTML = `<p class="brand">Klassenbuch</p><h1>${esc(title)}</h1><p>${esc(text)}</p>`; }
+async function post(action, body){
+  const r = await fetch(API + action, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  let j = {}; try { j = await r.json(); } catch(e) {}
+  if (!r.ok){ const e = new Error(j.error || "http"); e.status = r.status; throw e; }
+  return j;
+}
+let key, token, f, c = {}, paint = null, skip = false;
+const enc = async o => { const iv = crypto.getRandomValues(new Uint8Array(12)), ct = new Uint8Array(await crypto.subtle.encrypt({name: "AES-GCM", iv}, key, te.encode(JSON.stringify(o)))), u = new Uint8Array(12 + ct.length); u.set(iv); u.set(ct, 12); return toB64(u); };
+const dec = async s => { const u = unB64(s); return JSON.parse(td.decode(await crypto.subtle.decrypt({name: "AES-GCM", iv: u.subarray(0, 12)}, key, u.subarray(12)))); };
+const inWin = (tag, m) => f.fenster.some(w => w.tag === tag && m + f.raster > M(w.von) && m < M(w.bis));
+const k = (tag, m) => tag + "-" + T(m);
+const sym = v => v === 2 ? "✓" : v === 1 ? "~" : "";
+const label = v => v === 2 ? "passt gut" : v === 1 ? "geht notfalls" : "geht nicht";
+function setCell(b, v){ const id = b.dataset.k; if (v) c[id] = v; else delete c[id]; b.className = "cell" + (v ? " c" + v : ""); b.textContent = sym(v); b.setAttribute("aria-label", `${b.dataset.n}: ${label(v)}`); }
+const next = v => v === 0 || v === undefined ? 2 : v === 2 ? 1 : 0;
+function view(ans){
+  c = ans && ans.c ? {...ans.c} : {};
+  const tags = [...new Set(f.fenster.map(w => w.tag))].sort((a, b) => a - b), r = f.raster;
+  const lo = Math.min(...f.fenster.map(w => Math.floor(M(w.von) / r) * r)), hi = Math.max(...f.fenster.map(w => M(w.bis)));
+  let rows = "";
+  for (let m = lo; m < hi; m += r){
+    if (!tags.some(t => inWin(t, m))) continue;
+    rows += `<tr><td class="t">${T(m)}</td>${tags.map(t => inWin(t, m) ? `<td><button type="button" class="cell" data-k="${k(t, m)}" data-t="${t}" data-n="${DAYS[t]} ${T(m)}"></button></td>` : `<td><div class="no"></div></td>`).join("")}</tr>`;
+  }
+  p.innerHTML = `<p class="brand">Klassenbuch${f.lp ? " · " + esc(f.lp) : ""}</p>
+    <h1>Wann hat ${esc(f.name)} Zeit?</h1>
+    <p>${esc(f.titel)} · ${f.dauer} Minuten pro Woche. Bitte bis ${dat(f.frist)} eintragen.</p>
+    ${f.hinweis ? `<p class="s">${esc(f.hinweis)}</p>` : ""}
+    <div class="card">
+      <div class="leg"><span><i class="dot c2">✓</i>passt gut</span><span><i class="dot c1">~</i>geht notfalls</span><span><i class="dot"></i>geht nicht</span></div>
+      <p class="s" style="margin:0 0 10px">Tippe auf ein Feld, um es zu ändern. Je mehr Zeiten du angibst, desto eher klappt es.</p>
+      <div class="gridw"><table><thead><tr><th class="t"></th>${tags.map(t => `<th><button type="button" data-day="${t}" aria-label="Ganzen ${DAYS[t]} ändern">${SHORT[t]}</button></th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>
+    </div>
+    <div class="card">
+      <label for="note">Bemerkung (freiwillig)</label>
+      <textarea id="note" maxlength="500" placeholder="Zum Beispiel: Mittwoch erst ab 14:15 wegen Schulweg">${esc(ans && ans.n || "")}</textarea>
+      <label class="chk"><input type="checkbox" id="unk" ${ans && ans.u ? "checked" : ""}><span>Der Schulstundenplan steht noch nicht fest. Ich trage die Zeiten über denselben Link nach.</span></label>
+    </div>
+    <div class="act"><button class="save" id="save" type="button">Speichern</button><span id="msg" role="status"></span></div>
+    <p class="s" style="margin-top:24px">Deine Angaben werden auf diesem Gerät verschlüsselt und sind nur für ${f.lp ? esc(f.lp) : "deine Lehrperson"} lesbar. Andere Familien sehen sie nicht. Nach der Planung werden sie gelöscht. <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz</a></p>`;
+  p.querySelectorAll(".cell").forEach(b => setCell(b, c[b.dataset.k] || 0));
+}
+p.addEventListener("pointerdown", e => {
+  if (e.pointerType !== "mouse" || e.button) return;
+  const b = e.target.closest(".cell"); if (!b) return;
+  paint = next(c[b.dataset.k] || 0); skip = true; setCell(b, paint); e.preventDefault();
+});
+p.addEventListener("pointerover", e => { if (paint === null) return; const b = e.target.closest(".cell"); if (b) setCell(b, paint); });
+addEventListener("pointerup", () => { paint = null; });
+p.addEventListener("click", e => {
+  const d = e.target.closest("[data-day]");
+  if (d){ const l = [...p.querySelectorAll(`.cell[data-t="${d.dataset.day}"]`)], v = next(c[l[0].dataset.k] || 0); l.forEach(b => setCell(b, v)); return; }
+  if (e.target.closest("#save")){ save(); return; }
+  const b = e.target.closest(".cell"); if (!b) return;
+  if (skip){ skip = false; return; }
+  setCell(b, next(c[b.dataset.k] || 0));
+});
+function fits(){
+  const r = f.raster, n = Math.ceil(f.dauer / r);
+  return Object.keys(c).some(id => { const [t, h] = id.split("-"); for (let i = 0; i < n; i++) if (!c[t + "-" + T(M(h) + i * r)]) return false; return true; });
+}
+async function save(){
+  const msg = document.getElementById("msg"), btn = document.getElementById("save"), u = document.getElementById("unk").checked;
+  msg.className = "";
+  if (!u && !Object.keys(c).length){ msg.className = "err"; msg.textContent = "Bitte markiere mindestens eine Zeit."; return; }
+  if (!u && !fits()){ msg.className = "err"; msg.textContent = `Bitte markiere mindestens einmal ${f.dauer} Minuten am Stück.`; return; }
+  btn.disabled = true; msg.textContent = "Wird gespeichert …";
+  try {
+    await post("fput", {t: token, ans: await enc({v: 1, c, n: document.getElementById("note").value.trim().slice(0, 500), u, at: Date.now()})});
+    msg.className = "ok"; msg.textContent = `Gespeichert. Du kannst die Zeiten über diesen Link bis ${dat(f.frist)} ändern.`;
+  } catch(e) {
+    msg.className = "err"; msg.textContent = e.status === 410 ? "Die Eintragung ist bereits abgeschlossen." : "Das hat nicht geklappt. Prüfe die Verbindung und versuche es nochmals.";
+  }
+  btn.disabled = false;
+}
+addEventListener("hashchange", () => location.reload());
+function result(){
+  const r = f.res, von = M(r.zeit);
+  p.innerHTML = `<p class="brand">Klassenbuch${f.lp ? " · " + esc(f.lp) : ""}</p><h1>Stundenplan für ${esc(f.name)}</h1><p>${esc(f.titel)}</p>
+    <div class="card"><p class="s">Die Lektion findet neu hier statt:</p><p class="res">${DAYS[r.tag]}, ${T(von)}–${T(von + f.dauer)}</p>${r.ort ? `<p>${esc(r.ort)}</p>` : ""}</div>`;
+}
+(async () => {
+  const raw = location.hash.slice(1);
+  if (!/^[A-Za-z0-9_-]{22}$/.test(raw)) return stop("Dieser Link ist unvollständig", "Bitte öffne den ganzen Link aus der Nachricht deiner Lehrperson.");
+  try {
+    key = await crypto.subtle.importKey("raw", fromUrl(raw), "AES-GCM", false, ["encrypt", "decrypt"]);
+    token = [...new Uint8Array(await crypto.subtle.digest("SHA-256", te.encode("klassenbuch-form-v1:" + raw)))].map(x => x.toString(16).padStart(2, "0")).join("").slice(0, 32);
+    const r = await post("fget", {t: token});
+    f = await dec(r.form);
+    if (f.res) return result();
+    view(r.ans ? await dec(r.ans) : null);
+  } catch(e) {
+    if (e.status === 404) return stop("Dieser Link gilt nicht mehr", "Bitte frage bei deiner Lehrperson nach.");
+    if (e.status === 410) return stop("Die Eintragung ist abgeschlossen", "Falls sich noch etwas geändert hat, melde dich bitte bei deiner Lehrperson.");
+    stop("Das hat nicht geklappt", "Prüfe die Verbindung und lade die Seite neu.");
+  }
+})();
+</script></body></html>

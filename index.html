@@ -351,7 +351,7 @@ async function api(action, body){
 
 /* --- Lokale Datensätze: meta, books, lesson:<id>, pdf:<id> --- */
 function recOf(key){
-  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, plan: db.plan || null, msEdit: db.msEdit || null, lehrplan: db.lehrplan || null, rechnung: db.rechnung || null, invoices: db.invoices || [], stvCols: db.stvCols || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null};
+  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, plan: db.plan || null, msEdit: db.msEdit || null, lehrplan: db.lehrplan || null, rechnung: db.rechnung || null, invoices: db.invoices || [], stvCols: db.stvCols || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null, planung: db.planung || null};
   if (key === "books") return {books};
   if (key.startsWith("lesson:")) return db.lessons.find(l => l.id === key.slice(7)) || null;
   if (key.startsWith("ink:")){ const v = ink[key.slice(4)]; return v && Object.keys(v.p || {}).length ? v : null; }
@@ -381,7 +381,7 @@ function remoteRender(){ if (!(loaded.meta && loaded.lessons)) return; if (!docu
 document.addEventListener("focusout", () => setTimeout(() => { if (pendingRender && !busyTyping()){ pendingRender = false; render(); } }, 50));
 
 function applyRec(key, v){
-  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.plan = v ? v.plan || null : null; db.msEdit = v ? v.msEdit || null : null; db.lehrplan = v ? v.lehrplan || null : null; db.rechnung = v ? v.rechnung || null : null; db.invoices = v ? v.invoices || [] : []; db.stvCols = v ? v.stvCols || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
+  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.plan = v ? v.plan || null : null; db.msEdit = v ? v.msEdit || null : null; db.lehrplan = v ? v.lehrplan || null : null; db.rechnung = v ? v.rechnung || null : null; db.planung = v ? v.planung || null : null; db.invoices = v ? v.invoices || [] : []; db.stvCols = v ? v.stvCols || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
   else if (key === "books") books = v ? v.books || [] : [];
   else if (key.startsWith("ink:")){ const k = key.slice(4); if (v) ink[k] = v; else delete ink[k]; if (typeof pvInkRemote === "function") pvInkRemote(k); }
   else if (key.startsWith("lesson:")){ const id = key.slice(7), i = db.lessons.findIndex(l => l.id === id); if (v){ v.id = id; if (i < 0) db.lessons.push(v); else db.lessons[i] = v; } else if (i >= 0) db.lessons.splice(i, 1); }
@@ -670,7 +670,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.09-2013 · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.09-2346 · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -743,6 +743,289 @@ document.addEventListener("click", ev => {
   }
 });
 
+/* ---------- Stundenplanung: Verfügbarkeiten per Link einholen, Vorschlag rechnen ----------
+   Pro Person gibt es einen zufälligen Schlüssel k (nur im Link-Teil nach #, also nie auf dem Server).
+   Der Server kennt nur t = sha256("klassenbuch-form-v1:" + k) und verschlüsselte Texte.
+   Die Antworten liegen nur auf dem Server und im Arbeitsspeicher; db.planung enthält Rahmen, Links und Zuteilung. */
+let pl = {id: null, ans: {}, busy: false, err: "", sel: null};
+const PL_DAY = ["", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+const plR = () => (db.planung || []).find(r => r.id === pl.id) || null;
+const plM = t => { const [h, m] = String(t || "").split(":").map(Number); return (h || 0) * 60 + (m || 0); };
+const plT = m => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+const plFirst = n => String(n || "").trim().split(/\s+/)[0] || "";
+const plB64u = u => b64(u).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const plKey = () => plB64u(crypto.getRandomValues(new Uint8Array(16)));
+const plUrl = k => location.origin + location.pathname.replace(/[^/]*$/, "") + "verfuegbarkeit.html#" + k;
+const plK = k => crypto.subtle.importKey("raw", unb64(k.replace(/-/g, "+").replace(/_/g, "/") + "=="), "AES-GCM", false, ["encrypt", "decrypt"]);
+async function plTok(k){ return hex(await crypto.subtle.digest("SHA-256", te.encode("klassenbuch-form-v1:" + k))).slice(0, 32); }
+async function plEnc(k, o){ const iv = crypto.getRandomValues(new Uint8Array(12)), ct = new Uint8Array(await crypto.subtle.encrypt({name: "AES-GCM", iv}, await plK(k), te.encode(JSON.stringify(o)))), u = new Uint8Array(12 + ct.length); u.set(iv); u.set(ct, 12); return b64(u); }
+async function plDec(k, s){ const u = unb64(s); return JSON.parse(td.decode(await crypto.subtle.decrypt({name: "AES-GCM", iv: u.subarray(0, 12)}, await plK(k), u.subarray(12)))); }
+
+function plPeople(s){
+  const m = s.typ === "Gruppe" ? gMembers(s).filter(x => x.name) : [];
+  return m.length ? m.map(x => ({m: x.name, label: plFirst(x.name), mail: x.mail || ""})) : [{m: "", label: plFirst(s.name), mail: s.mail || ""}];
+}
+const plWins = (r, s) => r.fenster.filter(w => w.von && w.bis && plM(w.von) < plM(w.bis) && (!w.schule || w.schule === s.schule));
+function plEnd(frist){ return new Date(frist + "T23:59:59").getTime(); }
+
+function plNew(){
+  const fen = {};
+  for (const s of sorted()){ if (!s.tag || !s.zeit) continue; const k = s.tag + "|" + (s.schule || ""), a = plM(s.zeit), e = a + (s.dauer || 30); if (!fen[k]) fen[k] = {tag: s.tag, von: a, bis: e, schule: s.schule || ""}; fen[k].von = Math.min(fen[k].von, a); fen[k].bis = Math.max(fen[k].bis, e); }
+  const r = {id: uid(), titel: "Nächstes Semester", lp: (db.rechnung && db.rechnung.name) || "", frist: iso(addDays(new Date(), 14)), raster: 30, wechsel: 15, pause: 0, hinweis: "",
+    fenster: Object.values(fen).sort((a, b) => a.tag - b.tag || a.von - b.von).map(w => ({...w, von: plT(w.von), bis: plT(w.bis)})), sids: sorted().map(s => s.id), links: {}, assign: {}, sent: 0, shared: false, dirty: false};
+  if (!r.fenster.length) r.fenster.push({tag: 1, von: "13:00", bis: "18:00", schule: ""});
+  (db.planung ||= []).push(r); pl.id = r.id; save(); render();
+}
+
+function plForm(r, s, l){
+  const a = r.shared && r.assign[s.id], win = a ? plWins(r, s).find(w => w.tag === a.tag && plM(a.zeit) >= plM(w.von) && plM(a.zeit) < plM(w.bis)) : null;
+  return {v: 1, titel: r.titel, lp: r.lp, name: l.label, dauer: s.dauer || 30, raster: r.raster, frist: r.frist, hinweis: r.hinweis,
+    fenster: plWins(r, s).map(w => ({tag: w.tag, von: w.von, bis: w.bis})), res: a ? {tag: a.tag, zeit: a.zeit, ort: (win && win.schule) || s.schule || ""} : null};
+}
+async function plPublish(r){
+  const bad = r.sids.map(S).filter(s => s && !plWins(r, s).length);
+  if (!r.titel.trim() || !r.frist){ toast("Bitte Titel und Frist eintragen."); return; }
+  if (!r.sids.length){ toast("Bitte mindestens eine Person auswählen."); return; }
+  if (bad.length){ toast(`Für ${bad.map(s => s.name).join(", ")} passt noch keine deiner Zeiten.`); return; }
+  pl.busy = true; render();
+  try {
+    const old = Object.entries(r.links || {}), links = {};
+    for (const sid of r.sids){ const s = S(sid); if (!s) continue; const cur = r.links[sid] || []; links[sid] = plPeople(s).map(p => { const x = cur.find(c => c.m === p.m); return x ? {...x, label: p.label} : {k: plKey(), m: p.m, label: p.label}; }); }
+    const keep = new Set(Object.values(links).flat().map(l => l.k)), gone = old.flatMap(([, ls]) => ls).filter(l => !keep.has(l.k)), now = Date.now(), forms = [];
+    for (const sid in links){ const s = S(sid); for (const l of links[sid]) forms.push({t: await plTok(l.k), data: await plEnc(l.k, plForm(r, s, l)), exp: r.shared ? Math.max(plEnd(r.frist), now + 30 * 864e5) : plEnd(r.frist)}); }
+    for (let i = 0; i < forms.length; i += 40) await api("fset", {forms: forms.slice(i, i + 40)});
+    if (gone.length) await api("fdel", {ts: await Promise.all(gone.map(l => plTok(l.k)))});
+    r.links = links; r.sent = now; r.dirty = false; save(); delete pl.ans[r.id];
+    toast(r.shared ? "Die Zeiten sind über die Links sichtbar." : "Links sind bereit.");
+  } catch(e) { toast(e.code === "not_found" ? "Der Server ist noch nicht aktualisiert." : "Das hat nicht geklappt. Prüfe die Verbindung."); }
+  pl.busy = false; render();
+}
+async function plLoad(r){
+  pl.busy = true; pl.err = "";
+  const out = {};
+  try {
+    const all = Object.values(r.links || {}).flat(), byT = {};
+    for (const l of all) byT[await plTok(l.k)] = l.k;
+    const ts = Object.keys(byT);
+    for (let i = 0; i < ts.length; i += 150){
+      const a = await api("fread", {ts: ts.slice(i, i + 150)});
+      for (const it of a.items || []) if (it.ans){ try { out[byT[it.t]] = await plDec(byT[it.t], it.ans); } catch(e) { /* beschädigte Antwort überspringen */ } }
+    }
+  } catch(e) { pl.err = "Die Antworten konnten nicht geladen werden. Prüfe die Verbindung."; }
+  pl.ans[r.id] = out; pl.busy = false; render();
+}
+
+/* --- Rechnen --- */
+function plEntries(r){
+  const ans = pl.ans[r.id] || {};
+  const step = r.sids.map(S).every(s => !s || (s.dauer || 30) % 15 === 0) && r.pause % 15 === 0 ? 15 : 5;
+  return r.sids.map(S).filter(Boolean).map(s => {
+    const links = (r.links && r.links[s.id]) || [], got = links.map(l => ({l, a: ans[l.k]}));
+    const usable = got.filter(x => x.a && !(x.a.u && !Object.keys(x.a.c || {}).length));
+    const e = {id: s.id, s, dur: s.dauer || 30, links, open: got.filter(x => !x.a).map(x => x.l.label), unk: got.filter(x => x.a && x.a.u).map(x => x.l.label), notes: got.filter(x => x.a && x.a.n).map(x => ({who: x.l.label, n: x.a.n})), answered: usable.length > 0, cands: []};
+    if (!usable.length) return e;
+    const lvl = key => Math.min(...usable.map(x => (x.a.c || {})[key] || 0)), seen = new Set(), ra = r.raster;
+    for (const w of plWins(r, s)){
+      const a = plM(w.von), b = plM(w.bis);
+      for (let m = a; m + e.dur <= b; m += (m === a && a % step ? step - a % step : step)){
+        const id = w.tag + "-" + m; if (seen.has(id)) continue; seen.add(id);
+        let v = 2;
+        for (let c = Math.floor(m / ra) * ra; c < m + e.dur && v; c += ra) v = Math.min(v, lvl(w.tag + "-" + plT(c)));
+        if (v) e.cands.push({tag: w.tag, start: m, end: m + e.dur, lvl: v, schule: w.schule || s.schule || ""});
+      }
+    }
+    return e;
+  });
+}
+function plClash(o, a, b){ if (a.tag !== b.tag) return false; const g = a.schule && b.schule && a.schule !== b.schule ? Math.max(o.wechsel, o.pause) : o.pause; return a.start < b.end + g && b.start < a.end + g; }
+function plCost(list, missed){
+  let c = missed * 1e5; const day = {};
+  for (const x of list){ if (x.lvl === 1) c += 100; (day[x.tag] ||= []).push(x); }
+  for (const t in day){ c += 30; const l = day[t].sort((a, b) => a.start - b.start); for (let i = 1; i < l.length; i++) c += Math.max(0, l[i].start - l[i - 1].end); }
+  return c;
+}
+/* Wer am wenigsten Möglichkeiten hat, kommt zuerst. Viele Durchläufe mit Zufall, danach Umhängen und Feinschliff. */
+function plSolve(es, o, runs){
+  let seed = 20261109; const rnd = () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const fixed = es.filter(e => e.fixed), free = es.filter(e => !e.fixed && e.cands.length);
+  let best = null;
+  for (let run = 0; run < (runs || 150); run++){
+    const got = new Map(fixed.map(e => [e.id, e.fixed])), missed = [];
+    let todo = free.slice();
+    while (todo.length){
+      const cur = [...got.values()]; let pick = null, n = Infinity, val = null;
+      for (const e of todo){ const v = e.cands.filter(c => !cur.some(p => plClash(o, c, p))), w = v.length + rnd() * .9; if (w < n){ n = w; pick = e; val = v; } }
+      todo = todo.filter(e => e !== pick);
+      if (!val.length){ missed.push(pick); continue; }
+      let c0 = null, s0 = Infinity;
+      for (const c of val){ const same = cur.filter(p => p.tag === c.tag), near = same.length ? Math.min(...same.map(p => Math.max(c.start - p.end, p.start - c.end))) : 0, sc = (c.lvl === 1 ? 100 : 0) + (same.length ? 0 : 30) + Math.min(near, 120) * .5 + rnd() * 6; if (sc < s0){ s0 = sc; c0 = c; } }
+      got.set(pick.id, c0);
+    }
+    for (let i = missed.length - 1; i >= 0; i--){
+      const u = missed[i]; let done = false;
+      for (const c of u.cands){
+        const blk = [...got].filter(([, p]) => plClash(o, c, p));
+        if (!blk.length){ got.set(u.id, c); done = true; break; }
+        if (blk.length > 1 || fixed.some(f => f.id === blk[0][0])) continue;
+        const b = es.find(e => e.id === blk[0][0]), rest = [...got].filter(([id]) => id !== b.id).map(x => x[1]);
+        const alt = b.cands.filter(x => !plClash(o, x, c) && !rest.some(p => plClash(o, x, p))).sort((x, y) => y.lvl - x.lvl)[0];
+        if (alt){ got.set(b.id, alt); got.set(u.id, c); done = true; break; }
+      }
+      if (done) missed.splice(i, 1);
+    }
+    const cost = plCost([...got.values()], missed.length);
+    if (!best || cost < best.cost) best = {cost, got, missed};
+  }
+  if (!best) return {got: new Map(fixed.map(e => [e.id, e.fixed])), missed: []};
+  for (let pass = 0; pass < 3; pass++) for (const e of free){
+    if (!best.got.has(e.id)) continue;
+    for (const c of e.cands){
+      const others = [...best.got].filter(([id]) => id !== e.id).map(x => x[1]);
+      if (others.some(p => plClash(o, c, p))) continue;
+      const cost = plCost([...others, c], best.missed.length);
+      if (cost < best.cost){ best.got.set(e.id, c); best.cost = cost; }
+    }
+  }
+  return best;
+}
+function plCalc(r){
+  const es = plEntries(r);
+  for (const e of es){ const a = r.assign[e.id]; if (a && a.fix){ const m = plM(a.zeit); e.fixed = e.cands.find(c => c.tag === a.tag && c.start === m) || {tag: a.tag, start: m, end: m + e.dur, lvl: 0, schule: e.s.schule || ""}; } }
+  const res = plSolve(es, r, es.some(e => (e.dur % 15) || r.pause % 15) ? 60 : 150), asg = {};
+  for (const [id, c] of res.got){ const old = r.assign[id]; asg[id] = {tag: c.tag, zeit: plT(c.start), ...(old && old.fix ? {fix: true} : {})}; }
+  r.assign = asg; r.calc = Date.now(); pl.sel = null; save(); render();
+}
+function plPlaced(r, es){ return es.filter(e => r.assign[e.id]).map(e => { const a = r.assign[e.id], m = plM(a.zeit), c = e.cands.find(x => x.tag === a.tag && x.start === m); return {e, a, tag: a.tag, start: m, end: m + e.dur, lvl: c ? c.lvl : 0, schule: (c && c.schule) || e.s.schule || ""}; }); }
+function plProblems(r, es){
+  const pld = plPlaced(r, es), out = [], when = c => `${TAGE[c.tag]} ${plT(c.start)}`;
+  for (const p of pld){
+    if (!p.lvl) out.push({k: "da", t: `${p.e.s.name}: ${when(p)} liegt ausserhalb der angegebenen Zeiten.`, sid: p.e.id});
+    for (const q of pld) if (q.e.id > p.e.id && plClash(r, p, q)) out.push({k: "da", t: `${p.e.s.name} und ${q.e.s.name} überschneiden sich am ${when(p)}.`, sid: p.e.id});
+  }
+  for (const e of es){
+    if (r.assign[e.id]) continue;
+    if (!e.answered) continue;
+    if (!e.cands.length){ out.push({k: "da", t: `${e.s.name}: keine Zeit mit ${e.dur} Minuten am Stück innerhalb deiner Zeiten.`, sid: e.id}); continue; }
+    const names = [...new Set(e.cands.flatMap(c => pld.filter(p => plClash(r, c, p)).map(p => plFirst(p.e.s.name))))];
+    const zeiten = e.cands.length <= 3 ? e.cands.map(when).join(", ") : [...new Set(e.cands.map(c => TAGE[c.tag]))].join(", ");
+    out.push({k: "da", t: `${e.s.name} kann nur ${zeiten}. Dort ${names.length > 1 ? "sind" : "ist"} ${names.join(", ") || "jemand"} eingeplant und lässt sich nicht verschieben.`, sid: e.id, act: "Lösung wählen"});
+  }
+  return out;
+}
+
+/* --- Ansicht --- */
+const PL_CSS = `<style>
+.pl-l{display:grid;gap:8px}.pl-w{display:grid;grid-template-columns:minmax(70px,.8fr) 1fr 1fr minmax(90px,1.2fr) auto;gap:6px;align-items:center}
+.pl-s{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--bd)}.pl-s:last-child{border-bottom:0}.pl-s .n{min-width:0;flex:1 1 160px}
+.pl-wk{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(165px,1fr))}.pl-d{display:grid;gap:6px;align-content:start}
+.pl-b{display:block;width:100%;text-align:left;padding:7px 10px;border-radius:8px;min-height:44px;border:1px solid transparent;background:var(--okbg);color:var(--ok)}.pl-b:hover{background:var(--okbg)}
+.pl-b b{display:block;color:var(--tx);font-weight:600}.pl-b.l1{background:var(--wabg);color:var(--wa)}.pl-b.l0{background:var(--dabg);color:var(--da)}.pl-b.on{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac)}
+.pl-gap{font-size:12px;color:var(--tx3);text-align:center}
+.pl-c{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 10px}.pl-c button{min-height:32px;padding:3px 9px;font-size:13px;font-variant-numeric:tabular-nums;border-color:transparent}.pl-c .l2{background:var(--okbg);color:var(--ok)}.pl-c .l1{background:var(--wabg);color:var(--wa)}.pl-c .x{background:var(--soft);color:var(--tx2)}
+@media (max-width:520px){.pl-w{grid-template-columns:1fr 1fr}.pl-w>:first-child,.pl-w>:nth-child(4){grid-column:span 2}}
+</style>`;
+function plList(){
+  const list = db.planung || [];
+  app.innerHTML = `${PL_CSS}<h2>Stundenplanung</h2>
+    ${syncOn() ? "" : `<div class="banner">Für die Links brauchst du ein Konto. Richte es unter <a href="#daten">Einstellungen</a> ein.</div>`}
+    <p class="muted" style="max-width:62ch">Lege deine Zeiten fest und schicke jeder Familie einen persönlichen Link. Das Klassenbuch rechnet aus den Antworten einen Vorschlag und zeigt, wo es nicht aufgeht.</p>
+    <div class="pl-l" style="margin:12px 0">${list.map(r => `<div class="card row"><div style="flex:1;min-width:0"><b>${esc(r.titel)}</b><div class="small muted">${r.sids.length} Einträge · Frist ${fmt(r.frist, 1)}${r.shared ? " · Zeiten mitgeteilt" : r.sent ? " · Links verschickt" : " · Entwurf"}</div></div><button data-pl="open" data-v="${r.id}">Öffnen</button></div>`).join("")}</div>
+    <button class="pri" data-pl="new" ${syncOn() ? "" : "disabled"}>Neue Planung</button>`;
+}
+function vPlanung(){
+  if (!feat("pl")){ location.hash = "woche"; return; }
+  const r = plR();
+  if (!r) return plList();
+  if (r.sent && !pl.ans[r.id] && !pl.busy){ plLoad(r); }
+  const ans = pl.ans[r.id] || {}, es = plEntries(r), people = es.reduce((a, e) => a + e.links.length, 0), done = es.reduce((a, e) => a + e.links.filter(l => ans[l.k]).length, 0);
+  const schOpts = v => `<option value="">Alle</option>` + schulen().map(k => `<option ${k === v ? "selected" : ""}>${esc(k)}</option>`).join("");
+  const frame = `<div class="f"><div><label for="pl-t">Titel</label><input id="pl-t" data-plf="titel" value="${esc(r.titel)}"></div>
+      <div><label for="pl-lp">Dein Name (sehen die Familien)</label><input id="pl-lp" data-plf="lp" value="${esc(r.lp)}"></div>
+      <div><label for="pl-fr">Frist</label><input id="pl-fr" type="date" data-plf="frist" value="${esc(r.frist)}"></div>
+      <div><label for="pl-ra">Raster</label><select id="pl-ra" data-plf="raster" data-num>${[15, 30].map(n => `<option value="${n}" ${r.raster === n ? "selected" : ""}>${n} Minuten</option>`).join("")}</select></div>
+      <div><label for="pl-pa">Pause zwischen Lektionen (Min.)</label><input id="pl-pa" type="number" min="0" step="5" data-plf="pause" data-num value="${r.pause}"></div>
+      <div><label for="pl-we">Wechsel zwischen Schulen (Min.)</label><input id="pl-we" type="number" min="0" step="5" data-plf="wechsel" data-num value="${r.wechsel}"></div></div>
+    <div style="margin-top:10px"><label for="pl-hi">Hinweis an die Familien (freiwillig)</label><textarea id="pl-hi" data-plf="hinweis">${esc(r.hinweis)}</textarea></div>
+    <h3>Deine Unterrichtszeiten</h3><div class="pl-l">${r.fenster.map((w, i) => `<div class="pl-w"><select aria-label="Tag" data-plw="${i}:tag" data-num>${TAGE.map((t, n) => n ? `<option value="${n}" ${w.tag === n ? "selected" : ""}>${t}</option>` : "").join("")}</select><input type="time" aria-label="Von" data-plw="${i}:von" value="${esc(w.von)}"><input type="time" aria-label="Bis" data-plw="${i}:bis" value="${esc(w.bis)}"><select aria-label="Schule" data-plw="${i}:schule">${schOpts(w.schule)}</select><button class="ghost del small" data-pl="winDel" data-v="${i}" aria-label="Zeit entfernen">✕</button></div>`).join("")}</div>
+    <button class="small" style="margin-top:8px" data-pl="winAdd">Zeit hinzufügen</button>`;
+  const picks = `<div class="row" style="margin-bottom:8px"><button class="small" data-pl="all">Alle</button><button class="small" data-pl="none">Keine</button></div><div class="row">${sorted().map(s => `<button class="chip ${r.sids.includes(s.id) ? "on" : ""}" data-pl="tog" data-v="${s.id}">${esc(s.name)} <span class="num tiny">${s.dauer || 30}′</span></button>`).join("")}</div>`;
+  const stat = e => e.links.map(l => { const a = ans[l.k], name = e.links.length > 1 ? esc(l.label) : "", mail = e.links.length > 1 ? (plPeople(e.s).find(p => p.m === l.m) || {}).mail : e.s.mail;
+    const body = `Hallo\n\nBitte trage bis ${fmt(r.frist, 1)} ein, wann ${l.label} im ${r.titel} Zeit für den Unterricht hat:\n${plUrl(l.k)}\n\nDer Link ist persönlich. Bitte nicht weiterleiten.\n\nLiebe Grüsse\n${r.lp}`;
+    return `<div class="row small"><span class="badge ${a ? (a.u ? "b-wa" : "b-ok") : "b-gr"}">${a ? (a.u ? "Plan offen" : "✓ eingetragen") : "fehlt"}</span>${name ? `<span>${name}</span>` : ""}<span class="sp"></span><button class="ghost small" data-pl="copy" data-v="${esc(l.k)}">Link kopieren</button>${mail ? `<a class="btn ghost small" style="border-color:transparent" href="mailto:${esc(mail)}?subject=${encodeURIComponent(r.titel + ": Unterrichtszeiten")}&body=${encodeURIComponent(body)}">E-Mail</a>` : ""}</div>`; }).join("");
+  const status = `<div class="row" style="margin-bottom:6px"><b class="num">${done} von ${people}</b><span class="small muted">haben eingetragen · Frist ${fmt(r.frist, 1)}</span><span class="sp"></span><button class="small" data-pl="reload" ${pl.busy ? "disabled" : ""}>Aktualisieren</button><button class="small" data-pl="copyAll">Alle Links kopieren</button></div>
+    ${pl.err ? `<div class="banner">${esc(pl.err)}</div>` : ""}
+    ${es.map(e => `<div class="pl-s"><div class="n"><b>${esc(e.s.name)}</b> <span class="tiny num">${e.dur} Min.</span>${e.notes.map(n => `<div class="small muted">${e.links.length > 1 ? esc(n.who) + ": " : ""}${esc(n.n)}</div>`).join("")}</div><div style="flex:1 1 240px;min-width:0">${stat(e)}</div></div>`).join("")}`;
+  let plan = "";
+  if (r.sent){
+    const pld = plPlaced(r, es), tags = [...new Set([...r.fenster.map(w => w.tag), ...pld.map(p => p.tag)])].sort((a, b) => a - b), probs = plProblems(r, es);
+    const missing = es.filter(e => !e.answered), notf = pld.filter(p => p.lvl === 1), sel = pl.sel && es.find(e => e.id === pl.sel);
+    const wk = !pld.length ? "" : `<div class="pl-wk">${tags.map(t => { const l = pld.filter(p => p.tag === t).sort((a, b) => a.start - b.start); return `<div class="pl-d"><b>${PL_DAY[t]}</b>${l.map((p, i) => { const gap = i ? p.start - l[i - 1].end : 0; return `${gap > 0 ? `<div class="pl-gap num">${gap} Min. frei</div>` : ""}<button class="pl-b l${p.lvl} ${pl.sel === p.e.id ? "on" : ""}" data-pl="sel" data-v="${p.e.id}"><span class="num small">${plT(p.start)}–${plT(p.end)}${p.a.fix ? " · fixiert" : ""}${p.lvl === 1 ? " · notfalls" : ""}</span><b>${esc(p.e.s.name)}</b></button>`; }).join("") || `<span class="tiny">frei</span>`}</div>`; }).join("")}</div>`;
+    let picker = "";
+    if (sel){
+      const byDay = {}, a0 = r.assign[sel.id];
+      for (const c of sel.cands){ const adj = pld.some(p => p.e.id !== sel.id && (p.end + r.pause === c.start || c.end + r.pause === p.start)); if (c.start % 15 && !adj) continue; (byDay[c.tag] ||= []).push(c); }
+      picker = `<div class="card" style="margin-top:12px"><div class="row"><b>${esc(sel.s.name)} verschieben</b><span class="sp"></span>${a0 && a0.fix ? `<button class="small" data-pl="unfix">Fixierung lösen</button>` : ""}${a0 ? `<button class="small del" data-pl="clear">Ohne Zeit</button>` : ""}<button class="ghost small" data-pl="sel" data-v="">Schliessen</button></div>
+        <p class="tiny">Grün passt gut, gelb geht notfalls, grau ist belegt: Wer dort eingeplant ist, verliert die Zeit.</p>
+        ${Object.keys(byDay).map(t => `<div class="small"><b>${PL_DAY[t]}</b></div><div class="pl-c">${byDay[t].map(c => { const blk = pld.filter(p => p.e.id !== sel.id && plClash(r, c, p)); return `<button class="${blk.length ? "x" : "l" + c.lvl}" data-pl="move" data-v="${c.tag}|${c.start}" title="${esc(blk.map(p => p.e.s.name).join(", "))}">${plT(c.start)}${blk.length ? " (" + esc(plFirst(blk[0].e.s.name)) + ")" : ""}</button>`; }).join("")}</div>`).join("") || `<p class="muted small">Keine möglichen Zeiten.</p>`}</div>`;
+    }
+    const plc = pld.length;
+    plan = `<div class="card">
+      <div class="row"><button class="pri" data-pl="calc" ${es.some(e => e.answered) ? "" : "disabled"}>${plc ? "Neu berechnen" : "Vorschlag berechnen"}</button>${plc ? `<span class="small muted num">${plc} von ${es.length} eingeplant${notf.length ? ` · ${notf.length} notfalls` : ""}</span>` : ""}</div>
+      ${plc ? `<p class="tiny" style="margin-bottom:10px">Tippe auf eine Lektion, um sie zu verschieben. Verschobene Lektionen bleiben beim Neuberechnen fixiert.</p>${wk}` : `<p class="muted small" style="margin-bottom:0">Der Vorschlag lässt sich jederzeit neu berechnen, auch wenn noch Antworten fehlen.</p>`}
+      ${picker}
+      ${probs.length || missing.length ? `<h3>Noch zu lösen</h3>${probs.map(p => `<div class="row small" style="padding:5px 0"><span class="badge b-da">Konflikt</span><span style="flex:1 1 240px;min-width:0">${esc(p.t)}</span>${p.act && p.sid ? `<button class="small" data-pl="sel" data-v="${p.sid}">${esc(p.act)}</button>` : ""}</div>`).join("")}${missing.length ? `<div class="row small" style="padding:5px 0"><span class="badge b-gr">Fehlt</span><span style="flex:1 1 240px;min-width:0">Keine Zeiten von: ${esc(missing.map(e => e.s.name).join(", "))}</span></div>` : ""}` : plc ? `<p class="small" style="color:var(--ok)">Alle sind eingeplant, keine Konflikte.</p>` : ""}
+      ${plc ? `<div class="row" style="margin-top:14px"><button data-pl="share">${r.shared ? "Zeiten erneut mitteilen" : "Zeiten den Familien zeigen"}</button><button data-pl="apply">Ins Klassenbuch übernehmen</button></div>` : ""}
+    </div>`;
+  }
+  app.innerHTML = `${PL_CSS}<div class="row" style="margin-bottom:6px"><button class="ghost small" data-pl="back">← Alle Planungen</button><span class="sp"></span><button class="ghost del small" data-pl="del">Planung löschen</button></div>
+    <h2>${esc(r.titel)}</h2>
+    ${r.dirty && r.sent ? `<div class="banner row"><span style="flex:1 1 200px">Der Rahmen hat sich geändert. Die Links zeigen noch den alten Stand.</span><button data-pl="send" ${pl.busy ? "disabled" : ""}>Links aktualisieren</button></div>` : ""}
+    ${r.sent ? `<details class="card"><summary><b>Rahmen und Auswahl</b></summary><div style="margin-top:12px">${frame}<h3>Schüler:innen</h3>${picks}</div></details>
+      <h3>Antworten</h3><div class="card">${status}</div><h3>Vorschlag</h3>${plan}`
+    : `<h3>Rahmen</h3><div class="card">${frame}</div><h3>Schüler:innen</h3><div class="card">${picks}</div>
+      <div class="row" style="margin-top:14px"><button class="pri" data-pl="send" ${pl.busy ? "disabled" : ""}>${pl.busy ? "Wird erstellt …" : `Links erstellen (${r.sids.length})`}</button></div>`}`;
+  app.querySelectorAll("textarea").forEach(autosize);
+}
+function plCopy(text, ok){ navigator.clipboard.writeText(text).then(() => toast(ok), () => toast("Kopieren nicht möglich. Öffne die App im Browser oder kopiere einzeln.")); }
+document.addEventListener("click", ev => {
+  const b = ev.target.closest("[data-pl]"); if (!b) return;
+  const a = b.dataset.pl, v = b.dataset.v, r = plR();
+  const touch = () => { if (r.sent) r.dirty = true; save(); render(); };
+  switch (a){
+    case "new": plNew(); break;
+    case "open": pl.id = v; pl.sel = null; render(); break;
+    case "back": pl.id = null; pl.sel = null; render(); break;
+    case "tog": r.sids = r.sids.includes(v) ? r.sids.filter(x => x !== v) : [...r.sids, v]; touch(); break;
+    case "all": r.sids = sorted().map(s => s.id); touch(); break;
+    case "none": r.sids = []; touch(); break;
+    case "winAdd": { const l = r.fenster[r.fenster.length - 1]; r.fenster.push(l ? {...l} : {tag: 1, von: "13:00", bis: "18:00", schule: ""}); touch(); break; }
+    case "winDel": r.fenster.splice(+v, 1); touch(); break;
+    case "send": plPublish(r); break;
+    case "reload": plLoad(r); break;
+    case "copy": plCopy(plUrl(v), "Link kopiert"); break;
+    case "copyAll": plCopy(plEntries(r).flatMap(e => e.links.map(l => `${e.s.name}${e.links.length > 1 ? " (" + l.label + ")" : ""}: ${plUrl(l.k)}`)).join("\n"), "Alle Links kopiert"); break;
+    case "calc": plCalc(r); break;
+    case "sel": pl.sel = v && pl.sel !== v ? v : null; render(); break;
+    case "move": { const [t, m] = v.split("|").map(Number), e = plEntries(r).find(x => x.id === pl.sel), c = e.cands.find(x => x.tag === t && x.start === m), out = plPlaced(r, plEntries(r)).filter(p => p.e.id !== e.id && plClash(r, c, p));
+      out.forEach(p => delete r.assign[p.e.id]);
+      r.assign[e.id] = {tag: t, zeit: plT(m), fix: true}; pl.sel = null; save(); render();
+      if (out.length) toast(`${out.map(p => p.e.s.name).join(", ")} ${out.length > 1 ? "haben" : "hat"} jetzt keine Zeit mehr.`); break; }
+    case "unfix": delete r.assign[pl.sel].fix; save(); render(); break;
+    case "clear": delete r.assign[pl.sel]; pl.sel = null; save(); render(); break;
+    case "share": ask("Die Familien sehen über ihren Link ihre Lektionszeit. Eintragen ist dann nicht mehr möglich.", "Zeiten zeigen", () => { r.shared = true; plPublish(r); }); break;
+    case "apply": ask("Wochentag und Zeit werden bei allen Eingeplanten sofort geändert, auch in der laufenden Woche. Mach das, wenn das neue Semester beginnt.", "Übernehmen", () => { let n = 0; for (const id in r.assign){ const s = S(id); if (s){ s.tag = r.assign[id].tag; s.zeit = r.assign[id].zeit; n++; } } save(); toast(`${n} Zeiten übernommen`); }); break;
+    case "del": ask("Die Planung und alle Antworten werden gelöscht. Die Links funktionieren danach nicht mehr.", "Löschen", async () => {
+      try { const ts = await Promise.all(Object.values(r.links || {}).flat().map(l => plTok(l.k))); for (let i = 0; i < ts.length; i += 150) await api("fdel", {ts: ts.slice(i, i + 150)}); }
+      catch(e) { if (Object.keys(r.links || {}).length){ toast("Das hat nicht geklappt. Prüfe die Verbindung."); return; } }
+      db.planung = db.planung.filter(x => x.id !== r.id); delete pl.ans[r.id]; pl.id = null; save(); render(); toast("Planung gelöscht"); }); break;
+  }
+});
+document.addEventListener("input", ev => {
+  const t = ev.target, r = plR(); if (!r) return;
+  if (t.dataset.plf){ r[t.dataset.plf] = "num" in t.dataset ? +t.value || 0 : t.value; if (r.sent) r.dirty = true; save(); return; }
+  if (t.dataset.plw){ const [i, k] = t.dataset.plw.split(":"); r.fenster[+i][k] = "num" in t.dataset ? +t.value : t.value; if (r.sent) r.dirty = true; save(); }
+});
+
 /* ---------- data helpers ---------- */
 const S = id => db.students.find(x => x.id === id);
 const sorted = () => db.students.filter(s => s.aktiv !== false).slice().sort((a,b) => (a.tag||9)-(b.tag||9) || (a.zeit||"99").localeCompare(b.zeit||"99") || a.name.localeCompare(b.name));
@@ -795,7 +1078,7 @@ function alterTxt(s){ const a = alter(s); if (a !== null) return a + " J.";
 let weekStart = monday(new Date());
 let filt = {schule:"Alle", q:""};
 /* Funktionen, die jede Person unter Einstellungen selbst ein- und ausschaltet (Standard: ein; gilt fürs ganze Konto) */
-const FEATS = [["lp","Lehrplan","Reiter, Ziele bei den SuS und im Elternbericht"],["gn","Allgemeine Notizen","Notizfeld für alle in der Wochenansicht"],["stv","Stellvertretung","Excel-Export für Stellvertretungen"],["bd","Geburtstage","Im Kalender und in der Wochenansicht"],["ink","Stiftnotizen","Zeichnen und markieren im Notenviewer"],["audio","Aufnahmen und Player","Links zu Songs, Play-Alongs ohne Noten"],["voices","Stimmen als Ordner","Stimmen eines Stücks in der Literatur zusammenfassen"],["rg","Rechnungen","Privatlektionen abrechnen"]];
+const FEATS = [["lp","Lehrplan","Reiter, Ziele bei den SuS und im Elternbericht"],["gn","Allgemeine Notizen","Notizfeld für alle in der Wochenansicht"],["stv","Stellvertretung","Excel-Export für Stellvertretungen"],["bd","Geburtstage","Im Kalender und in der Wochenansicht"],["ink","Stiftnotizen","Zeichnen und markieren im Notenviewer"],["audio","Aufnahmen und Player","Links zu Songs, Play-Alongs ohne Noten"],["voices","Stimmen als Ordner","Stimmen eines Stücks in der Literatur zusammenfassen"],["rg","Rechnungen","Privatlektionen abrechnen"],["pl","Stundenplanung","Verfügbarkeiten per Link einholen, Stundenplan vorschlagen"]];
 const feat = k => !(db.features && db.features[k] === false);
 function featCard(){
   return `<h3>Funktionen</h3><div class="card"><div class="fl">${FEATS.map(([k, n, d]) => `<div class="row" style="flex-wrap:nowrap"><div style="flex:1;min-width:0"><b class="small">${n}</b><div class="tiny">${d}</div></div><button class="chip ${feat(k) ? "on" : ""}" data-a="feat" data-v="${k}" aria-pressed="${feat(k)}" aria-label="${n}">${feat(k) ? "Ein" : "Aus"}</button></div>`).join("")}</div><p class="tiny" style="margin-bottom:0">Gilt für alle deine Geräte. Ausgeschaltete Funktionen werden nur ausgeblendet, deine Einträge bleiben erhalten.</p></div>`;
@@ -1081,9 +1364,10 @@ function render(){
   document.getElementById("nav").innerHTML = tabs.map(([k,t]) => `<a href="#${k}" class="${cur===k?"on":""}">${t}</a>`).join("");
   const svgI = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
   const tools = [...(feat("rg") && sorted().some(isPriv) ? [["rechnung", "Rechnungen", '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>']] : []),
+    ...(feat("pl") ? [["planung", "Stundenplanung", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/>']] : []),
     ["daten", "Einstellungen", '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.9l.1-.1a1.7 1.7 0 0 0-1.2-2.8H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.9-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.8 1.2l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>']];
   document.getElementById("tools").innerHTML = tools.map(([k, t, d]) => `<a href="#${k}" class="${cur === k ? "on" : ""}" title="${t}" aria-label="${t}" ${cur === k ? 'aria-current="page"' : ""}>${svgI(d)}</a>`).join("");
-  ({woche:vWoche, sus:vSus, s:()=>vDetail(id), kalender:vKalender, lehrplan:vLehrplan, literatur:vLiteratur, daten:vDatenApp, stv:vStv, rechnung:vRechnung, bericht:()=>vBericht(id)}[v] || vWoche)();
+  ({woche:vWoche, sus:vSus, s:()=>vDetail(id), kalender:vKalender, lehrplan:vLehrplan, literatur:vLiteratur, daten:vDatenApp, stv:vStv, rechnung:vRechnung, planung:vPlanung, bericht:()=>vBericht(id)}[v] || vWoche)();
   app.querySelectorAll("textarea").forEach(autosize);
 }
 function autosize(el){ el.style.height = "auto"; el.style.height = (el.scrollHeight + 2) + "px"; }
@@ -1890,7 +2174,7 @@ async function saveFile(filename, data, type){
 }
 function replaceAll(d){
   delL.clear(); db.lessons.forEach(l => delL.add(l.id)); dirtyL.clear();
-  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null, schulen:d.schulen||null, notiz:d.notiz||"", features:d.features||null, stvCols:d.stvCols||null, lehrplan:d.lehrplan||null, plan:d.plan||null, msEdit:d.msEdit||null, rechnung:d.rechnung||null, invoices:d.invoices||[]};
+  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null, schulen:d.schulen||null, notiz:d.notiz||"", features:d.features||null, stvCols:d.stvCols||null, lehrplan:d.lehrplan||null, plan:d.plan||null, msEdit:d.msEdit||null, rechnung:d.rechnung||null, invoices:d.invoices||[], planung:d.planung||null};
   db.lessons.forEach(l => { delL.delete(l.id); dirtyL.add(l.id); });
   if (Array.isArray(d.books)){ books = d.books; saveBooks(); }
   if (d.ink && typeof d.ink === "object"){ Object.keys(ink).forEach(k => { if (!d.ink[k]){ delete ink[k]; saveInk(k); } }); Object.entries(d.ink).forEach(([k, v]) => { ink[k] = v; saveInk(k); }); }
