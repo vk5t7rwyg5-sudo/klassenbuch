@@ -643,7 +643,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-0849 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-1244 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -837,7 +837,7 @@ function slParse(rows){
     const addr = (s, n, p, o) => L(L(s, n).join(" "), L(p, o).join(" ")).join(", ");
     const fach = g("fach"), dm = fach.match(/(\d{2,3})\s*(?:min\.?|')?\s*$/i);
     out.push({vor, nach, full, fach,
-      typ: /\b(GU\d*|MZ|Gruppe|Ensemble|Kurs|Band)\b/i.test(fach) ? "Gruppe" : "Einzel",
+      typ: /\b(GU\d*|IG\s?\d*|MZ|Gruppe|Ensemble|Kurs|Band)\b|garten/i.test(fach) ? "Gruppe" : "Einzel",
       dauer: dm && +dm[1] >= 15 && +dm[1] <= 120 ? +dm[1] : 0,
       geburt: slDate(g("geb")),
       eltern: L(g("evn"), g("enn")).join(" "),
@@ -867,23 +867,65 @@ function slDiff(r, schule){
   if (r.m.kind === "s" && schule && s.schule !== schule) n++;
   return n;
 }
+/* Schülerliste aus PDF: Spalten über die Kopfzeile bestimmen, Datensätze über die erste Spalte */
+async function pdfRows(buf){
+  const lib = await loadPdfjs(), doc = await lib.getDocument({data: new Uint8Array(buf), isEvalSupported: false}).promise;
+  const key = s => { const t = nrm(s);
+    if (/eltern.*name|^eltern$|erziehung/.test(t)) return "eltern"; if (/(natel|mobil|handy).*eltern/.test(t)) return "emob"; if (/tel.*eltern/.test(t)) return "etel"; if (/mail.*eltern/.test(t)) return "email";
+    if (/natel|mobil|handy/.test(t)) return "mob"; if (/telefon|^tel/.test(t)) return "tel"; if (/mail/.test(t)) return "mail"; if (/geb/.test(t)) return "geb"; if (/plz|postleit/.test(t)) return "plzort"; if (/adresse|strasse/.test(t)) return "str";
+    if (/^vorname/.test(t)) return "vor"; if (/name|schuler|kind/.test(t)) return /name\W+vorname/.test(t) ? "nv" : /vorname\W+name/.test(t) ? "vn" : "nach"; if (/fach|kurs|angebot/.test(t)) return "fach"; return null; };
+  let cols = null; const out = [["fachbezeichnung","vorname","name","geburtsdatum","strasse","postleitzahl","ort","telefon","mobile","email","eltern","eltern1telefon","eltern1mobile","eltern1email"]];
+  let textCount = 0;
+  for (let pn = 1; pn <= doc.numPages; pn++){
+    const pg = await doc.getPage(pn), H = pg.getViewport({scale: 1}).height, items = (await pg.getTextContent()).items.filter(i => i.str.trim()).map(i => ({x: i.transform[4], y: H - i.transform[5], s: i.str.trim()})).sort((a, b) => a.y - b.y || a.x - b.x);
+    textCount += items.length;
+    let start = -Infinity, best = 0, hy = 0;
+    new Set(items.map(i => Math.round(i.y))).forEach(y => { const n = items.filter(i => Math.abs(i.y - y) <= 2 && key(i.s)).length; if (n > best){ best = n; hy = y; } });
+    if (best >= 3){
+      const band = items.filter(i => i.y >= hy - 2 && i.y <= hy + 14).sort((a, b) => a.x - b.x || a.y - b.y); cols = [];
+      band.forEach(i => { const c = cols[cols.length - 1]; if (c && i.x - c.x <= 6) c.keys.push(key(i.s)); else cols.push({x: i.x, keys: [key(i.s)]}); });
+      start = Math.max(...band.map(i => i.y)) + 2;
+    }
+    if (!cols) continue;
+    const colOf = i => { let k = 0; cols.forEach((c, n) => { if (c.x <= i.x + 8) k = n; }); return k; };
+    const clusters = []; items.filter(i => i.y > start).forEach(i => { const c = clusters[clusters.length - 1]; if (c && i.y - c.y <= 3) c.items.push(i); else clusters.push({y: i.y, items: [i]}); });
+    let fach = pdfRows.fach || "", cur = null; const recs = [];
+    clusters.forEach(c => { const first = c.items.filter(i => colOf(i) === 0), rest = c.items.filter(i => colOf(i) > 0);
+      if (first.length && /^\d/.test(first[0].s)){ cur = null; return; } // Summenzeilen
+      if (first.length && rest.length){ cur = {y: c.y, fach, cells: {}}; recs.push(cur); } else if (first.length){ fach = first.map(i => i.s).join(" ").replace(/\s+\d+-\S+$/, ""); cur = null; return; }
+      if (cur) c.items.forEach(i => (cur.cells[colOf(i)] ||= []).push({dy: i.y - cur.y, s: i.s})); });
+    pdfRows.fach = fach;
+    for (const r of recs){
+      const v = {}; cols.forEach((c, n) => { const parts = r.cells[n] || [], ks = c.keys; if (ks.length === 1){ if (ks[0]) v[ks[0]] = parts.map(p => p.s).join(" "); return; }
+        if (ks[0]) v[ks[0]] = parts.filter(p => p.dy < 5).map(p => p.s).join(" "); if (ks[1]) v[ks[1]] = parts.filter(p => p.dy >= 5).map(p => p.s).join(" "); });
+      let vor = v.vor || "", nach = v.nach || ""; const t = String(v.nv || v.vn || "").split(/\s+/).filter(Boolean);
+      if (v.nv && t.length > 1){ vor = t.pop(); nach = t.join(" "); } else if (v.vn && t.length > 1){ vor = t.shift(); nach = t.join(" "); } else if (t.length) nach = t.join(" ");
+      const pz = String(v.plzort || "").match(/^(\d{4,5})\s+(.+)$/), el = String(v.eltern || "").split(/\s+/).filter(Boolean);
+      out.push([r.fach, vor, nach, v.geb || "", v.str || "", pz ? pz[1] : "", pz ? pz[2] : (v.plzort || ""), v.tel || "", v.mob || "", v.mail || "", el.length === 2 ? el[1] + " " + el[0] : el.join(" "), v.etel || "", v.emob || "", v.email || ""]);
+    }
+  }
+  delete pdfRows.fach; doc.destroy();
+  if (!textCount){ const e = new Error("scan"); e.code = "scan"; throw e; }
+  return out;
+}
 async function slLoad(files){
   for (const f of files){
     try {
       const buf = await f.arrayBuffer(); let rows;
-      if (/\.xlsx$/i.test(f.name)) rows = await xlsxRows(buf);
+      if (/\.pdf$/i.test(f.name)) rows = await pdfRows(buf);
+      else if (/\.xlsx$/i.test(f.name)) rows = await xlsxRows(buf);
       else if (/\.xls$/i.test(f.name)){ toast(`${f.name}: bitte in Excel als .xlsx oder .csv speichern.`); continue; }
       else { let text = new TextDecoder("utf-8").decode(buf); if (text.includes("�")) text = new TextDecoder("windows-1252").decode(buf); rows = csvRows(text); }
       const recs = slParse(rows);
       if (!recs || !recs.length){ toast(`In ${f.name} habe ich keine Spalten mit Namen gefunden.`); continue; }
       recs.forEach(r => { r.m = slMatch(r); r.act = r.m ? "u" : r.typ === "Gruppe" ? "ng" : "e"; });
       (imp ||= {files: []}).files.push({name: f.name, schule: schulen()[0] || "", neu: "", rows: recs});
-    } catch(e) { toast(`${f.name} konnte nicht gelesen werden.`); }
+    } catch(e) { toast(e && e.code === "scan" ? `${f.name} ist ein Scan ohne lesbaren Text. Bitte als CSV oder Excel exportieren.` : `${f.name} konnte nicht gelesen werden.`); }
   }
   if (imp){ location.hash = "daten"; render(); window.scrollTo(0, 0); }
 }
 function slCard(){
-  return `<h3>Schülerlisten</h3><div class="card"><p style="margin-top:0;max-width:65ch">Lade eine oder mehrere Schülerlisten, zum Beispiel den Export aus Escada (CSV oder Excel). Neue Schüler:innen werden angelegt, bestehende anhand des Namens erkannt und ihre Kontakte und Geburtsdaten ergänzt. Vor dem Übernehmen siehst du alles in einer Vorschau.</p>
+  return `<h3>Schülerlisten</h3><div class="card"><p style="margin-top:0;max-width:65ch">Lade eine oder mehrere Schülerlisten, zum Beispiel den Export aus Escada (CSV, Excel oder PDF). Neue Schüler:innen werden angelegt, bestehende anhand des Namens erkannt und ihre Kontakte und Geburtsdaten ergänzt. Vor dem Übernehmen siehst du alles in einer Vorschau.</p>
     <button class="pri" data-a="slLoad">Schülerliste laden</button></div>`;
 }
 function slOpts(r, groups){
@@ -1742,7 +1784,7 @@ document.addEventListener("click", ev => {
     case "newL": { const d = document.getElementById("newLd").value; if (d){ const l = getLesson(sid, d, true); saveL(l.id); weekStart = monday(parse(d)); location.hash = "woche"; } break; }
     case "pick": selSid = b.dataset.v; render(); if (window.matchMedia("(max-width:760px)").matches) document.querySelector(".ed")?.scrollIntoView({block:"start"}); else window.scrollTo(0,0); break;
     case "fs": filt.schule = b.dataset.v; render(); break;
-    case "slLoad": case "slMore": { const inp = document.createElement("input"); inp.type = "file"; inp.multiple = true; inp.accept = ".csv,.txt,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; inp.onchange = () => slLoad([...inp.files]); inp.click(); break; }
+    case "slLoad": case "slMore": { const inp = document.createElement("input"); inp.type = "file"; inp.multiple = true; inp.accept = ".csv,.txt,.xlsx,.xls,.pdf,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; inp.onchange = () => slLoad([...inp.files]); inp.click(); break; }
     case "slX": imp = null; render(); break;
     case "rgPick": rgSel(b.dataset.v); render(); break;
     case "rgMake": rgMake(); break;
