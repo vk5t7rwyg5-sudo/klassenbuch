@@ -670,7 +670,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.09-2346 · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.09-2351 · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -818,7 +818,7 @@ async function plLoad(r){
 /* --- Rechnen --- */
 function plEntries(r){
   const ans = pl.ans[r.id] || {};
-  const step = r.sids.map(S).every(s => !s || (s.dauer || 30) % 15 === 0) && r.pause % 15 === 0 ? 15 : 5;
+  const step = [15, 10, 5].find(n => r.raster % n === 0 && r.pause % n === 0 && r.sids.map(S).every(s => !s || (s.dauer || 30) % n === 0)) || 1;
   return r.sids.map(S).filter(Boolean).map(s => {
     const links = (r.links && r.links[s.id]) || [], got = links.map(l => ({l, a: ans[l.k]}));
     const usable = got.filter(x => x.a && !(x.a.u && !Object.keys(x.a.c || {}).length));
@@ -891,7 +891,7 @@ function plSolve(es, o, runs){
 function plCalc(r){
   const es = plEntries(r);
   for (const e of es){ const a = r.assign[e.id]; if (a && a.fix){ const m = plM(a.zeit); e.fixed = e.cands.find(c => c.tag === a.tag && c.start === m) || {tag: a.tag, start: m, end: m + e.dur, lvl: 0, schule: e.s.schule || ""}; } }
-  const res = plSolve(es, r, es.some(e => (e.dur % 15) || r.pause % 15) ? 60 : 150), asg = {};
+  const res = plSolve(es, r, r.raster < 15 || es.some(e => (e.dur % 15) || r.pause % 15) ? 60 : 150), asg = {};
   for (const [id, c] of res.got){ const old = r.assign[id]; asg[id] = {tag: c.tag, zeit: plT(c.start), ...(old && old.fix ? {fix: true} : {})}; }
   r.assign = asg; r.calc = Date.now(); pl.sel = null; save(); render();
 }
@@ -942,7 +942,7 @@ function vPlanung(){
   const frame = `<div class="f"><div><label for="pl-t">Titel</label><input id="pl-t" data-plf="titel" value="${esc(r.titel)}"></div>
       <div><label for="pl-lp">Dein Name (sehen die Familien)</label><input id="pl-lp" data-plf="lp" value="${esc(r.lp)}"></div>
       <div><label for="pl-fr">Frist</label><input id="pl-fr" type="date" data-plf="frist" value="${esc(r.frist)}"></div>
-      <div><label for="pl-ra">Raster</label><select id="pl-ra" data-plf="raster" data-num>${[15, 30].map(n => `<option value="${n}" ${r.raster === n ? "selected" : ""}>${n} Minuten</option>`).join("")}</select></div>
+      <div><label for="pl-ra">Raster</label><select id="pl-ra" data-plf="raster" data-num>${[5, 10, 15, 30].map(n => `<option value="${n}" ${r.raster === n ? "selected" : ""}>${n} Minuten</option>`).join("")}</select></div>
       <div><label for="pl-pa">Pause zwischen Lektionen (Min.)</label><input id="pl-pa" type="number" min="0" step="5" data-plf="pause" data-num value="${r.pause}"></div>
       <div><label for="pl-we">Wechsel zwischen Schulen (Min.)</label><input id="pl-we" type="number" min="0" step="5" data-plf="wechsel" data-num value="${r.wechsel}"></div></div>
     <div style="margin-top:10px"><label for="pl-hi">Hinweis an die Familien (freiwillig)</label><textarea id="pl-hi" data-plf="hinweis">${esc(r.hinweis)}</textarea></div>
@@ -963,7 +963,8 @@ function vPlanung(){
     let picker = "";
     if (sel){
       const byDay = {}, a0 = r.assign[sel.id];
-      for (const c of sel.cands){ const adj = pld.some(p => p.e.id !== sel.id && (p.end + r.pause === c.start || c.end + r.pause === p.start)); if (c.start % 15 && !adj) continue; (byDay[c.tag] ||= []).push(c); }
+      for (const c of sel.cands) (byDay[c.tag] ||= []).push(c);
+      for (const t in byDay) if (byDay[t].length > 24) byDay[t] = byDay[t].filter(c => c.start % 15 === 0 || pld.some(p => p.e.id !== sel.id && (p.end + r.pause === c.start || c.end + r.pause === p.start)));
       picker = `<div class="card" style="margin-top:12px"><div class="row"><b>${esc(sel.s.name)} verschieben</b><span class="sp"></span>${a0 && a0.fix ? `<button class="small" data-pl="unfix">Fixierung lösen</button>` : ""}${a0 ? `<button class="small del" data-pl="clear">Ohne Zeit</button>` : ""}<button class="ghost small" data-pl="sel" data-v="">Schliessen</button></div>
         <p class="tiny">Grün passt gut, gelb geht notfalls, grau ist belegt: Wer dort eingeplant ist, verliert die Zeit.</p>
         ${Object.keys(byDay).map(t => `<div class="small"><b>${PL_DAY[t]}</b></div><div class="pl-c">${byDay[t].map(c => { const blk = pld.filter(p => p.e.id !== sel.id && plClash(r, c, p)); return `<button class="${blk.length ? "x" : "l" + c.lvl}" data-pl="move" data-v="${c.tag}|${c.start}" title="${esc(blk.map(p => p.e.s.name).join(", "))}">${plT(c.start)}${blk.length ? " (" + esc(plFirst(blk[0].e.s.name)) + ")" : ""}</button>`; }).join("")}</div>`).join("") || `<p class="muted small">Keine möglichen Zeiten.</p>`}</div>`;

@@ -27,6 +27,7 @@ td{padding:0}
 .cell{display:grid;place-items:center;width:100%;height:38px;border-radius:6px;border:1px solid var(--bd2);background:var(--card);font-size:15px;font-weight:700;color:inherit;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent;user-select:none}
 .cell.c2{background:var(--okbg);color:var(--ok);border-color:transparent}.cell.c1{background:var(--wabg);color:var(--wa);border-color:transparent}
 .no{height:38px;border-radius:6px;background:var(--off)}
+.fine table{border-spacing:3px 1px}.fine .cell,.fine .no{height:24px;font-size:12px;border-radius:4px}.cell.anc{outline:2px solid var(--ac);outline-offset:1px}
 :focus-visible{outline:2px solid var(--ac);outline-offset:2px}
 label{display:block;font-size:14px;color:var(--tx2);margin:0 0 4px}
 textarea{font:inherit;width:100%;min-height:70px;border:1px solid var(--bd2);border-radius:8px;padding:8px;background:var(--card);color:var(--tx);resize:vertical}
@@ -56,7 +57,7 @@ async function post(action, body){
   if (!r.ok){ const e = new Error(j.error || "http"); e.status = r.status; throw e; }
   return j;
 }
-let key, token, f, c = {}, paint = null, skip = false;
+let key, token, f, c = {}, paint = null, skip = false, anchor = null;
 const enc = async o => { const iv = crypto.getRandomValues(new Uint8Array(12)), ct = new Uint8Array(await crypto.subtle.encrypt({name: "AES-GCM", iv}, key, te.encode(JSON.stringify(o)))), u = new Uint8Array(12 + ct.length); u.set(iv); u.set(ct, 12); return toB64(u); };
 const dec = async s => { const u = unB64(s); return JSON.parse(td.decode(await crypto.subtle.decrypt({name: "AES-GCM", iv: u.subarray(0, 12)}, key, u.subarray(12)))); };
 const inWin = (tag, m) => f.fenster.some(w => w.tag === tag && m + f.raster > M(w.von) && m < M(w.bis));
@@ -72,7 +73,7 @@ function view(ans){
   let rows = "";
   for (let m = lo; m < hi; m += r){
     if (!tags.some(t => inWin(t, m))) continue;
-    rows += `<tr><td class="t">${T(m)}</td>${tags.map(t => inWin(t, m) ? `<td><button type="button" class="cell" data-k="${k(t, m)}" data-t="${t}" data-n="${DAYS[t]} ${T(m)}"></button></td>` : `<td><div class="no"></div></td>`).join("")}</tr>`;
+    rows += `<tr><td class="t">${r >= 15 || m % (r === 10 ? 30 : 15) === 0 ? T(m) : ""}</td>${tags.map(t => inWin(t, m) ? `<td><button type="button" class="cell" data-k="${k(t, m)}" data-t="${t}" data-n="${DAYS[t]} ${T(m)}"></button></td>` : `<td><div class="no"></div></td>`).join("")}</tr>`;
   }
   p.innerHTML = `<p class="brand">Klassenbuch${f.lp ? " · " + esc(f.lp) : ""}</p>
     <h1>Wann hat ${esc(f.name)} Zeit?</h1>
@@ -80,8 +81,8 @@ function view(ans){
     ${f.hinweis ? `<p class="s">${esc(f.hinweis)}</p>` : ""}
     <div class="card">
       <div class="leg"><span><i class="dot c2">✓</i>passt gut</span><span><i class="dot c1">~</i>geht notfalls</span><span><i class="dot"></i>geht nicht</span></div>
-      <p class="s" style="margin:0 0 10px">Tippe auf ein Feld, um es zu ändern. Je mehr Zeiten du angibst, desto eher klappt es.</p>
-      <div class="gridw"><table><thead><tr><th class="t"></th>${tags.map(t => `<th><button type="button" data-day="${t}" aria-label="Ganzen ${DAYS[t]} ändern">${SHORT[t]}</button></th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>
+      <p class="s" style="margin:0 0 10px">${r < 15 ? "Tippe zuerst auf den Beginn und dann auf das Ende einer Zeit. Tippst du nochmals, ändert sich die Farbe." : "Tippe auf ein Feld, um es zu ändern."} Je mehr Zeiten du angibst, desto eher klappt es.</p>
+      <div class="gridw${r < 15 ? " fine" : ""}"><table><thead><tr><th class="t"></th>${tags.map(t => `<th><button type="button" data-day="${t}" aria-label="Ganzen ${DAYS[t]} ändern">${SHORT[t]}</button></th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>
     </div>
     <div class="card">
       <label for="note">Bemerkung (freiwillig)</label>
@@ -105,7 +106,10 @@ p.addEventListener("click", e => {
   if (e.target.closest("#save")){ save(); return; }
   const b = e.target.closest(".cell"); if (!b) return;
   if (skip){ skip = false; return; }
-  setCell(b, next(c[b.dataset.k] || 0));
+  if (f.raster >= 15) return setCell(b, next(c[b.dataset.k] || 0));
+  if (!anchor || anchor.dataset.t !== b.dataset.t){ if (anchor) anchor.classList.remove("anc"); anchor = b; b.classList.add("anc"); return; }
+  const col = [...p.querySelectorAll(`.cell[data-t="${b.dataset.t}"]`)], i = col.indexOf(anchor), j = col.indexOf(b), v = next(c[anchor.dataset.k] || 0);
+  col.slice(Math.min(i, j), Math.max(i, j) + 1).forEach(x => setCell(x, v)); anchor = null;
 });
 function fits(){
   const r = f.raster, n = Math.ceil(f.dauer / r);
