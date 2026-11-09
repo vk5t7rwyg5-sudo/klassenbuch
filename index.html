@@ -130,6 +130,7 @@ button:disabled{opacity:.4;cursor:default}
 .gl{margin-top:6px;display:grid;gap:2px}.gl div{display:flex;gap:8px;min-width:0}.gl b{font-weight:500;white-space:nowrap}.gl span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sl{display:grid;gap:6px;max-width:420px}.sl .row{flex-wrap:nowrap}
 .gsb{display:grid;gap:12px}
+.fl{display:grid;gap:10px;max-width:560px}
 #mp{position:fixed;z-index:40;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));width:min(440px,calc(100vw - 24px));background:var(--card);border:1px solid var(--bd2);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.35);overflow:hidden}
 .mp-bar{display:flex;gap:6px;align-items:center;padding:6px 6px 6px 12px;border-bottom:1px solid var(--bd)}
 .mp-bar b{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
@@ -214,6 +215,7 @@ const iso = d => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") 
 const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
 /* Geburtstage aller aktiven SuS (Einzel und Gruppenmitglieder) zwischen zwei Daten (ISO) */
 function bdays(from, to){
+  if (!feat("bd")) return [];
   const out = [], add = (name, g, sid) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(g || "")) return;
     const [by, bm, bd] = g.split("-").map(Number);
@@ -323,7 +325,7 @@ async function api(action, body){
 
 /* --- Lokale Datensätze: meta, books, lesson:<id>, pdf:<id> --- */
 function recOf(key){
-  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null};
+  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null};
   if (key === "books") return {books};
   if (key.startsWith("lesson:")) return db.lessons.find(l => l.id === key.slice(7)) || null;
   if (key.startsWith("ink:")){ const v = ink[key.slice(4)]; return v && Object.keys(v.p || {}).length ? v : null; }
@@ -353,7 +355,7 @@ function remoteRender(){ if (!(loaded.meta && loaded.lessons)) return; if (!docu
 document.addEventListener("focusout", () => setTimeout(() => { if (pendingRender && !busyTyping()){ pendingRender = false; render(); } }, 50));
 
 function applyRec(key, v){
-  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
+  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
   else if (key === "books") books = v ? v.books || [] : [];
   else if (key.startsWith("ink:")){ const k = key.slice(4); if (v) ink[k] = v; else delete ink[k]; if (typeof pvInkRemote === "function") pvInkRemote(k); }
   else if (key.startsWith("lesson:")){ const id = key.slice(7), i = db.lessons.findIndex(l => l.id === id); if (v){ v.id = id; if (i < 0) db.lessons.push(v); else db.lessons[i] = v; } else if (i >= 0) db.lessons.splice(i, 1); }
@@ -627,12 +629,12 @@ function vDatenApp(){
       ${tabs}<form id="ac-form" class="f" style="max-width:640px" onsubmit="return false">${fields}</form>
       <div class="row" style="margin-top:10px"><button class="pri" data-a="${btn[0]}">${btn[1]}</button><span class="small" id="ac-err" style="color:var(--da)"></span></div></div>`;
   }
-  app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${schulenCard()}${slCard()}<h3>Konto und Sync</h3>${rkCard()}${card}${pdfCard()}
+  app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${featCard()}${schulenCard()}${slCard()}<h3>Konto und Sync</h3>${rkCard()}${card}${pdfCard()}
   <h3>Backup</h3><div class="card"><p class="small muted num" style="margin-top:0">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine · ${books.length} Hefte</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.07-2256 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-0658 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -735,6 +737,12 @@ function alterTxt(s){ const a = alter(s); if (a !== null) return a + " J.";
   return ((s.stammblatt||{}).geburt||"").trim(); }
 let weekStart = monday(new Date());
 let filt = {schule:"Alle", q:""};
+/* Funktionen, die jede Person unter Einstellungen selbst ein- und ausschaltet (Standard: ein; gilt fürs ganze Konto) */
+const FEATS = [["gn","Allgemeine Notizen","Notizfeld für alle in der Wochenansicht"],["stv","Stellvertretung","Excel-Export für Stellvertretungen"],["bd","Geburtstage","Im Kalender und in der Wochenansicht"],["ink","Stiftnotizen","Zeichnen und markieren im Notenviewer"],["audio","Aufnahmen und Player","Links zu Songs, Play-Alongs ohne Noten"],["voices","Stimmen als Ordner","Stimmen eines Stücks in der Literatur zusammenfassen"]];
+const feat = k => !(db.features && db.features[k] === false);
+function featCard(){
+  return `<h3>Funktionen</h3><div class="card"><div class="fl">${FEATS.map(([k, n, d]) => `<div class="row" style="flex-wrap:nowrap"><div style="flex:1;min-width:0"><b class="small">${n}</b><div class="tiny">${d}</div></div><button class="chip ${feat(k) ? "on" : ""}" data-a="feat" data-v="${k}" aria-pressed="${feat(k)}" aria-label="${n}">${feat(k) ? "Ein" : "Aus"}</button></div>`).join("")}</div><p class="tiny" style="margin-bottom:0">Gilt für alle deine Geräte. Ausgeschaltete Funktionen werden nur ausgeblendet, deine Einträge bleiben erhalten.</p></div>`;
+}
 function schulen(){ return db.schulen && db.schulen.length ? db.schulen.slice() : [...new Set(db.students.map(s => s.schule).filter(Boolean))]; }
 function schulOpts(cur){ const l = schulen(); if (cur && !l.includes(cur)) l.push(cur); return (l.length ? "" : `<option value="">–</option>`) + l.map(k => `<option ${cur===k?"selected":""}>${esc(k)}</option>`).join(""); }
 /* ---------- Schülerlisten importieren (CSV oder Excel, z. B. Export aus Escada) ---------- */
@@ -1006,6 +1014,7 @@ function zeitstrahl(mon){
   return `<div class="tl" title="${esc(prev.titel)} bis ${fmt(prev.bis,1)}, ${esc(next.titel)} ab ${fmt(next.datum,1)}"><div class="tl-bar" aria-hidden="true">${segs}</div><span class="small muted num">${label} <span class="tiny">(ab ${fmt(next.datum)})</span></span></div>`;
 }
 function gnCard(){
+  if (!feat("gn")) return "";
   let open = true; try { open = localStorage.getItem("kb-gn") !== "zu"; } catch(e) {}
   const first = (db.notiz || "").split("\n").find(x => x.trim()) || "";
   return `<details class="card gn" id="gn" ${open ? "open" : ""}><summary><b>Allgemeine Notizen</b><span class="small muted">${esc(first)}</span></summary>
@@ -1042,6 +1051,7 @@ function stvRow({s, d}){
 const STV_COLS = [["datum","Datum",11],["zeit","Zeit",7],["dauer","Dauer",8],["name","Schüler:in / Gruppe",22],["kinder","Kinder / Alter",22],["stufe","Stufe",11],
   ["lit","Aktuelle Literatur",32],["inhalt","Zuletzt gearbeitet",48,1],["aufgaben","Aufgaben",34],["eltern","Eltern",22],["tel","Telefon",20],["mail","E-Mail",28],["sb","Stammblatt",90]];
 function vStv(){
+  if (!feat("stv")){ location.hash = "woche"; return; }
   stvInit();
   const all = stvLessons(), sel = stvSel(all), tage = [...new Set(all.map(x => x.d))], kids = [...new Map(all.map(x => [x.s.id, x.s])).values()];
   app.innerHTML = `<div class="row" style="margin-bottom:10px"><a href="#woche" class="muted">‹ Notizen</a></div>
@@ -1129,7 +1139,7 @@ function mediaInfo(u){
 }
 const linkName = (l, i, all) => l.t || (all.length > 1 && all.filter(y => mediaInfo(y.u).svc === mediaInfo(l.u).svc).length > 1 ? mediaInfo(l.u).svc + " " + (i + 1) : mediaInfo(l.u).svc);
 function playBtns(b, cls){
-  const ls = b.links || []; if (!ls.length) return "";
+  const ls = b.links || []; if (!ls.length || !feat("audio")) return "";
   const btns = ls.length > 3 ? `<button class="chip play" data-a="play" data-v="${b.id}" data-i="0" title="Aufnahmen abspielen">♫ ${ls.length} Aufnahmen</button>`
     : ls.map((l, i) => `<button class="chip play" data-a="play" data-v="${b.id}" data-i="${i}" title="Aufnahme abspielen">♫ ${esc(linkName(l, i, ls))}</button>`).join("");
   return cls ? `<div class="${cls}">${btns}</div>` : btns;
@@ -1137,6 +1147,7 @@ function playBtns(b, cls){
 let mpCur = null;
 function playLink(bid, i){
   const b = bookById(bid), l = b && (b.links || [])[i]; if (!l) return;
+  if (!feat("audio")){ toast("Aufnahmen sind unter Einstellungen ausgeschaltet."); return; }
   const info = mediaInfo(l.u);
   if (!info.embed){ window.open(l.u, "_blank", "noopener"); return; }
   mpCur = {bid, i};
@@ -1154,7 +1165,7 @@ function vWoche(){
   let html = backupBanner() + `<div class="row" style="margin-bottom:12px">
     <button data-a="wk" data-n="-7" aria-label="Vorherige Woche">‹</button>
     <h2 style="margin:0">KW ${kw(mon)} <span class="muted num" style="font-weight:400;font-size:15px;font-family:var(--body)">${fmt(iso(mon))}–${fmt(iso(sun),1)}</span></h2>
-    <button data-a="wk" data-n="7" aria-label="Nächste Woche">›</button><a class="btn ghost" href="#stv" data-a="stvGo">Stellvertretung</a>
+    <button data-a="wk" data-n="7" aria-label="Nächste Woche">›</button>${feat("stv") ? `<a class="btn ghost" href="#stv" data-a="stvGo">Stellvertretung</a>` : ""}
     ${fer.map(e => `<span class="badge b-gr">${esc(e.titel)}</span>`).join("")}
     ${evs.map(e => `<span class="badge ${EVTYP[e.typ]}">${esc(e.typ)} ${fmt(e.datum)}: ${esc(e.titel)}</span>`).join("")}
     ${bdays(iso(mon), iso(sun)).map(b => `<span class="badge b-da">Geburtstag ${fmt(b.datum)}: ${esc(b.name)} (${b.alter})</span>`).join("")}</div>`;
@@ -1349,7 +1360,7 @@ function vKalender(){
   <label style="margin-top:10px">Wer macht mit?</label><div class="row" id="ev_sids">${sorted().map(s => `<button class="chip ${(f.sids||[]).includes(s.id)?"on":""}" data-a="evs" data-v="${s.id}">${esc(s.name)}</button>`).join("") || '<span class="tiny">Noch keine SuS erfasst.</span>'}</div>
   <div style="margin-top:8px"><label for="ev_notiz">Notiz</label><input id="ev_notiz" value="${esc(f.notiz||"")}" placeholder="Stücke, Anmeldeschluss"></div>
   <div class="row" style="margin-top:10px"><button class="pri" data-a="evsave">${e?"Speichern":"Termin hinzufügen"}</button>${e?`<button data-a="evcancel">Abbrechen</button><span class="sp"></span><button class="del" data-a="evdel">Löschen</button>`:""}<span class="small" id="everr" style="color:var(--da)"></span></div></div>
-  <div class="row small" style="margin-bottom:8px">${Object.keys(EVTYP).map(k=>`<span><span class="dot" style="background:${EVCOL[k]}"></span>${k}</span>`).join(" ")} <span><span class="dot" style="background:var(--da)"></span>Geburtstag</span></div>
+  <div class="row small" style="margin-bottom:8px">${Object.keys(EVTYP).map(k=>`<span><span class="dot" style="background:${EVCOL[k]}"></span>${k}</span>`).join(" ")} ${feat("bd") ? `<span><span class="dot" style="background:var(--da)"></span>Geburtstag</span>` : ""}</div>
   <div class="months">`;
   for (let m = 0; m < 12; m++){
     const y = calYear + (m+7 >= 12 ? 1 : 0), mo = (m+7)%12;
@@ -1407,7 +1418,7 @@ function vDaten(){
   const where = mode === "cloud"
     ? "Deine Daten liegen in deinem privaten Bereich dieser Seite. Nur du siehst sie, auf jedem Gerät, auf dem du mit deinem Konto angemeldet bist. Auch wenn du die Seite teilst, sehen andere nur ein leeres Klassenbuch."
     : "Deine Daten liegen nur in diesem Browser auf diesem Gerät. Lade regelmässig ein Backup herunter.";
-  app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${schulenCard()}${slCard()}<h3>Daten</h3>
+  app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${featCard()}${schulenCard()}${slCard()}<h3>Daten</h3>
   <div class="card"><p style="margin-top:0;max-width:65ch">${where}</p>
   <p class="small muted num">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Startpaket oder Backup laden</button></div>
@@ -1424,7 +1435,7 @@ async function saveFile(filename, data, type){
 }
 function replaceAll(d){
   delL.clear(); db.lessons.forEach(l => delL.add(l.id)); dirtyL.clear();
-  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null, schulen:d.schulen||null, notiz:d.notiz||""};
+  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null, schulen:d.schulen||null, notiz:d.notiz||"", features:d.features||null};
   db.lessons.forEach(l => { delL.delete(l.id); dirtyL.add(l.id); });
   if (Array.isArray(d.books)){ books = d.books; saveBooks(); }
   if (d.ink && typeof d.ink === "object"){ Object.keys(ink).forEach(k => { if (!d.ink[k]){ delete ink[k]; saveInk(k); } }); Object.entries(d.ink).forEach(([k, v]) => { ink[k] = v; saveInk(k); }); }
@@ -1453,6 +1464,7 @@ document.addEventListener("click", ev => {
     case "fs": filt.schule = b.dataset.v; render(); break;
     case "slLoad": case "slMore": { const inp = document.createElement("input"); inp.type = "file"; inp.multiple = true; inp.accept = ".csv,.txt,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; inp.onchange = () => slLoad([...inp.files]); inp.click(); break; }
     case "slX": imp = null; render(); break;
+    case "feat": { const k = b.dataset.v; (db.features ||= {})[k] = !feat(k); if (k === "audio" && !feat(k) && litF.kat === "♫") litF.kat = "Alle"; save(); render(); break; }
     case "play": playLink(b.dataset.v, +b.dataset.i || 0); break;
     case "stvGo": stv = null; break;
     case "stvTag": case "stvKid": { const set = a === "stvTag" ? stv.offTage : stv.offKids, v = b.dataset.v; set.has(v) ? set.delete(v) : set.add(v); render(); break; }
@@ -1588,6 +1600,7 @@ let litOpenV = new Set();
 /* Stimmen/Teile eines Stücks («Titel – Stimme») automatisch zu einem Ordner zusammenfassen */
 const VSPLIT = /^(.+?)\s+[–—-]\s+(.+)$/;
 function litVoices(arr){
+  if (!feat("voices")) return arr.map(b => ({b}));
   const by = {}; arr.forEach(b => { const m = (b.titel || "").match(VSPLIT); if (m) (by[m[1].trim().toLowerCase()] ||= []).push(b); });
   const out = [], seen = new Set();
   for (const b of arr){
@@ -1605,10 +1618,10 @@ function vLiteratur(){
   list.sort((a, b) => key === "seiten" ? a.seiten - b.seiten : key === "sus" ? bookUsers(b.id).length - bookUsers(a.id).length || cmp(a.titel, b.titel) : cmp(a[key], b[key]) || cmp(a.titel, b.titel));
   const kats = ["Alle", ...KATS.filter(k => books.some(b => b.kat === k)), ...new Set(books.map(b => b.kat).filter(k => !KATS.includes(k)))];
   const cnt = k => k === "Alle" ? books.length : k === "♫" ? books.filter(b => (b.links||[]).length).length : books.filter(b => b.kat === k).length;
-  if (books.some(b => (b.links||[]).length)) kats.push("♫");
+  if (feat("audio") && books.some(b => (b.links||[]).length)) kats.push("♫");
   const th = (k, t, cls) => `<th class="${cls||""}"><button class="ghost th-s ${key===k?"on":""}" data-a="litSort" data-v="${k}">${t}${key===k?" ↓":""}</button></th>`;
   let html = `<div class="row" style="margin-bottom:12px"><h2 style="margin:0">Literatur</h2><span class="sp"></span>
-    <button data-a="bkNew">Play-Along ohne Noten</button>${assetsNs ? `<button data-a="litUp">PDF hinzufügen</button>` : ""}</div>
+    ${feat("audio") ? `<button data-a="bkNew">Play-Along ohne Noten</button>` : ""}${assetsNs ? `<button data-a="litUp">PDF hinzufügen</button>` : ""}</div>
   <div class="row" style="margin-bottom:8px"><div class="seg">${kats.map(k => `<button class="${litF.kat===k?"on":""}" data-a="litKat" data-v="${esc(k)}">${k === "♫" ? "♫ Aufnahmen" : esc(k)} <span class="tiny num">${cnt(k)}</span></button>`).join("")}</div></div>
   <div class="row" style="margin-bottom:12px"><input id="litQ" type="search" placeholder="Suchen: Titel, Autor, Lesezeichen …" value="${esc(litF.q)}" style="flex:1 1 220px;width:auto" aria-label="Literatur suchen">
     <div class="seg"><button class="${litF.group?"on":""}" data-a="litGrp" data-v="1">Nach Ordnern</button><button class="${litF.group?"":"on"}" data-a="litGrp" data-v="">Liste</button></div>
@@ -1648,7 +1661,7 @@ function vLiteratur(){
         <div><label for="be-ordner">Ordner</label><input id="be-ordner" value="${esc(b.ordner)}"></div>
         <div><label for="be-kat">Kategorie</label><select id="be-kat">${[...new Set([...KATS, b.kat])].map(k => `<option ${b.kat===k?"selected":""}>${esc(k)}</option>`).join("")}</select></div>
         <div><label for="be-off">Heftseite 1 = PDF-Seite</label><input id="be-off" type="number" inputmode="numeric" value="${(b.off||0)+1}"></div>
-        <div style="grid-column:1/-1"><label for="be-links">Aufnahmen: ein Link pro Zeile (Spotify, YouTube, Apple Music …), optional mit Namen davor</label><textarea id="be-links" rows="2" placeholder="Original https://open.spotify.com/track/…&#10;Play-Along https://youtu.be/…">${esc((b.links||[]).map(l => (l.t ? l.t + " " : "") + l.u).join("\n"))}</textarea></div></div>
+        <div style="grid-column:1/-1" ${feat("audio") ? "" : "hidden"}><label for="be-links">Aufnahmen: ein Link pro Zeile (Spotify, YouTube, Apple Music …), optional mit Namen davor</label><textarea id="be-links" rows="2" placeholder="Original https://open.spotify.com/track/…&#10;Play-Along https://youtu.be/…">${esc((b.links||[]).map(l => (l.t ? l.t + " " : "") + l.u).join("\n"))}</textarea></div></div>
         <label style="margin-top:8px">Stufen</label><div class="row" id="be-stufen">${STUFEN.map(k => `<button class="chip ${(b.stufen||[]).includes(k)?"on":""}" data-a="evs" data-v="${k}">${k}</button>`).join("")}</div>
         <label style="margin-top:8px">Bereiche</label><div class="row" id="be-instr">${INSTR.map(k => `<button class="chip ${(b.instr||[]).includes(k)?"on":""}" data-a="evs" data-v="${k}">${k}</button>`).join("")}</div>
         <div class="row" style="margin-top:10px"><button class="pri" data-a="bkSave" data-v="${b.id}">Speichern</button><button data-a="bkCancel">Abbrechen</button><span class="sp"></span><button class="del" data-a="bkDel" data-v="${b.id}">Aus Katalog entfernen</button></div></div></td></tr>`;
@@ -1701,7 +1714,7 @@ function openPdf(bid, p, ctx){
   Object.assign(pv, {b, p: Math.max(1, Math.min(b.seiten, p || 1)), zoom: 1, sid: ctx?.sid || null, lit: ctx?.lit || null, pop: null});
   $("pv").hidden = false; document.body.style.overflow = "hidden";
   ink_.on = false; ink_.undo = []; ink_.cur = null;
-  $("pvPlay").hidden = !(b.links || []).length; $("pvPlay").dataset.v = b.id;
+  $("pvPlay").hidden = !(b.links || []).length || !feat("audio"); $("pvPlay").dataset.v = b.id; $("pvInkB").hidden = !feat("ink");
   $("pvHere").hidden = !pv.lit; pvMarks(); pvPopRender(); inkBar(); pvShow();
 }
 function closePdf(){ ink_.on = false; ink_.cur = null; pv.drawing = false; $("pv").classList.remove("pv-ink"); $("pv").hidden = true; document.body.style.overflow = ""; pv.tok++; if (pv.task) try { pv.task.cancel(); } catch(e) {} render(); }
@@ -1829,7 +1842,7 @@ function inkDraw(){
   const cv = $("pvI"), c = $("pvC"); if (!cv || !c) return;
   if (cv.width !== c.width || cv.height !== c.height){ cv.width = c.width; cv.height = c.height; }
   const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
-  if (ink_.hide) return;
+  if (ink_.hide || !feat("ink")) return;
   const st = (inkList(false) || []).concat(ink_.cur ? [ink_.cur] : []);
   for (const pass of ["hl", "pen"]) for (const s of st) if (s.t === pass) inkStroke(g, s, cv.width, cv.height);
 }
