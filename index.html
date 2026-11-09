@@ -643,7 +643,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-0843 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch Schlagzeug · App-Version 2026.11.09-0849 · <a href="anleitung.html">Anleitung</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1166,7 +1166,7 @@ function mediaInfo(u){
     if (list) return {svc: "YouTube", embed: "https://www.youtube-nocookie.com/embed/videoseries?list=" + encodeURIComponent(list), h: 240};
     return {svc: "YouTube"};
   }
-  if (h === "open.spotify.com"){ const m = x.pathname.match(/\/(track|album|playlist|episode|show|artist)\/([A-Za-z0-9]+)/); return {svc: "Spotify", embed: m ? `https://open.spotify.com/embed/${m[1]}/${m[2]}` : null, h: m && (m[1] === "track" || m[1] === "episode") ? 152 : 352}; }
+  if (h === "open.spotify.com"){ const m = x.pathname.match(/\/(track|album|playlist|episode|show|artist)\/([A-Za-z0-9]+)/); return {svc: "Spotify", app: m ? `spotify:${m[1]}:${m[2]}` : null, embed: m ? `https://open.spotify.com/embed/${m[1]}/${m[2]}` : null, h: m && (m[1] === "track" || m[1] === "episode") ? 152 : 352}; }
   if (/(^|\.)spotify\.(com|link)$/.test(h)) return {svc: "Spotify"};
   if (h === "music.apple.com") return {svc: "Apple Music", embed: "https://embed.music.apple.com" + x.pathname + x.search, h: x.searchParams.get("i") ? 175 : 450};
   return {svc: h.replace(/^www\./, "")};
@@ -1174,20 +1174,25 @@ function mediaInfo(u){
 const linkName = (l, i, all) => l.t || (all.length > 1 && all.filter(y => mediaInfo(y.u).svc === mediaInfo(l.u).svc).length > 1 ? mediaInfo(l.u).svc + " " + (i + 1) : mediaInfo(l.u).svc);
 function playBtns(b, cls){
   const ls = b.links || []; if (!ls.length || !feat("audio")) return "";
-  const btns = ls.length > 3 ? `<button class="chip play" data-a="play" data-v="${b.id}" data-i="0" title="Aufnahmen abspielen">♫ ${ls.length} Aufnahmen</button>`
+  const btns = ls.length > 3 ? `<button class="chip play" data-a="play" data-v="${b.id}" data-i="0" data-list="1" title="Aufnahmen abspielen">♫ ${ls.length} Aufnahmen</button>`
     : ls.map((l, i) => `<button class="chip play" data-a="play" data-v="${b.id}" data-i="${i}" title="Aufnahme abspielen">♫ ${esc(linkName(l, i, ls))}</button>`).join("");
   return cls ? `<div class="${cls}">${btns}</div>` : btns;
 }
 let mpCur = null;
-function playLink(bid, i){
+// Spotify-Links: am Computer standardmässig in der Spotify-App, auf Touch-Geräten im Player (pro Gerät einstellbar)
+const spPref = () => pref("kb-spotify", matchMedia("(pointer:fine)").matches ? "app" : "player");
+function spOpen(uri){ const a = document.createElement("a"); a.href = uri; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove(); }
+function playLink(bid, i, list){
   const b = bookById(bid), l = b && (b.links || [])[i]; if (!l) return;
   if (!feat("audio")){ toast("Aufnahmen sind unter Einstellungen ausgeschaltet."); return; }
   const info = mediaInfo(l.u);
-  if (!info.embed){ window.open(l.u, "_blank", "noopener"); return; }
+  const useApp = !!info.app && spPref() === "app";
+  if (!info.embed && !useApp){ window.open(l.u, "_blank", "noopener"); return; }
   mpCur = {bid, i};
   $("mpT").textContent = b.titel + (l.t ? " · " + l.t : "");
-  const o = $("mpOpen"); o.href = l.u; o.textContent = "In " + info.svc + " öffnen";
+  const o = $("mpOpen"); o.href = info.app && spPref() === "app" ? info.app : l.u; o.textContent = "In " + info.svc + " öffnen";
   $("mpL").innerHTML = b.links.length > 1 ? b.links.map((y, k) => `<button class="chip play ${k === i ? "on" : ""}" data-a="play" data-v="${b.id}" data-i="${k}">${esc(linkName(y, k, b.links))}</button>`).join("") : "";
+  if (useApp){ $("mpF").innerHTML = ""; $("mp").hidden = !(list || !$("mp").hidden); if (!list) spOpen(info.app); return; }
   $("mpF").innerHTML = `<iframe src="${esc(info.embed)}" height="${info.h}" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="lazy" title="${esc(b.titel)}"></iframe>`;
   $("mp").hidden = false;
 }
@@ -1685,6 +1690,7 @@ function appearanceCard(){
   return `<h3>Darstellung</h3><div class="card"><div class="opt">
     <div><label>Farbschema</label><div class="seg">${THEMES.map(([k, l]) => `<button class="${t===k?"on":""}" data-a="theme" data-v="${k}">${l}</button>`).join("")}</div></div>
     <div><label>Schrift und Symbole</label><div class="seg">${ZOOMS.map(([k, l]) => `<button class="${z===k?"on":""}" data-a="zoom" data-v="${k}" style="font-size:${Math.round(13 * +k)}px">${l}</button>`).join("")}</div></div>
+    ${feat("audio") ? `<div><label>Spotify-Links öffnen in</label><div class="seg">${[["app","Spotify-App"],["player","Player im Klassenbuch"]].map(([k, l]) => `<button class="${spPref()===k?"on":""}" data-a="spot" data-v="${k}">${l}</button>`).join("")}</div></div>` : ""}
   </div><p class="tiny" style="margin-bottom:0">Gilt für dieses Gerät.</p></div>`;
 }
 function vDaten(){
@@ -1746,7 +1752,8 @@ document.addEventListener("click", ev => {
     case "rgAtt": rgFile(); break;
     case "rgAttDel": ask("Das hinterlegte PDF entfernen?", "Entfernen", () => attSet("qr", null).then(() => render())); break;
     case "feat": { const k = b.dataset.v; (db.features ||= {})[k] = !feat(k); if (k === "audio" && !feat(k) && litF.kat === "♫") litF.kat = "Alle"; save(); render(); break; }
-    case "play": playLink(b.dataset.v, +b.dataset.i || 0); break;
+    case "play": playLink(b.dataset.v, +b.dataset.i || 0, b.dataset.list === "1"); break;
+    case "spot": setPref("kb-spotify", b.dataset.v); render(); break;
     case "stvGo": stv = null; break;
     case "stvTag": case "stvKid": { const set = a === "stvTag" ? stv.offTage : stv.offKids, v = b.dataset.v; set.has(v) ? set.delete(v) : set.add(v); render(); break; }
     case "stvAll": stv.offKids.clear(); stv.offTage.clear(); render(); break;
@@ -2004,12 +2011,12 @@ const pv = {b:null, p:1, zoom:1, fit:"page", sid:null, lit:null, tok:0, task:nul
 const $ = id => document.getElementById(id);
 function openPdf(bid, p, ctx){
   const b = bookById(bid); if (!b){ toast("Dieses Heft ist nicht mehr im Katalog."); return; }
-  if (!(b.teile||[]).length){ if ((b.links||[]).length) playLink(b.id, 0); else toast("Dieser Eintrag hat keine Noten. Unter «Bearbeiten» kannst du Aufnahmen verlinken."); return; }
+  if (!(b.teile||[]).length){ if ((b.links||[]).length) playLink(b.id, 0, b.links.length > 3); else toast("Dieser Eintrag hat keine Noten. Unter «Bearbeiten» kannst du Aufnahmen verlinken."); return; }
   if (!b.teile.every(t => t.a)){ toast("Das PDF ist noch nicht hochgeladen."); return; }
   Object.assign(pv, {b, p: Math.max(1, Math.min(b.seiten, p || 1)), zoom: 1, sid: ctx?.sid || null, lit: ctx?.lit || null, pop: null});
   $("pv").hidden = false; document.body.style.overflow = "hidden";
   ink_.on = false; ink_.undo = []; ink_.cur = null;
-  $("pvPlay").hidden = !(b.links || []).length || !feat("audio"); $("pvPlay").dataset.v = b.id; $("pvInkB").hidden = !feat("ink");
+  $("pvPlay").hidden = !(b.links || []).length || !feat("audio"); $("pvPlay").dataset.v = b.id; if ((b.links || []).length > 3) $("pvPlay").dataset.list = "1"; else delete $("pvPlay").dataset.list; $("pvInkB").hidden = !feat("ink");
   $("pvHere").hidden = !pv.lit; pvMarks(); pvPopRender(); inkBar(); pvShow();
 }
 function closePdf(){ ink_.on = false; ink_.cur = null; pv.drawing = false; $("pv").classList.remove("pv-ink"); $("pv").hidden = true; document.body.style.overflow = ""; pv.tok++; if (pv.task) try { pv.task.cancel(); } catch(e) {} render(); }
