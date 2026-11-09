@@ -426,7 +426,7 @@ async function sync(){
     const local = await idbAll("rec"), acc2 = {};
     for (;;){
       const r = await api("pull", {since});
-      if (r.profile === false) askProfile();
+      if (r.profile === false || (r.consent !== undefined && r.consent !== CONSENT)) askProfile(r.profile === false);
       for (const it of r.items){
         since = Math.max(since, it.rev); maxRev = Math.max(maxRev, it.rev);
         const g = acc2[it.key] ||= {parts: it.parts, p: {}, del: false, rev: 0};
@@ -588,9 +588,10 @@ async function finishSignIn(a, keepLocal){
   }
   await saveCfg(); render(); await sync();
 }
+const CONSENT = "2026-11-09", consentHtml = id => `<label style="display:flex;gap:8px;align-items:flex-start;margin:10px 0 0;font-size:14px;text-transform:none;letter-spacing:0;color:var(--tx)"><input type="checkbox" id="${id}" style="width:auto;margin-top:3px;flex:none"><span>Ich akzeptiere die <a href="rechtliches.html" target="_blank" rel="noopener">Nutzungsbedingungen und die Datenschutzerklärung</a>.</span></label>`;
 async function signUp(email, pw, invite, vorname, name){
   const d = await derive(email, pw), dek = crypto.getRandomValues(new Uint8Array(32)), rk = genRk(), r = await deriveRk(email, normRk(rk));
-  await api("register", {acct: d.acct, auth: d.auth, rauth: r.rauth, wrapPw: await wrapKey(dek, d.kek), wrapRk: await wrapKey(dek, r.kek), invite, vorname, name, email: d.email});
+  await api("register", {acct: d.acct, auth: d.auth, rauth: r.rauth, wrapPw: await wrapKey(dek, d.kek), wrapRk: await wrapKey(dek, r.kek), invite, vorname, name, email: d.email, consent: CONSENT});
   rkShow = rk;
   await finishSignIn({email: d.email, acct: d.acct, auth: d.auth, raw: b64(dek)}, true);
 }
@@ -661,7 +662,7 @@ function vDatenApp(){
     const btn = {in:["signIn","Anmelden"], up:["signUp","Konto erstellen"], forgot:["recover","Neues Passwort setzen"]}[acctView];
     card = `<div class="card" id="acct"><b>Sync einrichten</b>
       <p class="small muted" style="max-width:65ch;margin-top:4px">Mit einem Konto sind deine Einträge auf allen Geräten gleich. Deine Einträge werden auf dem Gerät verschlüsselt, der Server sieht nur unlesbare Daten. Name und E-Mail werden zu deinem Konto gespeichert. Beim Erstellen bekommst du einen <b>Wiederherstellungsschlüssel</b>, falls du das Passwort einmal vergisst. <a href="anleitung.html#konto">Mehr in der Anleitung</a></p>
-      ${tabs}<form id="ac-form" class="f" style="max-width:640px" onsubmit="return false">${fields}</form>
+      ${tabs}<form id="ac-form" class="f" style="max-width:640px" onsubmit="return false">${fields}</form>${acctView === "up" ? consentHtml("ac-ok") : ""}
       <div class="row" style="margin-top:10px"><button class="pri" data-a="${btn[0]}">${btn[1]}</button><span class="small" id="ac-err" style="color:var(--da)"></span></div></div>`;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${planCard()}${featCard()}${rgCard()}${schulenCard()}${slCard()}<h3>Konto und Sync</h3>${rkCard()}${card}${pdfCard()}
@@ -669,7 +670,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.09-1915 · <a href="anleitung.html">Anleitung</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.09-1926 · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -680,19 +681,21 @@ function acErr(e){
     : (e && e.name === "OperationError") ? "Der Schlüssel passt nicht zu diesem Konto." : "Keine Verbindung zum Server. Bitte später nochmals versuchen.";
 }
 // Bestehende Konten ohne Profil: einmal Vorname und Name nachfragen
-function askProfile(){
+function askProfile(needName){
   if (!acc || document.getElementById("profDlg")) return;
   const d = document.createElement("dialog"); d.id = "profDlg";
-  d.innerHTML = `<b>Bitte ergänze dein Konto</b><p class="small muted" style="max-width:48ch">Wir brauchen neu deinen Namen zum Konto. Deine Einträge bleiben verschlüsselt.</p>
-    <div class="f"><div><label for="pf-vor">Vorname</label><input id="pf-vor" autocomplete="given-name"></div><div><label for="pf-nach">Name</label><input id="pf-nach" autocomplete="family-name"></div></div>
+  d.innerHTML = `<b>Bitte ergänze dein Konto</b><p class="small muted" style="max-width:48ch">${needName ? "Wir brauchen neu deinen Namen zum Konto. " : ""}Deine Einträge bleiben verschlüsselt.</p>
+    ${needName ? `<div class="f"><div><label for="pf-vor">Vorname</label><input id="pf-vor" autocomplete="given-name"></div><div><label for="pf-nach">Name</label><input id="pf-nach" autocomplete="family-name"></div></div>` : ""}
+    ${consentHtml("pf-consent")}
     <div class="row" style="margin-top:12px"><span class="small" id="pf-err" style="color:var(--da)"></span><span class="sp"></span><button class="pri" id="pf-ok">Speichern</button></div>`;
   d.addEventListener("cancel", e => e.preventDefault());
   document.body.appendChild(d); d.showModal();
   d.querySelector("#pf-ok").onclick = async () => {
-    const vorname = d.querySelector("#pf-vor").value.trim(), name = d.querySelector("#pf-nach").value.trim(), err = d.querySelector("#pf-err");
-    if (!vorname || !name){ err.textContent = "Bitte beide Felder ausfüllen."; return; }
+    const vorname = needName ? d.querySelector("#pf-vor").value.trim() : "", name = needName ? d.querySelector("#pf-nach").value.trim() : "", err = d.querySelector("#pf-err");
+    if (needName && (!vorname || !name)){ err.textContent = "Bitte beide Felder ausfüllen."; return; }
+    if (!d.querySelector("#pf-consent").checked){ err.textContent = "Bitte akzeptiere die Bedingungen."; return; }
     err.textContent = "Wird gespeichert …";
-    try { await api("profile", {vorname, name, email: acc.email}); d.close(); d.remove(); toast("Gespeichert"); } catch(e) { err.textContent = "Das hat nicht geklappt. Prüfe die Verbindung."; }
+    try { await api("profile", {...(needName ? {vorname, name, email: acc.email} : {}), consent: CONSENT}); d.close(); d.remove(); toast("Gespeichert"); } catch(e) { err.textContent = "Das hat nicht geklappt. Prüfe die Verbindung."; }
   };
 }
 async function accountAction(kind){
@@ -702,6 +705,7 @@ async function accountAction(kind){
   if (kind !== "in" && pw.length < 10){ err.textContent = "Das Passwort braucht mindestens 10 Zeichen."; return; }
   if (!pw){ err.textContent = "Bitte das Passwort eingeben."; return; }
   if (kind === "up" && (!v("ac-vor").trim() || !v("ac-nach").trim())){ err.textContent = "Bitte Vorname und Name eingeben."; return; }
+  if (kind === "up" && !(g("ac-ok") && g("ac-ok").checked)){ err.textContent = "Bitte akzeptiere die Nutzungsbedingungen und die Datenschutzerklärung."; return; }
   if (kind === "up" && !v("ac-inv").trim()){ err.textContent = "Für ein neues Konto brauchst du den Einladungscode."; return; }
   const run = async keep => {
     err.textContent = "Wird eingerichtet … (das dauert ein paar Sekunden)";
