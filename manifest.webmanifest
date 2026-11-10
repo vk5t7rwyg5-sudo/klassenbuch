@@ -3,7 +3,7 @@
   "short_name": "Klassenbuch",
   "description": "Klassenbuch für den Instrumentalunterricht: SuS, Lektionen, Lehrplan, Kalender und Noten.",
   "lang": "de-CH",
-  "start_url": "./",
+  "start_url": "app.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#141414",
