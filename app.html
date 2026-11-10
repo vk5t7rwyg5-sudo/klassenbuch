@@ -14,16 +14,25 @@
 <title>Klassenbuch</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
 <style>
 /* Layout: sticky tab bar over a single working column; cards only for lessons, people and calendar months */
-:root{--bg:#f5f5f2;--card:#fff;--soft:#ecece6;--tx:#1e1f1c;--tx2:#5c5e57;--tx3:#868880;--bd:#deded6;--bd2:#c9cac0;
---ac:#1d5a8f;--acbg:#e3eef8;--ok:#3b6d11;--okbg:#e8f2dc;--wa:#7d4a0a;--wabg:#f8ecd6;--da:#a32d2d;--dabg:#fbe8e8;--pu:#534ab7;--pubg:#eceafd;--te:#0f6e56;--tebg:#dff3ec;
---paper:#fff;--display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;--body:"Figtree",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--r:8px}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141414;--card:#1e1e1d;--soft:#2a2a28;--tx:#f1f1ec;--tx2:#b4b4ac;--tx3:#86867f;--bd:#33332f;--bd2:#46463f;
---ac:#8dbbe8;--acbg:#16395a;--ok:#9fca62;--okbg:#26401a;--wa:#f2c27a;--wabg:#4f3410;--da:#f09a9a;--dabg:#5a2020;--pu:#b2acef;--pubg:#353070;--te:#68d0ad;--tebg:#0e4436;--paper:#fff;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#141414;--card:#1e1e1d;--soft:#2a2a28;--tx:#f1f1ec;--tx2:#b4b4ac;--tx3:#86867f;--bd:#33332f;--bd2:#46463f;
---ac:#8dbbe8;--acbg:#16395a;--ok:#9fca62;--okbg:#26401a;--wa:#f2c27a;--wabg:#4f3410;--da:#f09a9a;--dabg:#5a2020;--pu:#b2acef;--pubg:#353070;--te:#68d0ad;--tebg:#0e4436;--paper:#fff;color-scheme:dark}
+/* Stil D: helle, weiche Flächen; drei Farbwelten (data-palette: bunt, warm, kuehl) je hell und dunkel */
+:root{--bg:#f5f7fa;--card:#fff;--soft:#eaeff4;--tx:#13212e;--tx2:#4c5b69;--tx3:#7a8794;--bd:#e1e7ed;--bd2:#cdd6df;
+--ac:#1d5a8f;--acbg:#e3eef8;--ok:#2f6b12;--okbg:#e3f1d8;--wa:#7d4a0a;--wabg:#f9ead2;--da:#a32d2d;--dabg:#fbe6e6;--pu:#534ab7;--pubg:#eceafd;--te:#0f6e56;--tebg:#dcf2ea;
+--t1:#e4f3ea;--t2:#fdeedd;--t3:#e6eefc;
+--paper:#fff;--display:Aptos,"Hanken Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--body:Aptos,"Hanken Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--r:12px}
+:root[data-palette="warm"]{--ac:#b4401f;--acbg:#fbe7dd;--t1:#fdf3cf;--t2:#fde5d0;--t3:#fadcd7;--ok:#4a3524;--okbg:#efe6dc;--te:#8a6200;--tebg:#fbf0cf;--pu:#9c2f45;--pubg:#fbe1e6}
+:root[data-palette="kuehl"]{--ac:#17607a;--acbg:#def0f5;--t1:#e0f2ec;--t2:#dff0f6;--t3:#e3eafc;--wa:#3f4fb8;--wabg:#e4e8fb;--da:#1b2a3a;--dabg:#e1e7ee}
+@media (prefers-color-scheme:dark){
+:root:not([data-theme="light"]){--bg:#0e0e0e;--card:#1b1b1b;--soft:#262626;--tx:#ededed;--tx2:#b3b3b3;--tx3:#828282;--bd:#2c2c2c;--bd2:#3d3d3d;
+--ac:#8dbbe8;--acbg:#16395a;--ok:#9fca62;--okbg:#24401a;--wa:#f2c27a;--wabg:#4a3312;--da:#f09a9a;--dabg:#552020;--pu:#b2acef;--pubg:#353070;--te:#68d0ad;--tebg:#0e4436;--t1:#18301f;--t2:#33261a;--t3:#1a2740;--paper:#fff;color-scheme:dark}
+:root:not([data-theme="light"])[data-palette="warm"]{--ac:#f2a27c;--acbg:#4a2618;--t1:#2f2a14;--t2:#36251a;--t3:#3a1f1d;--ok:#f2f2f2;--okbg:#333333;--te:#ecc65e;--tebg:#3d300f;--pu:#f3a5b4;--pubg:#4a1f2a}
+:root:not([data-theme="light"])[data-palette="kuehl"]{--ac:#79c6cf;--acbg:#12393f;--t1:#15302a;--t2:#132f3b;--t3:#1a2643;--wa:#aab6ff;--wabg:#252c55;--da:#ffffff;--dabg:#333333}}
+:root[data-theme="dark"]{--bg:#0e0e0e;--card:#1b1b1b;--soft:#262626;--tx:#ededed;--tx2:#b3b3b3;--tx3:#828282;--bd:#2c2c2c;--bd2:#3d3d3d;
+--ac:#8dbbe8;--acbg:#16395a;--ok:#9fca62;--okbg:#24401a;--wa:#f2c27a;--wabg:#4a3312;--da:#f09a9a;--dabg:#552020;--pu:#b2acef;--pubg:#353070;--te:#68d0ad;--tebg:#0e4436;--t1:#18301f;--t2:#33261a;--t3:#1a2740;--paper:#fff;color-scheme:dark}
+:root[data-theme="dark"][data-palette="warm"]{--ac:#f2a27c;--acbg:#4a2618;--t1:#2f2a14;--t2:#36251a;--t3:#3a1f1d;--ok:#f2f2f2;--okbg:#333333;--te:#ecc65e;--tebg:#3d300f;--pu:#f3a5b4;--pubg:#4a1f2a}
+:root[data-theme="dark"][data-palette="kuehl"]{--ac:#79c6cf;--acbg:#12393f;--t1:#15302a;--t2:#132f3b;--t3:#1a2643;--wa:#aab6ff;--wabg:#252c55;--da:#ffffff;--dabg:#333333}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 var(--body)}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
@@ -185,8 +194,43 @@ button:disabled{opacity:.4;cursor:default}
 .lit-t tr.lit-v .lit-open::before{content:"▸ ";color:var(--tx3)}.lit-t tr.lit-v.open .lit-open::before{content:"▾ "}
 .lit-t tr.lit-sub td.c-t{padding-left:30px}.lit-t tr.lit-sub .lit-open{font-weight:500}
 @media (max-width:760px){.lit-t .c-a,.lit-t .c-b,.lit-t .c-s,.lit-t .c-k,.lit-t .c-st{display:none}.m-only{display:block}.lit-t th,.lit-t td{padding:8px 8px}}
+/* Stil D: Formen und Schrift */
+body{font-size:15.5px;-webkit-font-smoothing:antialiased}
+.brand{font-weight:700}
+h2{font-weight:800;font-size:26px;letter-spacing:-.03em}
+h3{text-transform:none;letter-spacing:-.01em;font-size:16px;font-weight:700;color:var(--tx);margin:26px 0 10px}
+.card{border-radius:20px;border-color:var(--bd);padding:16px 18px}
+.grid>.card:nth-child(3n+1),.cols>.card:nth-child(3n+1),.months>.card:nth-child(3n+1){background:var(--t1);border-color:transparent}
+.grid>.card:nth-child(3n+2),.cols>.card:nth-child(3n+2),.months>.card:nth-child(3n+2){background:var(--t2);border-color:transparent}
+.grid>.card:nth-child(3n),.cols>.card:nth-child(3n),.months>.card:nth-child(3n){background:var(--t3);border-color:transparent}
+.grid>.card.sel{background:var(--acbg);border-color:var(--ac)}
+button,.btn{border-radius:999px;padding:6px 14px}
+button.pri{color:var(--bg);font-weight:600}
+button.ghost{border-radius:999px}
+.seg{border-radius:999px;background:var(--card)}
+.seg button{padding:4px 12px}
+nav a{border-radius:999px;font-size:14.5px}
+nav a.on{font-weight:600}
+#tools a{border-radius:50%}
+.bunt-p{flex-basis:100%;background:var(--soft);border-radius:16px;padding:12px 14px}.bunt-p label{margin-bottom:8px}
+.bunt-r{gap:12px;align-items:flex-end}.bunt-c{display:flex;flex-direction:column;align-items:center;gap:3px;margin:0;font-size:12px;color:var(--tx2)}.bunt-c input{width:46px;height:36px;padding:3px;border-radius:12px;cursor:pointer}
+.pal-dot{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}.pal-bunt{background:conic-gradient(#9fd2b2 0 33%,#f8c58f 0 66%,#a9c4f2 0)}.pal-warm{background:conic-gradient(#f5d66a 0 33%,#f5a76c 0 66%,#e58579 0)}.pal-kuehl{background:conic-gradient(#8fd0bd 0 33%,#8fc9dd 0 66%,#a6b9f0 0)}
+.badge{border-radius:999px;padding:2px 9px}
+.hint,.prev,.banner{border-radius:14px}
+dialog{border-radius:22px;border-color:var(--bd)}
+#toast{border-radius:999px;padding:9px 16px}
+#mp{border-radius:20px}
+.pk{border-radius:12px}
+.pk-day,.gm-h,.stv-t th,.lit-t tr.lit-g th{text-transform:none;letter-spacing:0;font-size:13px;font-weight:700;color:var(--tx2)}
+.sus-bar{border-radius:999px;padding:6px 14px}
+.bk-i{border-radius:8px}
+.bar{height:8px;border-radius:4px}
+.tl-bar i{height:8px;border-radius:4px}
 </style>
-<script>(function(){var t="dark",z="1";try{t=localStorage.getItem("kb-theme")||"dark";z=localStorage.getItem("kb-zoom")||"1";}catch(e){}var r=document.documentElement;if(t!=="system")r.setAttribute("data-theme",t);r.style.setProperty("--z",z);})();</script>
+<script>(function(){var t="dark",z="1",p="bunt";try{t=localStorage.getItem("kb-theme")||"dark";z=localStorage.getItem("kb-zoom")||"1";p=localStorage.getItem("kb-palette")||"bunt";}catch(e){}var r=document.documentElement;if(t!=="system")r.setAttribute("data-theme",t);if(p==="warm"||p==="kuehl")r.setAttribute("data-palette",p);r.style.setProperty("--z",z);})();
+function kbBuntCss(c){var ok=function(x){return /^#[0-9a-fA-F]{6}$/.test(x||"");};if(!c||!["t1","t2","t3","ac"].every(function(k){return ok(c[k]);}))return "";var L=function(x,p){return "color-mix(in srgb, "+x+" "+p+"%, #fff)";},D=function(x,p){return "color-mix(in srgb, "+x+" "+p+"%, #141414)";};var li="--ac:"+c.ac+";--acbg:"+L(c.ac,14)+";--ac-soft:"+L(c.ac,14)+";--t1:"+L(c.t1,22)+";--t2:"+L(c.t2,22)+";--t3:"+L(c.t3,22)+";--t1x:#1b1b1b;--t2x:#1b1b1b;--t3x:#1b1b1b",dk="--ac:"+L(c.ac,55)+";--acbg:"+D(c.ac,35)+";--ac-soft:"+D(c.ac,35)+";--t1:"+D(c.t1,26)+";--t2:"+D(c.t2,26)+";--t3:"+D(c.t3,26)+";--t1x:#f0f0f0;--t2x:#f0f0f0;--t3x:#f0f0f0";return ":root:not([data-palette]){"+li+"}@media (prefers-color-scheme:dark){:root:not([data-theme=\"light\"]):not([data-palette]){"+dk+"}}:root[data-theme=\"dark\"]:not([data-palette]){"+dk+"}";}
+function kbBuntApply(){var c=null;try{c=JSON.parse(localStorage.getItem("kb-bunt")||"null");}catch(e){}var el=document.getElementById("kbBunt");if(!el){el=document.createElement("style");el.id="kbBunt";document.head.appendChild(el);}el.textContent=kbBuntCss(c);}
+kbBuntApply();</script>
 
 <header class="gut"><div class="top"><a class="brand" href="#woche" aria-label="Klassenbuch, zu den Notizen"><svg xmlns="http://www.w3.org/2000/svg" viewBox="35 45 289 270" aria-hidden="true"> <defs><clipPath id="kbh0"><rect x="0" y="105" width="28" height="28"/></clipPath><clipPath id="kbh1"><rect x="84" y="105" width="28" height="28"/></clipPath><clipPath id="kbh2"><rect x="168" y="105" width="28" height="28"/></clipPath><clipPath id="kbh3"><rect x="252" y="105" width="28" height="28"/></clipPath></defs> <g transform="translate(39.2 49.21)" fill="currentColor"> <rect x="20" y="0" width="260" height="18"/> <polygon points="20,0 28,0 28,105 20,113"/><polygon points="104,0 112,0 112,105 104,113"/><polygon points="188,0 196,0 196,105 188,113"/><polygon points="272,0 280,0 280,105 272,113"/> <g fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="butt"><path clip-path="url(#kbh0)" d="M-4 101 L32 137 M32 101 L-4 137"/><path clip-path="url(#kbh1)" d="M80 101 L116 137 M116 101 L80 137"/><path clip-path="url(#kbh2)" d="M164 101 L200 137 M200 101 L164 137"/><path clip-path="url(#kbh3)" d="M248 101 L284 137 M284 101 L248 137"/></g> <path d="M0.0 259.989501953125H25.89111328125V236.149169921875L37.68310546875 222.6268310546875L60.0494384765625 259.989501953125H90.5548095703125L55.37109375 205.5797119140625L88.7603759765625 164.5H58.062744140625L39.093017578125 189.0452880859375C32.7484130859375 197.3125 28.7750244140625 203.1444091796875 25.4425048828125 209.2967529296875L25.89111328125 185.0078125V164.5H0.0ZM94.4051513671875 259.989501953125H139.3941650390625C160.09423828125 259.989501953125 172.8475341796875 248.6461181640625 172.8475341796875 232.94482421875C172.8475341796875 219.486572265625 162.9781494140625 210.7066650390625 150.6734619140625 210.258056640625V209.232666015625C161.760498046875 207.1177978515625 169.1304931640625 198.9146728515625 169.1304931640625 188.34033203125C169.1304931640625 173.856689453125 157.5948486328125 164.5 135.8052978515625 164.5H94.4051513671875ZM120.2962646484375 239.353515625V219.10205078125H132.8572998046875C140.6759033203125 219.10205078125 145.5465087890625 222.8831787109375 145.5465087890625 229.6123046875C145.5465087890625 235.9569091796875 141.12451171875 239.353515625 132.4727783203125 239.353515625ZM120.2962646484375 203.080322265625V184.879638671875H131.3192138671875C137.7279052734375 184.879638671875 142.4703369140625 188.1480712890625 142.4703369140625 193.97998046875C142.4703369140625 199.8759765625 137.7279052734375 203.080322265625 130.9346923828125 203.080322265625Z"/> </g></svg><span>Klassenbuch</span></a><nav id="nav"></nav><span id="sync"></span><div id="tools"></div></div></header>
 <main id="app" class="gut"><div class="empty"><h2>Klassenbuch wird geladen</h2><p class="muted">Deine Daten werden geholt.</p></div></main>
@@ -679,7 +723,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.10-1407 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.10-2358 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -2153,19 +2197,26 @@ function vLehrplan(){
   </div>`).join("")}${other.length ? `<div class="card"><b>Ohne Bereich</b> <span class="tiny">z. B. Body Percussion</span>${lpBookLinks(lpStufe, null)}</div>` : ""}</div>`;
 }
 
-const THEMES = [["dark","Dunkel"],["light","Hell"],["system","Wie Gerät"]], ZOOMS = [["0.9","Klein"],["1","Normal"],["1.15","Gross"],["1.3","Sehr gross"]];
+const PALETTES = [["warm","Warm"],["kuehl","Kühl"],["bunt","Bunt"]], BUNT_DEF = {t1:"#5fb37c", t2:"#f2a35e", t3:"#6f9be8", ac:"#1d5a8f"}, THEMES = [["dark","Dunkel"],["light","Hell"],["system","Wie Gerät"]], ZOOMS = [["0.9","Klein"],["1","Normal"],["1.15","Gross"],["1.3","Sehr gross"]];
 function pref(k, d){ try { return localStorage.getItem(k) || d; } catch(e) { return d; } }
 function setPref(k, v){ try { localStorage.setItem(k, v); } catch(e) {} }
+// Eigene Farben für «Bunt»: Grundfarben im Gerät, Abstufungen rechnet kbBuntCss (Kopf der Seite)
+let buntOpen = false;
+function buntCfg(){ let c = {}; try { c = JSON.parse(localStorage.getItem("kb-bunt") || "{}") || {}; } catch(e) {} return Object.assign({}, BUNT_DEF, c); }
+document.addEventListener("input", e => { const i = e.target.closest && e.target.closest("[data-bunt]"); if (!i) return; const c = buntCfg(); c[i.dataset.bunt] = i.value; setPref("kb-bunt", JSON.stringify(c)); kbBuntApply(); });
 function applyLook(){
   const t = pref("kb-theme", "dark"), r = document.documentElement;
   if (t === "system") r.removeAttribute("data-theme"); else r.setAttribute("data-theme", t);
   r.style.setProperty("--z", pref("kb-zoom", "1"));
+  const pa = pref("kb-palette", "bunt"); if (pa === "warm" || pa === "kuehl") r.setAttribute("data-palette", pa); else r.removeAttribute("data-palette");
   const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = getComputedStyle(document.body).backgroundColor;
 }
 function appearanceCard(){
   const t = pref("kb-theme", "dark"), z = pref("kb-zoom", "1");
   return `<h3>Darstellung</h3><div class="card"><div class="opt">
     <div><label>Farbschema</label><div class="seg">${THEMES.map(([k, l]) => `<button class="${t===k?"on":""}" data-a="theme" data-v="${k}">${l}</button>`).join("")}</div></div>
+    <div><label>Farbwelt</label><div class="seg">${PALETTES.map(([k, l]) => `<button class="${pref("kb-palette","bunt")===k?"on":""}" data-a="palette" data-v="${k}"><i class="pal-dot pal-${k}" aria-hidden="true"></i>${l}</button>`).join("")}</div></div>
+    ${buntOpen && pref("kb-palette","bunt") === "bunt" ? `<div class="bunt-p"><label>Eigene Farben für «Bunt»</label><div class="row bunt-r">${[["t1","Fläche 1"],["t2","Fläche 2"],["t3","Fläche 3"],["ac","Akzent"]].map(([k, l]) => `<label class="bunt-c"><input type="color" data-bunt="${k}" value="${esc(buntCfg()[k])}" aria-label="${l}"><span>${l}</span></label>`).join("")}<span class="sp"></span><button class="ghost small" data-a="buntReset">Zurücksetzen</button><button class="small" data-a="buntClose">Fertig</button></div></div>` : ""}
     <div><label>Schrift und Symbole</label><div class="seg">${ZOOMS.map(([k, l]) => `<button class="${z===k?"on":""}" data-a="zoom" data-v="${k}" style="font-size:${Math.round(13 * +k)}px">${l}</button>`).join("")}</div></div>
     <div><label>PDFs öffnen in</label><div class="seg">${[["viewer","Viewer im Klassenbuch"],["extern","Externe App"]].map(([k, l]) => `<button class="${pref("kb-pdfopen","viewer")===k?"on":""}" data-a="pdfo" data-v="${k}">${l}</button>`).join("")}</div></div>
     ${feat("audio") ? `<div><label>Spotify-Links öffnen in</label><div class="seg">${[["app","Spotify-App"],["player","Player im Klassenbuch"]].map(([k, l]) => `<button class="${spPref()===k?"on":""}" data-a="spot" data-v="${k}">${l}</button>`).join("")}</div></div>` : ""}
@@ -2276,6 +2327,9 @@ document.addEventListener("click", ev => {
       editEv = null; save(); render(); toast("Termin gespeichert"); break;
     }
     case "theme": setPref("kb-theme", b.dataset.v); applyLook(); render(); break;
+    case "palette": buntOpen = b.dataset.v === "bunt" && !(buntOpen && pref("kb-palette", "bunt") === "bunt"); setPref("kb-palette", b.dataset.v); applyLook(); render(); break;
+    case "buntClose": buntOpen = false; render(); break;
+    case "buntReset": try { localStorage.removeItem("kb-bunt"); } catch(e) {} kbBuntApply(); render(); break;
     case "zoom": setPref("kb-zoom", b.dataset.v); applyLook(); render(); break;
     case "export": saveFile("klassenbuch-backup-" + today() + ".json", JSON.stringify({...db, books, ink}, null, 1), "application/json").then(ok => { if (ok){ db.lastBackup = Date.now(); save(); render(); toast("Backup gesichert"); } }); break;
     case "import": document.getElementById("fileIn").click(); break;

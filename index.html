@@ -11,8 +11,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/favicon.ico">
-<meta name="theme-color" content="#f5f5f2" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#141414" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e0e0e" media="(prefers-color-scheme: dark)">
 <script>
 // Wer die App auf diesem Gerät schon nutzt oder sie installiert hat, kommt direkt hinein.
 // Sonst: Sprache nach Wahl (kb-lang) oder Browser; en.html entsteht beim Bauen aus dieser Seite.
@@ -24,161 +24,161 @@ var ME = "de";
   else if (ME === "de" ? (pref || (de ? "de" : "en")) === "en" : pref === "de") location.replace((ME === "de" ? "en.html" : "index.html") + location.hash);
 } catch(e) {} })();
 function setLang(l){ try { localStorage.setItem("kb-lang", l); } catch(e) {} }
+// Farbwelt: bunt (Standard), warm (Gelb bis Rot), kuehl (Blau bis Grün)
+(function(){ try { var p = localStorage.getItem("kb-palette"); if (p === "warm" || p === "kuehl") document.documentElement.setAttribute("data-palette", p); } catch(e) {} })();
+function setPalette(p){ if (p === "bunt") document.documentElement.removeAttribute("data-palette"); else document.documentElement.setAttribute("data-palette", p); try { localStorage.setItem("kb-palette", p); } catch(e) {} document.querySelectorAll("[data-pal]").forEach(function(b){ b.setAttribute("aria-pressed", String(b.getAttribute("data-pal") === p)); }); }
+function kbBuntCss(c){var ok=function(x){return /^#[0-9a-fA-F]{6}$/.test(x||"");};if(!c||!["t1","t2","t3","ac"].every(function(k){return ok(c[k]);}))return "";var L=function(x,p){return "color-mix(in srgb, "+x+" "+p+"%, #fff)";},D=function(x,p){return "color-mix(in srgb, "+x+" "+p+"%, #141414)";};var li="--ac:"+c.ac+";--acbg:"+L(c.ac,14)+";--ac-soft:"+L(c.ac,14)+";--t1:"+L(c.t1,22)+";--t2:"+L(c.t2,22)+";--t3:"+L(c.t3,22)+";--t1x:#1b1b1b;--t2x:#1b1b1b;--t3x:#1b1b1b",dk="--ac:"+L(c.ac,55)+";--acbg:"+D(c.ac,35)+";--ac-soft:"+D(c.ac,35)+";--t1:"+D(c.t1,26)+";--t2:"+D(c.t2,26)+";--t3:"+D(c.t3,26)+";--t1x:#f0f0f0;--t2x:#f0f0f0;--t3x:#f0f0f0";return ":root:not([data-palette]){"+li+"}@media (prefers-color-scheme:dark){:root:not([data-theme=\"light\"]):not([data-palette]){"+dk+"}}:root[data-theme=\"dark\"]:not([data-palette]){"+dk+"}";}
+function kbBuntApply(){var c=null;try{c=JSON.parse(localStorage.getItem("kb-bunt")||"null");}catch(e){}var el=document.getElementById("kbBunt");if(!el){el=document.createElement("style");el.id="kbBunt";document.head.appendChild(el);}el.textContent=kbBuntCss(c);}
+kbBuntApply();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
 <style>
-:root{--bg:#f5f5f2;--card:#fff;--soft:#ecece6;--tx:#1e1f1c;--tx2:#5c5e57;--tx3:#868880;--bd:#deded6;--bd2:#c9cac0;
---ac:#1d5a8f;--acbg:#e3eef8;--acink:#fff;--ok:#3b6d11;--okbg:#e8f2dc;--wa:#7d4a0a;--wabg:#f8ecd6;--da:#a32d2d;--dabg:#fbe8e8;--te:#0f6e56;--tebg:#dff3ec;
---rule:rgba(29,90,143,.09);--margin:rgba(163,45,45,.28);--shadow:0 1px 2px rgba(30,31,28,.05),0 12px 32px -12px rgba(30,31,28,.18);
---display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;--body:"Figtree",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--r:10px;
+/* Farben: Grundtöne + drei Kachelfarben (t1–t3) je Farbwelt, hell und dunkel */
+:root{--bg:#ffffff;--soft:#f3f6f9;--card:#ffffff;--tx:#13212e;--tx2:#4c5b69;--tx3:#7a8794;--bd:#e3e9ef;--bd2:#cfd8e1;
+--ac:#1d5a8f;--ac-ink:#ffffff;--ac-soft:#e9f0f7;
+--t1:#d7ecdf;--t1x:#173d27;--t2:#fde3c8;--t2x:#5a2f08;--t3:#dbe7fb;--t3x:#13325f;
+--good:#5f9e2f;--maybe:#e3ad4f;
+--font:Aptos,"Hanken Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 padding-top:env(safe-area-inset-top,0px);color-scheme:light}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141414;--card:#1e1e1d;--soft:#2a2a28;--tx:#f1f1ec;--tx2:#b4b4ac;--tx3:#86867f;--bd:#33332f;--bd2:#46463f;
---ac:#8dbbe8;--acbg:#16395a;--acink:#10263b;--ok:#9fca62;--okbg:#26401a;--wa:#f2c27a;--wabg:#4f3410;--da:#f09a9a;--dabg:#5a2020;--te:#68d0ad;--tebg:#0e4436;
---rule:rgba(141,187,232,.07);--margin:rgba(240,154,154,.22);--shadow:0 1px 2px rgba(0,0,0,.3),0 16px 40px -16px rgba(0,0,0,.7);color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#141414;--card:#1e1e1d;--soft:#2a2a28;--tx:#f1f1ec;--tx2:#b4b4ac;--tx3:#86867f;--bd:#33332f;--bd2:#46463f;
---ac:#8dbbe8;--acbg:#16395a;--acink:#10263b;--ok:#9fca62;--okbg:#26401a;--wa:#f2c27a;--wabg:#4f3410;--da:#f09a9a;--dabg:#5a2020;--te:#68d0ad;--tebg:#0e4436;
---rule:rgba(141,187,232,.07);--margin:rgba(240,154,154,.22);--shadow:0 1px 2px rgba(0,0,0,.3),0 16px 40px -16px rgba(0,0,0,.7);color-scheme:dark}
+:root[data-palette="warm"]{--ac:#b4401f;--good:#4a3524;--ac-ink:#ffffff;--ac-soft:#fbe9e1;--t1:#fdefb9;--t1x:#4d3a05;--t2:#fdd9bd;--t2x:#5a2a08;--t3:#f8d2cc;--t3x:#5c1a14}
+:root[data-palette="kuehl"]{--ac:#17607a;--maybe:#8f9cf0;--ac-ink:#ffffff;--ac-soft:#e2f0f4;--t1:#d4ece4;--t1x:#0f3d33;--t2:#d3eaf2;--t2x:#0d3a4a;--t3:#dbe4fb;--t3x:#172f66}
+@media (prefers-color-scheme:dark){
+:root:not([data-theme="light"]){--bg:#0e0e0e;--soft:#1b1b1b;--card:#161616;--tx:#ededed;--tx2:#b3b3b3;--tx3:#828282;--bd:#2c2c2c;--bd2:#3d3d3d;
+--ac:#8dbbe8;--ac-ink:#0d2236;--ac-soft:#1a3047;--t1:#1c3828;--t1x:#bfe5cc;--t2:#432f1b;--t2x:#fbd3a8;--t3:#1d2f4d;--t3x:#c4d8fa;--good:#6fae3c;--maybe:#d9a447;color-scheme:dark}
+:root:not([data-theme="light"])[data-palette="warm"]{--ac:#f2a27c;--good:#f2f2f2;--ac-ink:#2a1206;--ac-soft:#3a2219;--t1:#3b3210;--t1x:#f6e39a;--t2:#45291a;--t2x:#fbc9a3;--t3:#47201d;--t3x:#f5b8af}
+:root:not([data-theme="light"])[data-palette="kuehl"]{--ac:#79c6cf;--maybe:#7f8ef0;--ac-ink:#062628;--ac-soft:#12343a;--t1:#163a32;--t1x:#a9e3d3;--t2:#133847;--t2x:#a9dbea;--t3:#1c2c52;--t3x:#c0d0fa}}
+:root[data-theme="dark"]{--bg:#0e0e0e;--soft:#1b1b1b;--card:#161616;--tx:#ededed;--tx2:#b3b3b3;--tx3:#828282;--bd:#2c2c2c;--bd2:#3d3d3d;
+--ac:#8dbbe8;--ac-ink:#0d2236;--ac-soft:#1a3047;--t1:#1c3828;--t1x:#bfe5cc;--t2:#432f1b;--t2x:#fbd3a8;--t3:#1d2f4d;--t3x:#c4d8fa;--good:#6fae3c;--maybe:#d9a447;color-scheme:dark}
+:root[data-theme="dark"][data-palette="warm"]{--ac:#f2a27c;--good:#f2f2f2;--ac-ink:#2a1206;--ac-soft:#3a2219;--t1:#3b3210;--t1x:#f6e39a;--t2:#45291a;--t2x:#fbc9a3;--t3:#47201d;--t3x:#f5b8af}
+:root[data-theme="dark"][data-palette="kuehl"]{--ac:#79c6cf;--maybe:#7f8ef0;--ac-ink:#062628;--ac-soft:#12343a;--t1:#163a32;--t1x:#a9e3d3;--t2:#133847;--t2x:#a9dbea;--t3:#1c2c52;--t3x:#c0d0fa}
+
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.6 var(--body);-webkit-font-smoothing:antialiased}
-img,svg{max-width:100%}
+main,section{scroll-margin-top:calc(72px + env(safe-area-inset-top,0px))}
+body{margin:0;background:var(--bg);color:var(--tx);font:17px/1.6 var(--font);-webkit-font-smoothing:antialiased}
+h1,h2,h3,p{margin:0}
+h1,h2,h3{letter-spacing:-.025em;text-wrap:balance}
+h2{font-size:clamp(30px,4vw,44px);line-height:1.08;font-weight:800}
+h3{font-size:19px;font-weight:700;letter-spacing:-.01em}
 a{color:var(--ac)}
 [hidden]{display:none!important}
-.wrap{max-width:1120px;margin:0 auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
-h1,h2,h3{font-family:var(--display);letter-spacing:-.02em;text-wrap:balance;margin:0}
-h2{font-size:clamp(28px,4vw,40px);line-height:1.1;font-weight:700}
-h3{font-size:19px;font-weight:700;letter-spacing:-.01em}
-p{margin:0}
-.eyebrow{font-size:12.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ac)}
-.lead{font-size:clamp(17px,1.6vw,19px);color:var(--tx2);max-width:52ch}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 22px;border-radius:999px;font:600 16px/1 var(--body);text-decoration:none;border:1.5px solid var(--bd2);color:var(--tx);background:var(--card);transition:transform .15s,border-color .15s,background .15s}
-.btn:hover{border-color:var(--tx3);transform:translateY(-1px)}
-.btn.pri{background:var(--ac);border-color:var(--ac);color:var(--acink)}
-.btn.pri:hover{filter:brightness(1.08)}
-.btn:focus-visible,a:focus-visible{outline:3px solid var(--ac);outline-offset:3px}
+.wrap{max-width:1140px;margin:0 auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+.lead{font-size:clamp(17px,1.6vw,19px);color:var(--tx2);max-width:54ch}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 24px;border-radius:999px;font:600 16px/1 var(--font);text-decoration:none;white-space:nowrap;transition:filter .15s,background .15s}
+.btn.pri{background:var(--ac);color:var(--ac-ink)}
+.btn.pri:hover{filter:brightness(1.1)}
+.btn.sec{background:var(--ac-soft);color:var(--ac)}
+.btn.sec:hover{filter:brightness(.97)}
+a:focus-visible,button:focus-visible{outline:3px solid var(--ac);outline-offset:3px}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+section{padding-block:56px}
+.sec-h{display:grid;gap:14px;max-width:760px;margin-bottom:32px}
 
 /* Kopfzeile */
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid transparent;transition:border-color .2s}
-.top.sc{border-bottom-color:var(--bd)}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
-.top .wrap{display:flex;align-items:center;gap:20px;height:64px}
-.brand{display:flex;align-items:center;gap:10px;font:700 18px/1 var(--display);letter-spacing:-.01em;color:var(--tx);text-decoration:none}
-.brand svg{height:30px;width:auto;flex:none}
-.top nav{display:flex;gap:22px;margin-left:auto}
-.top nav a{color:var(--tx2);text-decoration:none;font-size:15px;font-weight:500}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.top .wrap{display:flex;align-items:center;gap:20px;height:68px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;letter-spacing:-.01em;color:var(--tx);text-decoration:none}
+.brand svg{height:30px;width:auto;display:block}
+.top nav{display:flex;gap:22px;margin-left:auto;font-size:15.5px}
+.top nav a{color:var(--tx2);text-decoration:none}
 .top nav a:hover{color:var(--tx)}
+.pal{display:flex;gap:6px;align-items:center}
+.pal button{width:22px;height:22px;border-radius:50%;border:2px solid var(--bg);box-shadow:0 0 0 1px var(--bd2);padding:0;cursor:pointer}
+.pal button[aria-pressed="true"]{box-shadow:0 0 0 2px var(--tx)}
+.pal .p-bunt{background:conic-gradient(#9fd2b2 0 33%,#f8c58f 0 66%,#a9c4f2 0)}
+.pal .p-warm{background:conic-gradient(#f5d66a 0 33%,#f5a76c 0 66%,#e58579 0)}
+.pal .p-kuehl{background:conic-gradient(#8fd0bd 0 33%,#8fc9dd 0 66%,#a6b9f0 0)}
+.lang{font-size:14px;font-weight:600;color:var(--tx2);text-decoration:none;padding:6px 4px}
+.lang:hover{color:var(--tx)}
 .top .btn{min-height:40px;padding:0 18px;font-size:15px}
-.top .lang{font-size:13.5px;font-weight:600;letter-spacing:.06em;color:var(--tx2);text-decoration:none;padding:6px 8px;border-radius:8px;border:1px solid var(--bd)}
-.top .lang:hover{color:var(--tx);border-color:var(--bd2)}
-@media (max-width:760px){.top nav{display:none}.top .lang{margin-left:auto}}
+@media (max-width:900px){.top nav{display:none}.pal{margin-left:auto}}
+@media (max-width:420px){.top .wrap{gap:12px}.brand span{display:none}}
 
-/* Hero */
-.hero{position:relative;overflow:hidden;padding-block:56px 80px}
-.hero::before{content:"";position:absolute;inset:0;z-index:-1;background:repeating-linear-gradient(to bottom,transparent 0 31px,var(--rule) 31px 32px);mask-image:linear-gradient(to bottom,#000 30%,transparent)}
-.hero .wrap{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:56px;align-items:center}
-.hero h1{font-size:clamp(40px,6.4vw,72px);line-height:1;font-weight:800;letter-spacing:-.035em;margin:14px 0 22px}
-.hero h1 em{font-style:normal;color:var(--ac);position:relative;white-space:nowrap}
-.hero h1 em::after{content:"";position:absolute;left:0;right:0;bottom:.04em;height:.11em;background:currentColor;opacity:.25;border-radius:2px}
-.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
-.try{margin-top:16px;font-size:14.5px;color:var(--tx3)}
-.try a{color:var(--tx2);font-weight:500}
-@media (max-width:900px){.hero{padding-block:32px 56px}.hero .wrap{grid-template-columns:minmax(0,1fr);gap:40px}}
+/* Einstieg */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:44px;align-items:center;padding-block:48px 64px}
+.hero h1{font-size:clamp(40px,5.8vw,68px);line-height:1.03;letter-spacing:-.04em;font-weight:800}
+.hero .lead{margin-top:20px}
+.try{margin-top:16px;font-size:15px;color:var(--tx3)}
+.try a{color:var(--tx2)}
+@media (max-width:900px){.hero{grid-template-columns:minmax(0,1fr);padding-block:28px 48px}}
+.mosaic{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.tile{border-radius:22px;padding:20px;min-height:150px;display:flex;flex-direction:column;justify-content:space-between;gap:10px}
+.tile small{font-size:13px;font-weight:600;opacity:.75}
+.tile b{display:block;font-size:20px;line-height:1.2;letter-spacing:-.01em}
+.tile p{font-size:14.5px;opacity:.82}
+.c1{background:var(--t1);color:var(--t1x)}.c2{background:var(--t2);color:var(--t2x)}.c3{background:var(--t3);color:var(--t3x)}
+.big{grid-row:span 2}
+.goals{list-style:none;margin:4px 0;padding:0;display:grid;gap:7px;font-size:15px}
+.goals li::before{content:"○";display:inline-block;width:22px;opacity:.55}
+.goals li.ok::before{content:"✓";opacity:1;font-weight:700}
+.bar{display:flex;gap:4px;margin-top:10px}.bar i{flex:1;height:8px;border-radius:4px;background:currentColor;opacity:.18}.bar i.f{opacity:.85}
+@media (max-width:460px){.mosaic{grid-template-columns:minmax(0,1fr)}.big{grid-row:auto}}
 
-/* Vorschau Wochenansicht */
-.book{position:relative;background:var(--card);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--shadow);padding:20px 20px 46px 36px}
-.book::before{content:"";position:absolute;top:0;bottom:0;left:22px;width:1.5px;background:var(--margin)}
-.book-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-.book-h b{font:700 22px/1.1 var(--display);letter-spacing:-.01em}
-.book-h span{color:var(--tx3);font-size:14px;font-variant-numeric:tabular-nums}
-.book-h .chip{margin-left:auto}
-.day{font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin:12px 0 6px}
-.les{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:start;padding:9px 0;border-top:1px solid var(--bd)}
-.les:first-of-type{border-top:0}
-.les time{font-variant-numeric:tabular-nums;font-weight:600;font-size:14.5px;color:var(--tx2);padding-top:1px}
-.les .who{font-weight:600;font-size:15px}
-.les .who small{font-weight:400;color:var(--tx3);font-size:13px;margin-left:4px}
-.les .note{font-size:13.5px;color:var(--tx2);line-height:1.45;margin-top:2px}
-.chip{display:inline-block;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
-.c-ok{background:var(--okbg);color:var(--ok)}.c-wa{background:var(--wabg);color:var(--wa)}.c-ac{background:var(--acbg);color:var(--ac)}.c-te{background:var(--tebg);color:var(--te)}
-.stamp{position:absolute;right:-14px;bottom:-22px;background:var(--card);border:1px solid var(--bd);border-radius:12px;box-shadow:var(--shadow);padding:10px 14px;font-size:13px;display:flex;gap:10px;align-items:center}
-.stamp svg{width:22px;height:22px;color:var(--ok);flex:none}
-@media (max-width:520px){.avail{padding:12px}.avail td.t{width:40px;padding-right:2px}.book{padding-left:30px}.book::before{left:17px}.stamp{right:8px}.les{grid-template-columns:44px minmax(0,1fr)}.les .chip{grid-column:2;justify-self:start}}
-
-/* Abschnitte */
-section{padding-block:88px}
-.sec-h{display:grid;gap:14px;max-width:720px;margin-bottom:44px}
-.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+/* Funktionen */
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 @media (max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:600px){.grid{grid-template-columns:minmax(0,1fr)}section{padding-block:64px}}
-.feat{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:24px;display:grid;gap:10px;align-content:start}
-.feat .ic{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;background:var(--acbg);color:var(--ac);margin-bottom:4px}
-.feat .ic svg{width:22px;height:22px}
-.feat p{color:var(--tx2);font-size:15.5px}
+@media (max-width:600px){.grid{grid-template-columns:minmax(0,1fr)}}
+.feat{border-radius:22px;padding:24px;display:grid;gap:8px;align-content:start}
+.feat p{font-size:15.5px;opacity:.85}
 
 /* Stundenplanung */
-.band{background:var(--card);border-block:1px solid var(--bd)}
-.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:56px;align-items:center}
-@media (max-width:900px){.split{grid-template-columns:minmax(0,1fr);gap:36px}}
-.steps{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:16px;counter-reset:s}
-.steps li{display:grid;grid-template-columns:34px minmax(0,1fr);gap:14px;counter-increment:s;color:var(--tx2)}
-.steps li::before{content:counter(s);width:34px;height:34px;border-radius:50%;border:1.5px solid var(--bd2);display:grid;place-items:center;font:700 15px/1 var(--display);color:var(--tx)}
-.steps b{color:var(--tx);font-weight:600}
-.avail{background:var(--bg);border:1px solid var(--bd);border-radius:14px;padding:18px;overflow-x:auto}
+.panel{background:var(--soft);border-radius:32px;padding:clamp(24px,4vw,48px);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:center}
+@media (max-width:900px){.panel{grid-template-columns:minmax(0,1fr)}}
+.steps{list-style:none;padding:0;margin:24px 0 0;display:grid;gap:16px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;counter-increment:s;color:var(--tx2)}
+.steps li::before{content:counter(s);width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--ac);color:var(--ac-ink);font-weight:700}
+.steps b{color:var(--tx)}
+.avail{background:var(--card);border-radius:22px;padding:18px}
 .avail table{border-collapse:separate;border-spacing:4px;width:100%;font-variant-numeric:tabular-nums}
-.avail th{font-size:12px;font-weight:600;color:var(--tx3);text-align:center;letter-spacing:.04em}
-.avail td.t{font-size:12.5px;color:var(--tx3);text-align:right;padding-right:6px;width:46px}
-.avail td.c{height:26px;min-width:30px;border-radius:6px;background:var(--soft)}
-.avail td.g{background:#5f9e2f}.avail td.n{background:#e7b45a}.avail td.x{background:var(--soft);background-image:repeating-linear-gradient(135deg,transparent 0 5px,var(--bd2) 5px 6px)}
+.avail th{font-size:12.5px;font-weight:600;color:var(--tx3)}
+.avail td.t{font-size:12.5px;color:var(--tx3);text-align:right;padding-right:6px;width:44px}
+.avail td.c{height:26px;min-width:28px;border-radius:7px;background:var(--soft)}
+.avail td.g{background:var(--good)}.avail td.n{background:var(--maybe)}
+.avail td.x{background-image:repeating-linear-gradient(135deg,transparent 0 5px,var(--bd2) 5px 6px)}
 .avail td.p{background:var(--ac);box-shadow:inset 0 0 0 2px var(--card)}
-.legend{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:14px;font-size:13.5px;color:var(--tx2)}
-.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px}
-.result{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--acbg);color:var(--tx);font-size:14.5px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:12px;font-size:13.5px;color:var(--tx2)}
+.legend i{display:inline-block;width:13px;height:13px;border-radius:4px;vertical-align:-2px;margin-right:6px}
+.result{margin-top:12px;padding:11px 14px;border-radius:14px;background:var(--ac-soft);font-size:15px}
 .result b{color:var(--ac)}
+@media (max-width:520px){.avail{padding:12px}.avail td.t{width:40px;padding-right:2px}}
 
 /* Sicherheit */
-.trust{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px;border-top:1px solid var(--bd);padding-top:32px}
-.trust div{display:grid;gap:6px}
-.trust b{font:700 17px/1.25 var(--display)}
-.trust p{color:var(--tx2);font-size:15px}
-@media (max-width:900px){.trust{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:520px){.trust{grid-template-columns:minmax(0,1fr)}}
-.lock{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:36px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:var(--tx3)}
-.lock span{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;white-space:nowrap}
-.lock .arrow{border:0;background:none;padding:0;color:var(--tx3)}
-.lock .plain{color:var(--tx)}.lock .enc{color:var(--tx3);letter-spacing:.02em}
+.sec2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:40px;align-items:start}
+@media (max-width:900px){.sec2{grid-template-columns:minmax(0,1fr)}}
+.wire{margin-top:22px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;font:13.5px/1.4 var(--mono);color:var(--tx3)}
+.wire span{border-radius:10px;padding:6px 10px;background:var(--soft)}
+.wire .p{color:var(--tx)}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.facts div{border:1px solid var(--bd);border-radius:22px;padding:20px;display:grid;gap:6px;align-content:start}
+.facts p{color:var(--tx2);font-size:15.5px}
+@media (max-width:560px){.facts{grid-template-columns:minmax(0,1fr)}}
 
-/* Start */
-.start{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;counter-reset:n}
+/* Loslegen, Testphase, Schluss */
+.start{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;counter-reset:n}
 @media (max-width:800px){.start{grid-template-columns:minmax(0,1fr)}}
-.start div{counter-increment:n;padding:24px;border-radius:var(--r);border:1px dashed var(--bd2);display:grid;gap:8px;align-content:start}
-.start div::before{content:"0" counter(n);font:800 30px/1 var(--display);color:var(--ac);letter-spacing:-.03em}
+.start div{counter-increment:n;background:var(--soft);border-radius:22px;padding:24px;display:grid;gap:8px;align-content:start}
+.start div::before{content:counter(n);font-size:34px;font-weight:800;line-height:1;color:var(--ac)}
 .start p{color:var(--tx2);font-size:15.5px}
-.final{margin-top:56px;background:var(--tx);color:var(--bg);border-radius:20px;padding:44px clamp(24px,5vw,56px);display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:space-between}
-.final h2{color:var(--bg);font-size:clamp(26px,3.4vw,34px)}
-.final p{color:color-mix(in srgb,var(--bg) 72%,transparent);margin-top:8px}
-.final .btn{background:var(--bg);border-color:var(--bg);color:var(--tx)}
-.final .btn.ghost{background:transparent;color:var(--bg);border-color:color-mix(in srgb,var(--bg) 40%,transparent)}
-
-.price{margin-top:56px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:40px;align-items:start;background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:36px clamp(22px,4vw,44px)}
-.price p.lead{margin-top:14px}
-.free{margin-top:18px;display:inline-block;background:var(--okbg);color:var(--ok);border-radius:10px;padding:10px 14px;font-size:15.5px}
-.free b{font-weight:700}
-.path a{word-break:break-all}
-.path{list-style:none;margin:0;padding:0;display:grid;gap:0}
-.path li{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr);gap:14px;padding-bottom:22px}
-.path li:last-child{padding-bottom:0}
-.path li::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid var(--ac);background:var(--card);margin:5px 0 0 4px;z-index:1}
-.path li:first-child::before{background:var(--ac)}
-.path li:not(:last-child)::after{content:"";position:absolute;left:10px;top:21px;bottom:2px;width:2px;background:var(--bd2)}
-.path b{display:block;font:700 16px/1.3 var(--display)}
-.path span{color:var(--tx2);font-size:15px}
-@media (max-width:800px){.price{grid-template-columns:minmax(0,1fr);gap:26px}}
-footer{border-top:1px solid var(--bd);padding-block:28px 40px;font-size:14px;color:var(--tx3)}
-footer .wrap{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
-footer a{color:var(--tx2);text-decoration:none}
-footer a:hover{text-decoration:underline}
+.test{border-radius:32px;padding:clamp(24px,4vw,48px);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px 48px}
+@media (max-width:900px){.test{grid-template-columns:minmax(0,1fr)}}
+.test .lead{color:inherit;opacity:.85;margin-top:14px}
+.free{display:inline-block;margin-top:18px;background:var(--card);color:var(--tx);border-radius:16px;padding:10px 16px;font-size:16px}
+.free b{color:var(--ac)}
+.pts{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.pts li{background:color-mix(in srgb,var(--card) 70%,transparent);border-radius:18px;padding:16px 18px;color:var(--tx)}
+.pts b{display:block}
+.pts span{color:var(--tx2);font-size:15.5px}
+.pts a{overflow-wrap:anywhere;white-space:nowrap}
+.final{background:var(--ac-soft);border-radius:32px;padding:clamp(28px,5vw,56px);display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:space-between}
+.final p{color:var(--tx2);margin-top:8px}
+.final .cta{margin:0}
+.final .btn.sec{background:var(--card)}
+footer{padding-block:28px 44px;font-size:14.5px;color:var(--tx3)}
+footer .wrap{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:center}
+footer a{color:var(--tx2);text-decoration:none}footer a:hover{text-decoration:underline}
 footer .sp{flex:1}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn{transition:none}}
 </style>
@@ -187,48 +187,41 @@ footer .sp{flex:1}
 <header class="top" id="top"><div class="wrap">
   <a class="brand" href="#start" aria-label="Klassenbuch, Startseite"><svg xmlns="http://www.w3.org/2000/svg" viewBox="35 45 289 270" aria-hidden="true"> <defs><clipPath id="lgh0"><rect x="0" y="105" width="28" height="28"/></clipPath><clipPath id="lgh1"><rect x="84" y="105" width="28" height="28"/></clipPath><clipPath id="lgh2"><rect x="168" y="105" width="28" height="28"/></clipPath><clipPath id="lgh3"><rect x="252" y="105" width="28" height="28"/></clipPath></defs> <g transform="translate(39.2 49.21)" fill="currentColor"> <rect x="20" y="0" width="260" height="18"/> <polygon points="20,0 28,0 28,105 20,113"/><polygon points="104,0 112,0 112,105 104,113"/><polygon points="188,0 196,0 196,105 188,113"/><polygon points="272,0 280,0 280,105 272,113"/> <g fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="butt"><path clip-path="url(#lgh0)" d="M-4 101 L32 137 M32 101 L-4 137"/><path clip-path="url(#lgh1)" d="M80 101 L116 137 M116 101 L80 137"/><path clip-path="url(#lgh2)" d="M164 101 L200 137 M200 101 L164 137"/><path clip-path="url(#lgh3)" d="M248 101 L284 137 M284 101 L248 137"/></g> <path d="M0.0 259.989501953125H25.89111328125V236.149169921875L37.68310546875 222.6268310546875L60.0494384765625 259.989501953125H90.5548095703125L55.37109375 205.5797119140625L88.7603759765625 164.5H58.062744140625L39.093017578125 189.0452880859375C32.7484130859375 197.3125 28.7750244140625 203.1444091796875 25.4425048828125 209.2967529296875L25.89111328125 185.0078125V164.5H0.0ZM94.4051513671875 259.989501953125H139.3941650390625C160.09423828125 259.989501953125 172.8475341796875 248.6461181640625 172.8475341796875 232.94482421875C172.8475341796875 219.486572265625 162.9781494140625 210.7066650390625 150.6734619140625 210.258056640625V209.232666015625C161.760498046875 207.1177978515625 169.1304931640625 198.9146728515625 169.1304931640625 188.34033203125C169.1304931640625 173.856689453125 157.5948486328125 164.5 135.8052978515625 164.5H94.4051513671875ZM120.2962646484375 239.353515625V219.10205078125H132.8572998046875C140.6759033203125 219.10205078125 145.5465087890625 222.8831787109375 145.5465087890625 229.6123046875C145.5465087890625 235.9569091796875 141.12451171875 239.353515625 132.4727783203125 239.353515625ZM120.2962646484375 203.080322265625V184.879638671875H131.3192138671875C137.7279052734375 184.879638671875 142.4703369140625 188.1480712890625 142.4703369140625 193.97998046875C142.4703369140625 199.8759765625 137.7279052734375 203.080322265625 130.9346923828125 203.080322265625Z"/> </g></svg><span>Klassenbuch</span></a>
   <nav aria-label="Abschnitte"><a href="#funktionen">Funktionen</a><a href="#planung">Stundenplanung</a><a href="#sicherheit">Sicherheit</a><a href="#loslegen">Loslegen</a><a href="#testphase">Testphase</a></nav>
+  <div class="pal" role="group" aria-label="Farbwelt"><button type="button" class="p-warm" data-pal="warm" aria-pressed="false" title="Warm" aria-label="Farbwelt Warm"></button><button type="button" class="p-kuehl" data-pal="kuehl" aria-pressed="false" title="Kühl" aria-label="Farbwelt Kühl"></button><button type="button" class="p-bunt" data-pal="bunt" aria-pressed="true" title="Bunt" aria-label="Farbwelt Bunt"></button></div>
   <a class="lang" href="en.html#start" hreflang="en" lang="en" onclick="setLang('en')" title="English">EN</a>
-  <a class="btn login" href="app.html#anmelden">Anmelden</a>
+  <a class="btn pri login" href="app.html#anmelden">Anmelden</a>
 </div></header>
 
 <main id="start">
-<div class="hero"><div class="wrap">
+<div class="wrap hero">
   <div>
-    <span class="eyebrow">Für den Instrumentalunterricht</span>
-    <h1>Jede Lektion notiert. Jedes Kind <em>im&nbsp;Blick.</em></h1>
+    <h1>Jede Lektion notiert. Jedes Kind im Blick.</h1>
     <p class="lead">Das Klassenbuch hält fest, was in der Lektion lief, was als Nächstes kommt und wo jedes Kind im Lehrplan steht. Noten, Termine und die Stundenplanung sind gleich dabei.</p>
-    <div class="cta"><a class="btn pri" href="app.html#registrieren">Konto erstellen</a><a class="btn" href="app.html#anmelden">Anmelden</a></div>
+    <div class="cta"><a class="btn pri" href="app.html#registrieren">Konto erstellen</a><a class="btn sec" href="app.html#anmelden">Anmelden</a></div>
     <p class="try">Zuerst nur anschauen? <a href="app.html">Ohne Konto ausprobieren</a>. Die Einträge bleiben dann auf diesem Gerät.</p>
   </div>
-
-  <div class="book" aria-label="Beispiel: Wochenansicht im Klassenbuch" role="img">
-    <div class="book-h"><b>KW 46</b><span>9.–15. Nov. 2026</span><span class="chip c-ac">7 Lektionen</span></div>
-    <div class="day">Dienstag</div>
-    <div class="les"><time>13:30</time><div><div class="who">Lia M. <small>Snare Drum · Stufe 2</small></div><div class="note">Paradiddle-Etüde S. 12 sitzt. Nächstes Mal: Flam-Accent langsam.</div></div><span class="chip c-ok">Anwesend</span></div>
-    <div class="les"><time>14:00</time><div><div class="who">Noa &amp; Elio <small>Gruppe · Drum Set</small></div><div class="note">Groove mit Achtel-Hi-Hat, Fill über 2 Takte.</div></div><span class="chip c-ok">Anwesend</span></div>
-    <div class="les"><time>14:45</time><div><div class="who">Mara K. <small>Mallets · Stufe 1</small></div><div class="note">Krank gemeldet. Vorspiel am 28.11. nicht vergessen.</div></div><span class="chip c-wa">Entschuldigt</span></div>
-    <div class="day">Mittwoch</div>
-    <div class="les"><time>15:15</time><div><div class="who">Jonas B. <small>Pauken · Stufe 3</small></div><div class="note">Stimmen nach Gehör: Quarte G–C.</div></div><span class="chip c-te">Geplant</span></div>
-    <div class="stamp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><b>Synchronisiert</b><br><span style="color:var(--tx3)">iPad, Handy und Laptop</span></span></div>
+  <div class="mosaic" role="img" aria-label="Beispiel: Lehrplan, Stundenplanung und Lektionsnotiz im Klassenbuch">
+    <div class="tile c1 big"><small>Lehrplan · Lia M.</small><ul class="goals"><li class="ok">Paradiddle</li><li class="ok">Flam</li><li class="ok">Wirbel offen</li><li>Flam-Accent</li><li>Drag</li></ul><div><b>Snare Drum, Stufe 2</b><p>7 von 10 Zielen erreicht</p><div class="bar"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i><i></i></div></div></div>
+    <div class="tile c2"><small>Stundenplanung</small><b>Mi 14:00–14:30</b><p>passt gut für Lia</p></div>
+    <div class="tile c3"><small>Heute, 13:30</small><b>Paradiddle sitzt</b><p>Nächstes Mal: Flam-Accent</p></div>
   </div>
-</div></div>
+</div>
 
 <section id="funktionen"><div class="wrap">
-  <div class="sec-h"><span class="eyebrow">Funktionen</span><h2>Alles, was neben dem Unterrichten anfällt</h2><p class="lead">Gebaut von einem Schlagzeuglehrer für den eigenen Unterricht und für alle Instrumente erweitert. Was du nicht brauchst, schaltest du in den Einstellungen aus.</p></div>
+  <div class="sec-h"><h2>Alles, was neben dem Unterrichten anfällt</h2><p class="lead">Gebaut von einem Schlagzeuglehrer für den eigenen Unterricht und für alle Instrumente erweitert. Was du nicht brauchst, schaltest du in den Einstellungen aus.</p></div>
   <div class="grid">
-    <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h12l4 4v12H4z"/><path d="M8 10h8M8 14h8M8 18h5"/></svg></span><h3>Lektionen notieren</h3><p>Was geübt wurde, was als Hausaufgabe gilt, wer da war. Beim nächsten Mal steht die letzte Notiz schon bereit.</p></div>
-    <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><h3>Lehrplan pro Kind</h3><p>Die Förderstufen des Musikschul-Lehrplans für 28 Instrumente. Du hakst ab, was sitzt, und siehst, was als Nächstes kommt.</p></div>
-    <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><h3>Noten mit Stiftnotizen</h3><p>Deine PDFs im Notenviewer. Markierungen mit Stift und Leuchtstift speichert das Klassenbuch pro Schüler:in und Heft.</p></div>
-    <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span><h3>Woche und Kalender</h3><p>Ferien, Vorspiele, Konzerte und Geburtstage. Die Wochenansicht zeigt, was ansteht und wer wann kommt.</p></div>
-    <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg></span><h3>Stundenplanung</h3><p>Familien tragen per Link ein, wann es passt. Das Klassenbuch schlägt einen Stundenplan vor.</p></div>
-    <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg></span><h3>Rechnungen</h3><p>Privatlektionen abrechnen: Die Rechnung entsteht aus den erfassten Lektionen, mit deinem Einzahlungsschein.</p></div>
+    <div class="feat c1"><h3>Lektionen notieren</h3><p>Was geübt wurde, was als Hausaufgabe gilt, wer da war. Beim nächsten Mal steht die letzte Notiz schon bereit.</p></div>
+    <div class="feat c2"><h3>Lehrplan pro Kind</h3><p>Die Förderstufen des Musikschul-Lehrplans für 28 Instrumente. Du hakst ab, was sitzt, und siehst, was als Nächstes kommt.</p></div>
+    <div class="feat c3"><h3>Noten mit Stiftnotizen</h3><p>Deine PDFs im Notenviewer. Markierungen mit Stift und Leuchtstift speichert das Klassenbuch pro Schüler:in und Heft.</p></div>
+    <div class="feat c2"><h3>Woche und Kalender</h3><p>Ferien, Vorspiele, Konzerte und Geburtstage. Die Wochenansicht zeigt, was ansteht und wer wann kommt.</p></div>
+    <div class="feat c3"><h3>Stundenplanung</h3><p>Familien tragen per Link ein, wann es passt. Das Klassenbuch schlägt einen Stundenplan vor.</p></div>
+    <div class="feat c1"><h3>Rechnungen</h3><p>Privatlektionen abrechnen: Die Rechnung entsteht aus den erfassten Lektionen, mit deinem Einzahlungsschein.</p></div>
   </div>
 </div></section>
 
-<section id="planung" class="band"><div class="wrap split">
+<section id="planung"><div class="wrap"><div class="panel">
   <div>
-    <span class="eyebrow">Stundenplanung</span>
-    <h2 style="margin-top:14px">Der Stundenplan, ohne zwanzig Nachrichten hin und her</h2>
+    <h2>Der Stundenplan, ohne zwanzig Nachrichten hin und her</h2>
     <ol class="steps">
       <li><span><b>Link verschicken.</b> Jede Familie bekommt einen persönlichen Link. Ein Konto braucht sie nicht.</span></li>
       <li><span><b>Zeiten eintragen.</b> Auf dem Handy tippt die Familie an, was gut passt, was notfalls geht und was nicht. Die Einträge anderer Familien sieht sie nicht.</span></li>
@@ -244,44 +237,51 @@ footer .sp{flex:1}
       <tr><td class="t">15:30</td><td class="c g"></td><td class="c x"></td><td class="c x"></td><td class="c x"></td><td class="c x"></td></tr>
       <tr><td class="t">16:00</td><td class="c g"></td><td class="c x"></td><td class="c x"></td><td class="c x"></td><td class="c x"></td></tr>
     </tbody></table>
-    <div class="legend"><span><i style="background:#5f9e2f"></i>Passt gut</span><span><i style="background:#e7b45a"></i>Geht notfalls</span><span><i style="background:var(--soft);background-image:repeating-linear-gradient(135deg,transparent 0 3px,var(--bd2) 3px 4px)"></i>Geht nicht</span></div>
+    <div class="legend"><span><i style="background:var(--good)"></i>Passt gut</span><span><i style="background:var(--maybe)"></i>Geht notfalls</span><span><i style="background:var(--soft);background-image:repeating-linear-gradient(135deg,transparent 0 3px,var(--bd2) 3px 4px)"></i>Geht nicht</span></div>
     <div class="result">Vorschlag für Lia: <b>Mittwoch, 14:00–14:30</b>. Passt gut, direkt nach Noa.</div>
   </div>
-</div></section>
+</div></div></section>
 
-<section id="sicherheit"><div class="wrap">
-  <div class="sec-h"><span class="eyebrow">Sicherheit</span><h2>Was du über Kinder notierst, bleibt bei dir</h2><p class="lead">Deine Einträge werden auf deinem Gerät verschlüsselt, bevor sie es verlassen. Auf dem Server liegen nur Daten, die niemand lesen kann, auch der Betreiber nicht.</p></div>
-  <div class="lock" aria-hidden="true"><span class="plain">Lia · Paradiddle sitzt</span><span class="arrow">→</span><span class="enc">9f3a·c41e·77b0·2d8f…</span><span class="arrow">→</span><span>Server</span></div>
-  <div class="trust">
-    <div><b>Ende-zu-Ende verschlüsselt</b><p>Der Schlüssel entsteht aus deinem Passwort und verlässt dein Gerät nie.</p></div>
-    <div><b>Auf allen Geräten</b><p>iPad im Unterricht, Laptop zu Hause, Handy unterwegs. Überall derselbe Stand.</p></div>
-    <div><b>Auch offline</b><p>Ohne Netz trägst du weiter ein. Der Abgleich passiert, sobald du wieder online bist.</p></div>
-    <div><b>Wiederherstellbar</b><p>Mit dem Wiederherstellungsschlüssel setzt du ein vergessenes Passwort neu. Backups lädst du jederzeit herunter.</p></div>
+<section id="sicherheit"><div class="wrap sec2">
+  <div>
+    <h2>Was du über Kinder notierst, bleibt bei dir</h2>
+    <p class="lead" style="margin-top:14px">Deine Einträge werden auf deinem Gerät verschlüsselt, bevor sie es verlassen. Auf dem Server liegen nur Daten, die niemand lesen kann, auch der Betreiber nicht.</p>
+    <div class="wire" aria-hidden="true"><span class="p">Lia · Paradiddle sitzt</span>→<span>9f3a·c41e·77b0·2d8f…</span>→<span>Server</span></div>
+  </div>
+  <div class="facts">
+    <div><h3>Ende-zu-Ende verschlüsselt</h3><p>Der Schlüssel entsteht aus deinem Passwort und verlässt dein Gerät nie.</p></div>
+    <div><h3>Auf allen Geräten</h3><p>iPad im Unterricht, Laptop zu Hause, Handy unterwegs. Überall derselbe Stand.</p></div>
+    <div><h3>Auch offline</h3><p>Ohne Netz trägst du weiter ein. Der Abgleich passiert, sobald du wieder online bist.</p></div>
+    <div><h3>Wiederherstellbar</h3><p>Mit dem Wiederherstellungsschlüssel setzt du ein vergessenes Passwort neu. Backups lädst du jederzeit herunter.</p></div>
   </div>
 </div></section>
 
-<section id="loslegen" style="padding-top:0"><div class="wrap">
-  <div class="sec-h"><span class="eyebrow">Loslegen</span><h2>In fünf Minuten eingerichtet</h2></div>
+<section id="loslegen"><div class="wrap">
+  <div class="sec-h"><h2>In fünf Minuten eingerichtet</h2></div>
   <div class="start">
     <div><h3>Konto erstellen</h3><p>Mit Name, E-Mail und Passwort. Während der Testphase brauchst du dafür einen Einladungscode. Den bekommst du von mir: <a href="mailto:adi.popp@hotmail.com">adi.popp@hotmail.com</a></p></div>
     <div><h3>Aufs Gerät legen</h3><p>Im Browser «Zum Home-Bildschirm» wählen. Dann startet das Klassenbuch wie eine App.</p></div>
     <div><h3>Schüler:innen anlegen</h3><p>Instrument und Unterrichtszeit eintragen, Lehrplan wählen und los geht’s.</p></div>
   </div>
-  <div class="price" id="testphase">
-    <div><span class="eyebrow">Testphase</span><h2 style="margin-top:14px">Testen, rückmelden, mitgestalten</h2>
-      <p class="lead">Alle, die von mir einen Einladungscode bekommen haben, sind Testende. Ich freue mich auf eure Rückmeldungen und Verbesserungsvorschläge: was hilft, was fehlt und was stört.</p>
-      <p class="free"><b>Die Testphase ist gratis.</b> Du bezahlst nichts, solange sie läuft.</p></div>
-    <ol class="path">
-      <li><div><b>Gratis testen</b><span>Du nutzt das Klassenbuch in deinem Unterricht, so viel du willst.</span></div></li>
-      <li><div><b>Rückmeldungen und Ideen</b><span>Schreib mir, was dir auffällt, auch Kleinigkeiten: <a href="mailto:adi.popp@hotmail.com">adi.popp@hotmail.com</a></span></div></li>
-      <li><div><b>Den Preis ermitteln wir gemeinsam</b><span>Einen Preis gibt es noch nicht. Nach einigen Wochen melde ich mich bei allen Testenden, und wir finden ihn zusammen. Ihr erfahrt ihn, bevor er gilt.</span></div></li>
-    </ol>
-  </div>
-  <div class="final">
-    <div><h2>Bereit für die nächste Lektion?</h2><p>Während der Testphase gratis, mit Einladungscode.</p></div>
-    <div class="cta" style="margin:0"><a class="btn" href="app.html#registrieren">Konto erstellen</a><a class="btn ghost" href="app.html#anmelden">Anmelden</a></div>
-  </div>
 </div></section>
+
+<section id="testphase"><div class="wrap"><div class="test c2">
+  <div>
+    <h2>Testen, rückmelden, mitgestalten</h2>
+    <p class="lead">Alle, die von mir einen Einladungscode bekommen haben, sind Testende. Ich freue mich auf eure Rückmeldungen und Verbesserungsvorschläge: was hilft, was fehlt und was stört.</p>
+    <p class="free"><b>Die Testphase ist gratis.</b> Du bezahlst nichts, solange sie läuft.</p>
+  </div>
+  <ul class="pts">
+    <li><b>Gratis testen</b><span>Du nutzt das Klassenbuch in deinem Unterricht, so viel du willst.</span></li>
+    <li><b>Rückmeldungen und Ideen</b><span>Schreib mir, was dir auffällt, auch Kleinigkeiten: <a href="mailto:adi.popp@hotmail.com">adi.popp@hotmail.com</a></span></li>
+    <li><b>Den Preis ermitteln wir gemeinsam</b><span>Einen Preis gibt es noch nicht. Nach einigen Wochen melde ich mich bei allen Testenden, und wir finden ihn zusammen. Ihr erfahrt ihn, bevor er gilt.</span></li>
+  </ul>
+</div></div></section>
+
+<section style="padding-top:0"><div class="wrap"><div class="final">
+  <div><h2>Bereit für die nächste Lektion?</h2><p>Während der Testphase gratis, mit Einladungscode.</p></div>
+  <div class="cta"><a class="btn pri" href="app.html#registrieren">Konto erstellen</a><a class="btn sec" href="app.html#anmelden">Anmelden</a></div>
+</div></div></section>
 </main>
 
 <footer><div class="wrap">
@@ -290,6 +290,9 @@ footer .sp{flex:1}
 </div></footer>
 
 <script>
-(function(){ var t = document.getElementById("top"); function f(){ t.classList.toggle("sc", scrollY > 8); } addEventListener("scroll", f, {passive:true}); f(); })();
+(function(){
+  var p = document.documentElement.getAttribute("data-palette") || "bunt";
+  document.querySelectorAll("[data-pal]").forEach(function(b){ b.setAttribute("aria-pressed", String(b.getAttribute("data-pal") === p)); b.addEventListener("click", function(){ setPalette(b.getAttribute("data-pal")); }); });
+})();
 </script>
 </body></html>
