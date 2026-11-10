@@ -38,10 +38,20 @@ textarea{font:inherit;width:100%;min-height:70px;border:1px solid var(--bd2);bor
 #msg{font-size:14px;min-width:0}#msg.err{color:var(--da)}#msg.ok{color:var(--ok)}
 .res{font-size:22px;font-weight:600;margin:6px 0}
 a{color:var(--ac)}
-</style></head><body><main class="wrap" id="p"><p class="s">Wird geladen …</p></main>
+.top{display:flex;align-items:center;gap:10px;margin:0 0 14px}.top .brand{margin:0;flex:1;min-width:0}
+.lng{font:600 13px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;letter-spacing:.05em;color:var(--tx2);background:none;border:1px solid var(--bd2);border-radius:8px;padding:7px 10px;cursor:pointer;min-height:32px}
+</style></head><body><main class="wrap" id="p"><p class="s">…</p></main>
 <script>
 const API = "https://www.adrianpopp.ch/_functions/kb/";
-const DAYS = ["", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"], SHORT = ["", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+// Sprache: Wahl der Familie (kb-lang), sonst Browser. Texte der Lehrperson bleiben, wie sie sind.
+let EN = (() => { try { const s = localStorage.getItem("kb-lang"); if (s) return s === "en"; } catch(e) {} return !(navigator.languages || [navigator.language || ""]).some(l => /^de/i.test(l)); })();
+const L = (de, en) => EN ? en : de;
+const dayL = () => EN ? ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] : ["", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+const shortL = () => EN ? ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+let again = null;
+function head(extra){ return `<div class="top"><p class="brand">Klassenbuch${extra || ""}</p><button class="lng" type="button" id="lng" lang="${EN ? "de" : "en"}">${EN ? "Deutsch" : "English"}</button></div>`; }
+function applyLang(){ document.documentElement.lang = EN ? "en" : "de-CH"; document.title = "Klassenbuch – " + L("Verfügbarkeit", "Availability"); }
+applyLang();
 const p = document.getElementById("p"), te = new TextEncoder(), td = new TextDecoder();
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fromUrl = s => { const b = atob(s.replace(/-/g, "+").replace(/_/g, "/")), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
@@ -49,8 +59,8 @@ const toB64 = u => { let s = ""; for (let i = 0; i < u.length; i += 0x8000) s +=
 const unB64 = s => fromUrl(s.replace(/\+/g, "-").replace(/\//g, "_"));
 const M = t => { const [h, m] = String(t).split(":").map(Number); return h * 60 + (m || 0); };
 const T = m => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
-const dat = s => { const [y, m, d] = String(s).split("-").map(Number); return d && m ? `${d}.${m}.${y}` : ""; };
-function stop(title, text){ p.innerHTML = `<p class="brand">Klassenbuch</p><h1>${esc(title)}</h1><p>${esc(text)}</p>`; }
+const dat = s => { const [y, m, d] = String(s).split("-").map(Number); return !(d && m) ? "" : EN ? new Date(y, m - 1, d).toLocaleDateString("en-GB", {day: "numeric", month: "long", year: "numeric"}) : `${d}.${m}.${y}`; };
+function stop(de, en){ again = () => stop(de, en); p.innerHTML = `${head()}<h1>${esc(L(de[0], en[0]))}</h1><p>${esc(L(de[1], en[1]))}</p>`; }
 async function post(action, body){
   const r = await fetch(API + action, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
   let j = {}; try { j = await r.json(); } catch(e) {}
@@ -63,10 +73,12 @@ const dec = async s => { const u = unB64(s); return JSON.parse(td.decode(await c
 const inWin = (tag, m) => f.fenster.some(w => w.tag === tag && m + f.raster > M(w.von) && m < M(w.bis));
 const k = (tag, m) => tag + "-" + T(m);
 const sym = v => v === 2 ? "✓" : v === 1 ? "~" : "";
-const label = v => v === 2 ? "passt gut" : v === 1 ? "geht notfalls" : "geht nicht";
+const label = v => v === 2 ? L("passt gut", "suits well") : v === 1 ? L("geht notfalls", "if need be") : L("geht nicht", "not possible");
 function setCell(b, v){ const id = b.dataset.k; if (v) c[id] = v; else delete c[id]; b.className = "cell" + (v ? " c" + v : ""); b.textContent = sym(v); b.setAttribute("aria-label", `${b.dataset.n}: ${label(v)}`); }
 const next = v => v === 0 || v === undefined ? 2 : v === 2 ? 1 : 0;
 function view(ans){
+  again = () => { const n = document.getElementById("note"), u = document.getElementById("unk"); view({c, n: n ? n.value : "", u: u ? u.checked : false}); };
+  anchor = null; const DAYS = dayL(), SHORT = shortL();
   c = ans && ans.c ? {...ans.c} : {};
   const tags = [...new Set(f.fenster.map(w => w.tag))].sort((a, b) => a - b), r = f.raster;
   const lo = Math.min(...f.fenster.map(w => Math.floor(M(w.von) / r) * r)), hi = Math.max(...f.fenster.map(w => M(w.bis)));
@@ -75,22 +87,22 @@ function view(ans){
     if (!tags.some(t => inWin(t, m))) continue;
     rows += `<tr><td class="t">${r >= 15 || m % (r === 10 ? 30 : 15) === 0 ? T(m) : ""}</td>${tags.map(t => inWin(t, m) ? `<td><button type="button" class="cell" data-k="${k(t, m)}" data-t="${t}" data-n="${DAYS[t]} ${T(m)}"></button></td>` : `<td><div class="no"></div></td>`).join("")}</tr>`;
   }
-  p.innerHTML = `<p class="brand">Klassenbuch${f.lp ? " · " + esc(f.lp) : ""}</p>
-    <h1>Wann hat ${esc(f.name)} Zeit?</h1>
-    <p>${esc(f.titel)} · ${f.dauer} Minuten pro Woche. Bitte bis ${dat(f.frist)} eintragen.</p>
+  p.innerHTML = `${head(f.lp ? " · " + esc(f.lp) : "")}
+    <h1>${L(`Wann hat ${esc(f.name)} Zeit?`, `When is ${esc(f.name)} available?`)}</h1>
+    <p>${esc(f.titel)} · ${L(`${f.dauer} Minuten pro Woche. Bitte bis ${dat(f.frist)} eintragen.`, `${f.dauer} minutes per week. Please fill in by ${dat(f.frist)}.`)}</p>
     ${f.hinweis ? `<p class="s">${esc(f.hinweis)}</p>` : ""}
     <div class="card">
-      <div class="leg"><span><i class="dot c2">✓</i>passt gut</span><span><i class="dot c1">~</i>geht notfalls</span><span><i class="dot"></i>geht nicht</span></div>
-      <p class="s" style="margin:0 0 10px">${r < 15 ? "Tippe zuerst auf den Beginn und dann auf das Ende einer Zeit. Tippst du nochmals, ändert sich die Farbe." : "Tippe auf ein Feld, um es zu ändern."} Je mehr Zeiten du angibst, desto eher klappt es.</p>
-      <div class="gridw${r < 15 ? " fine" : ""}"><table><thead><tr><th class="t"></th>${tags.map(t => `<th><button type="button" data-day="${t}" aria-label="Ganzen ${DAYS[t]} ändern">${SHORT[t]}</button></th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="leg"><span><i class="dot c2">✓</i>${label(2)}</span><span><i class="dot c1">~</i>${label(1)}</span><span><i class="dot"></i>${label(0)}</span></div>
+      <p class="s" style="margin:0 0 10px">${r < 15 ? L("Tippe zuerst auf den Beginn und dann auf das Ende einer Zeit. Tippst du nochmals, ändert sich die Farbe.", "Tap the start and then the end of a time span. Tap again to change the colour.") : L("Tippe auf ein Feld, um es zu ändern.", "Tap a box to change it.")} ${L("Je mehr Zeiten du angibst, desto eher klappt es.", "The more times you mark, the easier it is to find a slot.")}</p>
+      <div class="gridw${r < 15 ? " fine" : ""}"><table><thead><tr><th class="t"></th>${tags.map(t => `<th><button type="button" data-day="${t}" aria-label="${L(`Ganzen ${DAYS[t]} ändern`, `Change all of ${DAYS[t]}`)}">${SHORT[t]}</button></th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>
     </div>
     <div class="card">
-      <label for="note">Bemerkung (freiwillig)</label>
-      <textarea id="note" maxlength="500" placeholder="Zum Beispiel: Mittwoch erst ab 14:15 wegen Schulweg">${esc(ans && ans.n || "")}</textarea>
-      <label class="chk"><input type="checkbox" id="unk" ${ans && ans.u ? "checked" : ""}><span>Der Schulstundenplan steht noch nicht fest. Ich trage die Zeiten über denselben Link nach.</span></label>
+      <label for="note">${L("Bemerkung (freiwillig)", "Comment (optional)")}</label>
+      <textarea id="note" maxlength="500" placeholder="${L("Zum Beispiel: Mittwoch erst ab 14:15 wegen Schulweg", "For example: Wednesday only from 14:15 because of the way home from school")}">${esc(ans && ans.n || "")}</textarea>
+      <label class="chk"><input type="checkbox" id="unk" ${ans && ans.u ? "checked" : ""}><span>${L("Der Schulstundenplan steht noch nicht fest. Ich trage die Zeiten über denselben Link nach.", "The school timetable isn’t fixed yet. I’ll add the times later using the same link.")}</span></label>
     </div>
-    <div class="act"><button class="save" id="save" type="button">Speichern</button><span id="msg" role="status"></span></div>
-    <p class="s" style="margin-top:24px">Deine Angaben werden auf diesem Gerät verschlüsselt und sind nur für ${f.lp ? esc(f.lp) : "deine Lehrperson"} lesbar. Andere Familien sehen sie nicht. Nach der Planung werden sie gelöscht. <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz</a></p>`;
+    <div class="act"><button class="save" id="save" type="button">${L("Speichern", "Save")}</button><span id="msg" role="status"></span></div>
+    <p class="s" style="margin-top:24px">${L(`Deine Angaben werden auf diesem Gerät verschlüsselt und sind nur für ${f.lp ? esc(f.lp) : "deine Lehrperson"} lesbar. Andere Familien sehen sie nicht. Nach der Planung werden sie gelöscht.`, `Your entries are encrypted on this device and can only be read by ${f.lp ? esc(f.lp) : "your teacher"}. Other families can’t see them. They are deleted after planning.`)} <a href="rechtliches.html" target="_blank" rel="noopener">${L("Datenschutz", "Privacy (German)")}</a></p>`;
   p.querySelectorAll(".cell").forEach(b => setCell(b, c[b.dataset.k] || 0));
 }
 p.addEventListener("pointerdown", e => {
@@ -102,6 +114,7 @@ p.addEventListener("pointerover", e => { if (paint === null) return; const b = e
 addEventListener("pointerup", () => { paint = null; });
 p.addEventListener("click", e => {
   const d = e.target.closest("[data-day]");
+  if (e.target.closest("#lng")){ EN = !EN; try { localStorage.setItem("kb-lang", EN ? "en" : "de"); } catch(x) {} applyLang(); if (again) again(); return; }
   if (d){ const l = [...p.querySelectorAll(`.cell[data-t="${d.dataset.day}"]`)], v = next(c[l[0].dataset.k] || 0); l.forEach(b => setCell(b, v)); return; }
   if (e.target.closest("#save")){ save(); return; }
   const b = e.target.closest(".cell"); if (!b) return;
@@ -118,26 +131,26 @@ function fits(){
 async function save(){
   const msg = document.getElementById("msg"), btn = document.getElementById("save"), u = document.getElementById("unk").checked;
   msg.className = "";
-  if (!u && !Object.keys(c).length){ msg.className = "err"; msg.textContent = "Bitte markiere mindestens eine Zeit."; return; }
-  if (!u && !fits()){ msg.className = "err"; msg.textContent = `Bitte markiere mindestens einmal ${f.dauer} Minuten am Stück.`; return; }
-  btn.disabled = true; msg.textContent = "Wird gespeichert …";
+  if (!u && !Object.keys(c).length){ msg.className = "err"; msg.textContent = L("Bitte markiere mindestens eine Zeit.", "Please mark at least one time."); return; }
+  if (!u && !fits()){ msg.className = "err"; msg.textContent = L(`Bitte markiere mindestens einmal ${f.dauer} Minuten am Stück.`, `Please mark at least one block of ${f.dauer} minutes in a row.`); return; }
+  btn.disabled = true; msg.textContent = L("Wird gespeichert …", "Saving …");
   try {
     await post("fput", {t: token, ans: await enc({v: 1, c, n: document.getElementById("note").value.trim().slice(0, 500), u, at: Date.now()})});
-    msg.className = "ok"; msg.textContent = `Gespeichert. Du kannst die Zeiten über diesen Link bis ${dat(f.frist)} ändern.`;
+    msg.className = "ok"; msg.textContent = L(`Gespeichert. Du kannst die Zeiten über diesen Link bis ${dat(f.frist)} ändern.`, `Saved. You can change your times using this link until ${dat(f.frist)}.`);
   } catch(e) {
-    msg.className = "err"; msg.textContent = e.status === 410 ? "Die Eintragung ist bereits abgeschlossen." : "Das hat nicht geklappt. Prüfe die Verbindung und versuche es nochmals.";
+    msg.className = "err"; msg.textContent = e.status === 410 ? L("Die Eintragung ist bereits abgeschlossen.", "This form is already closed.") : L("Das hat nicht geklappt. Prüfe die Verbindung und versuche es nochmals.", "That didn’t work. Check your connection and try again.");
   }
   btn.disabled = false;
 }
 addEventListener("hashchange", () => location.reload());
 function result(){
-  const r = f.res, von = M(r.zeit);
-  p.innerHTML = `<p class="brand">Klassenbuch${f.lp ? " · " + esc(f.lp) : ""}</p><h1>Stundenplan für ${esc(f.name)}</h1><p>${esc(f.titel)}</p>
-    <div class="card"><p class="s">Die Lektion findet neu hier statt:</p><p class="res">${DAYS[r.tag]}, ${T(von)}–${T(von + f.dauer)}</p>${r.ort ? `<p>${esc(r.ort)}</p>` : ""}</div>`;
+  again = result; const r = f.res, von = M(r.zeit), DAYS = dayL();
+  p.innerHTML = `${head(f.lp ? " · " + esc(f.lp) : "")}<h1>${L("Stundenplan für", "Timetable for")} ${esc(f.name)}</h1><p>${esc(f.titel)}</p>
+    <div class="card"><p class="s">${L("Die Lektion findet neu hier statt:", "The lesson will take place:")}</p><p class="res">${DAYS[r.tag]}, ${T(von)}–${T(von + f.dauer)}</p>${r.ort ? `<p>${esc(r.ort)}</p>` : ""}</div>`;
 }
 (async () => {
   const raw = location.hash.slice(1);
-  if (!/^[A-Za-z0-9_-]{22}$/.test(raw)) return stop("Dieser Link ist unvollständig", "Bitte öffne den ganzen Link aus der Nachricht deiner Lehrperson.");
+  if (!/^[A-Za-z0-9_-]{22}$/.test(raw)) return stop(["Dieser Link ist unvollständig", "Bitte öffne den ganzen Link aus der Nachricht deiner Lehrperson."], ["This link is incomplete", "Please open the full link from your teacher’s message."]);
   try {
     key = await crypto.subtle.importKey("raw", fromUrl(raw), "AES-GCM", false, ["encrypt", "decrypt"]);
     token = [...new Uint8Array(await crypto.subtle.digest("SHA-256", te.encode("klassenbuch-form-v1:" + raw)))].map(x => x.toString(16).padStart(2, "0")).join("").slice(0, 32);
@@ -146,9 +159,9 @@ function result(){
     if (f.res) return result();
     view(r.ans ? await dec(r.ans) : null);
   } catch(e) {
-    if (e.status === 404) return stop("Dieser Link gilt nicht mehr", "Bitte frage bei deiner Lehrperson nach.");
-    if (e.status === 410) return stop("Die Eintragung ist abgeschlossen", "Falls sich noch etwas geändert hat, melde dich bitte bei deiner Lehrperson.");
-    stop("Das hat nicht geklappt", "Prüfe die Verbindung und lade die Seite neu.");
+    if (e.status === 404) return stop(["Dieser Link gilt nicht mehr", "Bitte frage bei deiner Lehrperson nach."], ["This link is no longer valid", "Please ask your teacher."]);
+    if (e.status === 410) return stop(["Die Eintragung ist abgeschlossen", "Falls sich noch etwas geändert hat, melde dich bitte bei deiner Lehrperson."], ["This form is closed", "If anything has changed, please contact your teacher."]);
+    stop(["Das hat nicht geklappt", "Prüfe die Verbindung und lade die Seite neu."], ["That didn’t work", "Check your connection and reload the page."]);
   }
 })();
 </script></body></html>

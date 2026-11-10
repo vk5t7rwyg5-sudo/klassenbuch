@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Klassenbuch for Music Teachers</title>
+<meta name="description" content="Lesson notes, curriculum, sheet music, dates and scheduling in one place. For instrumental teachers, on all your devices, end-to-end encrypted.">
+<meta property="og:title" content="Klassenbuch for Music Teachers">
+<meta property="og:description" content="Lesson notes, curriculum, sheet music, dates and scheduling in one place.">
+<meta property="og:image" content="https://klassen-buch.ch/icons/icon-512.png">
+<link rel="alternate" hreflang="de" href="https://klassen-buch.ch/">
+<link rel="alternate" hreflang="en" href="https://klassen-buch.ch/en.html">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/favicon.ico">
+<meta name="theme-color" content="#f5f5f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141414" media="(prefers-color-scheme: dark)">
+<script>
+// Wer die App auf diesem Gerät schon nutzt oder sie installiert hat, kommt direkt hinein.
+// Sonst: Sprache nach Wahl (kb-lang) oder Browser; en.html entsteht beim Bauen aus dieser Seite.
+var ME = "en";
+(function(){ try {
+  var inst = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone;
+  var pref = localStorage.getItem("kb-lang"), de = (navigator.languages || [navigator.language || ""]).some(function(l){ return /^de/i.test(l); });
+  if (!location.hash && (inst || localStorage.getItem("kb-app"))) location.replace("app.html");
+  else if (ME === "de" ? (pref || (de ? "de" : "en")) === "en" : pref === "de") location.replace((ME === "de" ? "en.html" : "index.html") + location.hash);
+} catch(e) {} })();
+function setLang(l){ try { localStorage.setItem("kb-lang", l); } catch(e) {} }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#f5f5f2;--card:#fff;--soft:#ecece6;--tx:#1e1f1c;--tx2:#5c5e57;--tx3:#868880;--bd:#deded6;--bd2:#c9cac0;
+--ac:#1d5a8f;--acbg:#e3eef8;--acink:#fff;--ok:#3b6d11;--okbg:#e8f2dc;--wa:#7d4a0a;--wabg:#f8ecd6;--da:#a32d2d;--dabg:#fbe8e8;--te:#0f6e56;--tebg:#dff3ec;
+--rule:rgba(29,90,143,.09);--margin:rgba(163,45,45,.28);--shadow:0 1px 2px rgba(30,31,28,.05),0 12px 32px -12px rgba(30,31,28,.18);
+--display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;--body:"Figtree",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--r:10px;
+padding-top:env(safe-area-inset-top,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141414;--card:#1e1e1d;--soft:#2a2a28;--tx:#f1f1ec;--tx2:#b4b4ac;--tx3:#86867f;--bd:#33332f;--bd2:#46463f;
+--ac:#8dbbe8;--acbg:#16395a;--acink:#10263b;--ok:#9fca62;--okbg:#26401a;--wa:#f2c27a;--wabg:#4f3410;--da:#f09a9a;--dabg:#5a2020;--te:#68d0ad;--tebg:#0e4436;
+--rule:rgba(141,187,232,.07);--margin:rgba(240,154,154,.22);--shadow:0 1px 2px rgba(0,0,0,.3),0 16px 40px -16px rgba(0,0,0,.7);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141414;--card:#1e1e1d;--soft:#2a2a28;--tx:#f1f1ec;--tx2:#b4b4ac;--tx3:#86867f;--bd:#33332f;--bd2:#46463f;
+--ac:#8dbbe8;--acbg:#16395a;--acink:#10263b;--ok:#9fca62;--okbg:#26401a;--wa:#f2c27a;--wabg:#4f3410;--da:#f09a9a;--dabg:#5a2020;--te:#68d0ad;--tebg:#0e4436;
+--rule:rgba(141,187,232,.07);--margin:rgba(240,154,154,.22);--shadow:0 1px 2px rgba(0,0,0,.3),0 16px 40px -16px rgba(0,0,0,.7);color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.6 var(--body);-webkit-font-smoothing:antialiased}
+img,svg{max-width:100%}
+a{color:var(--ac)}
+[hidden]{display:none!important}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);letter-spacing:-.02em;text-wrap:balance;margin:0}
+h2{font-size:clamp(28px,4vw,40px);line-height:1.1;font-weight:700}
+h3{font-size:19px;font-weight:700;letter-spacing:-.01em}
+p{margin:0}
+.eyebrow{font-size:12.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ac)}
+.lead{font-size:clamp(17px,1.6vw,19px);color:var(--tx2);max-width:52ch}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 22px;border-radius:999px;font:600 16px/1 var(--body);text-decoration:none;border:1.5px solid var(--bd2);color:var(--tx);background:var(--card);transition:transform .15s,border-color .15s,background .15s}
+.btn:hover{border-color:var(--tx3);transform:translateY(-1px)}
+.btn.pri{background:var(--ac);border-color:var(--ac);color:var(--acink)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn:focus-visible,a:focus-visible{outline:3px solid var(--ac);outline-offset:3px}
+
+/* Kopfzeile */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid transparent;transition:border-color .2s}
+.top.sc{border-bottom-color:var(--bd)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+.top .wrap{display:flex;align-items:center;gap:20px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;font:700 18px/1 var(--display);letter-spacing:-.01em;color:var(--tx);text-decoration:none}
+.brand svg{height:30px;width:auto;flex:none}
+.top nav{display:flex;gap:22px;margin-left:auto}
+.top nav a{color:var(--tx2);text-decoration:none;font-size:15px;font-weight:500}
+.top nav a:hover{color:var(--tx)}
+.top .btn{min-height:40px;padding:0 18px;font-size:15px}
+.top .lang{font-size:13.5px;font-weight:600;letter-spacing:.06em;color:var(--tx2);text-decoration:none;padding:6px 8px;border-radius:8px;border:1px solid var(--bd)}
+.top .lang:hover{color:var(--tx);border-color:var(--bd2)}
+@media (max-width:760px){.top nav{display:none}.top .lang{margin-left:auto}}
+
+/* Hero */
+.hero{position:relative;overflow:hidden;padding-block:56px 80px}
+.hero::before{content:"";position:absolute;inset:0;z-index:-1;background:repeating-linear-gradient(to bottom,transparent 0 31px,var(--rule) 31px 32px);mask-image:linear-gradient(to bottom,#000 30%,transparent)}
+.hero .wrap{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:56px;align-items:center}
+.hero h1{font-size:clamp(40px,6.4vw,72px);line-height:1;font-weight:800;letter-spacing:-.035em;margin:14px 0 22px}
+.hero h1 em{font-style:normal;color:var(--ac);position:relative;white-space:nowrap}
+.hero h1 em::after{content:"";position:absolute;left:0;right:0;bottom:.04em;height:.11em;background:currentColor;opacity:.25;border-radius:2px}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+.try{margin-top:16px;font-size:14.5px;color:var(--tx3)}
+.try a{color:var(--tx2);font-weight:500}
+@media (max-width:900px){.hero{padding-block:32px 56px}.hero .wrap{grid-template-columns:minmax(0,1fr);gap:40px}}
+
+/* Vorschau Wochenansicht */
+.book{position:relative;background:var(--card);border:1px solid var(--bd);border-radius:16px;box-shadow:var(--shadow);padding:20px 20px 46px 36px}
+.book::before{content:"";position:absolute;top:0;bottom:0;left:22px;width:1.5px;background:var(--margin)}
+.book-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.book-h b{font:700 22px/1.1 var(--display);letter-spacing:-.01em}
+.book-h span{color:var(--tx3);font-size:14px;font-variant-numeric:tabular-nums}
+.book-h .chip{margin-left:auto}
+.day{font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3);margin:12px 0 6px}
+.les{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:10px;align-items:start;padding:9px 0;border-top:1px solid var(--bd)}
+.les:first-of-type{border-top:0}
+.les time{font-variant-numeric:tabular-nums;font-weight:600;font-size:14.5px;color:var(--tx2);padding-top:1px}
+.les .who{font-weight:600;font-size:15px}
+.les .who small{font-weight:400;color:var(--tx3);font-size:13px;margin-left:4px}
+.les .note{font-size:13.5px;color:var(--tx2);line-height:1.45;margin-top:2px}
+.chip{display:inline-block;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.c-ok{background:var(--okbg);color:var(--ok)}.c-wa{background:var(--wabg);color:var(--wa)}.c-ac{background:var(--acbg);color:var(--ac)}.c-te{background:var(--tebg);color:var(--te)}
+.stamp{position:absolute;right:-14px;bottom:-22px;background:var(--card);border:1px solid var(--bd);border-radius:12px;box-shadow:var(--shadow);padding:10px 14px;font-size:13px;display:flex;gap:10px;align-items:center}
+.stamp svg{width:22px;height:22px;color:var(--ok);flex:none}
+@media (max-width:520px){.avail{padding:12px}.avail td.t{width:40px;padding-right:2px}.book{padding-left:30px}.book::before{left:17px}.stamp{right:8px}.les{grid-template-columns:44px minmax(0,1fr)}.les .chip{grid-column:2;justify-self:start}}
+
+/* Abschnitte */
+section{padding-block:88px}
+.sec-h{display:grid;gap:14px;max-width:720px;margin-bottom:44px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+@media (max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){.grid{grid-template-columns:minmax(0,1fr)}section{padding-block:64px}}
+.feat{background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:24px;display:grid;gap:10px;align-content:start}
+.feat .ic{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;background:var(--acbg);color:var(--ac);margin-bottom:4px}
+.feat .ic svg{width:22px;height:22px}
+.feat p{color:var(--tx2);font-size:15.5px}
+
+/* Stundenplanung */
+.band{background:var(--card);border-block:1px solid var(--bd)}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:56px;align-items:center}
+@media (max-width:900px){.split{grid-template-columns:minmax(0,1fr);gap:36px}}
+.steps{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:16px;counter-reset:s}
+.steps li{display:grid;grid-template-columns:34px minmax(0,1fr);gap:14px;counter-increment:s;color:var(--tx2)}
+.steps li::before{content:counter(s);width:34px;height:34px;border-radius:50%;border:1.5px solid var(--bd2);display:grid;place-items:center;font:700 15px/1 var(--display);color:var(--tx)}
+.steps b{color:var(--tx);font-weight:600}
+.avail{background:var(--bg);border:1px solid var(--bd);border-radius:14px;padding:18px;overflow-x:auto}
+.avail table{border-collapse:separate;border-spacing:4px;width:100%;font-variant-numeric:tabular-nums}
+.avail th{font-size:12px;font-weight:600;color:var(--tx3);text-align:center;letter-spacing:.04em}
+.avail td.t{font-size:12.5px;color:var(--tx3);text-align:right;padding-right:6px;width:46px}
+.avail td.c{height:26px;min-width:30px;border-radius:6px;background:var(--soft)}
+.avail td.g{background:#5f9e2f}.avail td.n{background:#e7b45a}.avail td.x{background:var(--soft);background-image:repeating-linear-gradient(135deg,transparent 0 5px,var(--bd2) 5px 6px)}
+.avail td.p{background:var(--ac);box-shadow:inset 0 0 0 2px var(--card)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:14px;font-size:13.5px;color:var(--tx2)}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px}
+.result{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--acbg);color:var(--tx);font-size:14.5px}
+.result b{color:var(--ac)}
+
+/* Sicherheit */
+.trust{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px;border-top:1px solid var(--bd);padding-top:32px}
+.trust div{display:grid;gap:6px}
+.trust b{font:700 17px/1.25 var(--display)}
+.trust p{color:var(--tx2);font-size:15px}
+@media (max-width:900px){.trust{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.trust{grid-template-columns:minmax(0,1fr)}}
+.lock{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:36px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:var(--tx3)}
+.lock span{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;white-space:nowrap}
+.lock .arrow{border:0;background:none;padding:0;color:var(--tx3)}
+.lock .plain{color:var(--tx)}.lock .enc{color:var(--tx3);letter-spacing:.02em}
+
+/* Start */
+.start{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;counter-reset:n}
+@media (max-width:800px){.start{grid-template-columns:minmax(0,1fr)}}
+.start div{counter-increment:n;padding:24px;border-radius:var(--r);border:1px dashed var(--bd2);display:grid;gap:8px;align-content:start}
+.start div::before{content:"0" counter(n);font:800 30px/1 var(--display);color:var(--ac);letter-spacing:-.03em}
+.start p{color:var(--tx2);font-size:15.5px}
+.final{margin-top:56px;background:var(--tx);color:var(--bg);border-radius:20px;padding:44px clamp(24px,5vw,56px);display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:space-between}
+.final h2{color:var(--bg);font-size:clamp(26px,3.4vw,34px)}
+.final p{color:color-mix(in srgb,var(--bg) 72%,transparent);margin-top:8px}
+.final .btn{background:var(--bg);border-color:var(--bg);color:var(--tx)}
+.final .btn.ghost{background:transparent;color:var(--bg);border-color:color-mix(in srgb,var(--bg) 40%,transparent)}
+
+.price{margin-top:56px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:40px;align-items:start;background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:36px clamp(22px,4vw,44px)}
+.price p.lead{margin-top:14px}
+.free{margin-top:18px;display:inline-block;background:var(--okbg);color:var(--ok);border-radius:10px;padding:10px 14px;font-size:15.5px}
+.free b{font-weight:700}
+.path a{word-break:break-all}
+.path{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.path li{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr);gap:14px;padding-bottom:22px}
+.path li:last-child{padding-bottom:0}
+.path li::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid var(--ac);background:var(--card);margin:5px 0 0 4px;z-index:1}
+.path li:first-child::before{background:var(--ac)}
+.path li:not(:last-child)::after{content:"";position:absolute;left:10px;top:21px;bottom:2px;width:2px;background:var(--bd2)}
+.path b{display:block;font:700 16px/1.3 var(--display)}
+.path span{color:var(--tx2);font-size:15px}
+@media (max-width:800px){.price{grid-template-columns:minmax(0,1fr);gap:26px}}
+footer{border-top:1px solid var(--bd);padding-block:28px 40px;font-size:14px;color:var(--tx3)}
+footer .wrap{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
+footer a{color:var(--tx2);text-decoration:none}
+footer a:hover{text-decoration:underline}
+footer .sp{flex:1}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn{transition:none}}
+</style>
+</head><body>
+
+<header class="top" id="top"><div class="wrap">
+  <a class="brand" href="#start" aria-label="Klassenbuch, home"><svg xmlns="http://www.w3.org/2000/svg" viewBox="35 45 289 270" aria-hidden="true"> <defs><clipPath id="lgh0"><rect x="0" y="105" width="28" height="28"/></clipPath><clipPath id="lgh1"><rect x="84" y="105" width="28" height="28"/></clipPath><clipPath id="lgh2"><rect x="168" y="105" width="28" height="28"/></clipPath><clipPath id="lgh3"><rect x="252" y="105" width="28" height="28"/></clipPath></defs> <g transform="translate(39.2 49.21)" fill="currentColor"> <rect x="20" y="0" width="260" height="18"/> <polygon points="20,0 28,0 28,105 20,113"/><polygon points="104,0 112,0 112,105 104,113"/><polygon points="188,0 196,0 196,105 188,113"/><polygon points="272,0 280,0 280,105 272,113"/> <g fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="butt"><path clip-path="url(#lgh0)" d="M-4 101 L32 137 M32 101 L-4 137"/><path clip-path="url(#lgh1)" d="M80 101 L116 137 M116 101 L80 137"/><path clip-path="url(#lgh2)" d="M164 101 L200 137 M200 101 L164 137"/><path clip-path="url(#lgh3)" d="M248 101 L284 137 M284 101 L248 137"/></g> <path d="M0.0 259.989501953125H25.89111328125V236.149169921875L37.68310546875 222.6268310546875L60.0494384765625 259.989501953125H90.5548095703125L55.37109375 205.5797119140625L88.7603759765625 164.5H58.062744140625L39.093017578125 189.0452880859375C32.7484130859375 197.3125 28.7750244140625 203.1444091796875 25.4425048828125 209.2967529296875L25.89111328125 185.0078125V164.5H0.0ZM94.4051513671875 259.989501953125H139.3941650390625C160.09423828125 259.989501953125 172.8475341796875 248.6461181640625 172.8475341796875 232.94482421875C172.8475341796875 219.486572265625 162.9781494140625 210.7066650390625 150.6734619140625 210.258056640625V209.232666015625C161.760498046875 207.1177978515625 169.1304931640625 198.9146728515625 169.1304931640625 188.34033203125C169.1304931640625 173.856689453125 157.5948486328125 164.5 135.8052978515625 164.5H94.4051513671875ZM120.2962646484375 239.353515625V219.10205078125H132.8572998046875C140.6759033203125 219.10205078125 145.5465087890625 222.8831787109375 145.5465087890625 229.6123046875C145.5465087890625 235.9569091796875 141.12451171875 239.353515625 132.4727783203125 239.353515625ZM120.2962646484375 203.080322265625V184.879638671875H131.3192138671875C137.7279052734375 184.879638671875 142.4703369140625 188.1480712890625 142.4703369140625 193.97998046875C142.4703369140625 199.8759765625 137.7279052734375 203.080322265625 130.9346923828125 203.080322265625Z"/> </g></svg><span>Klassenbuch</span></a>
+  <nav aria-label="Sections"><a href="#funktionen">Features</a><a href="#planung">Scheduling</a><a href="#sicherheit">Security</a><a href="#loslegen">Get started</a><a href="#testphase">Test phase</a></nav>
+  <a class="lang" href="index.html#start" hreflang="de" lang="de" onclick="setLang('de')" title="Deutsch">DE</a>
+  <a class="btn login" href="app.html#anmelden">Sign in</a>
+</div></header>
+
+<main id="start">
+<div class="hero"><div class="wrap">
+  <div>
+    <span class="eyebrow">For instrumental teaching</span>
+    <h1>Every lesson noted. Every student <em>in&nbsp;view.</em></h1>
+    <p class="lead">Klassenbuch keeps track of what happened in each lesson, what comes next and where every student stands in the curriculum. Sheet music, dates and lesson scheduling come built in.</p>
+    <div class="cta"><a class="btn pri" href="app.html#registrieren">Create account</a><a class="btn" href="app.html#anmelden">Sign in</a></div>
+    <p class="try">Just looking? <a href="app.html">Try it without an account</a>. Your entries then stay on this device. Please note: the app itself is currently in German only.</p>
+  </div>
+
+  <div class="book" aria-label="Example: week view in Klassenbuch" role="img">
+    <div class="book-h"><b>Week 46</b><span>9–15 Nov 2026</span><span class="chip c-ac">7 lessons</span></div>
+    <div class="day">Tuesday</div>
+    <div class="les"><time>13:30</time><div><div class="who">Lia M. <small>Snare drum · Level 2</small></div><div class="note">Paradiddle etude p. 12 is solid. Next time: flam accent, slowly.</div></div><span class="chip c-ok">Present</span></div>
+    <div class="les"><time>14:00</time><div><div class="who">Noa &amp; Elio <small>Group · Drum set</small></div><div class="note">Groove with eighth-note hi-hat, two-bar fill.</div></div><span class="chip c-ok">Present</span></div>
+    <div class="les"><time>14:45</time><div><div class="who">Mara K. <small>Mallets · Level 1</small></div><div class="note">Off sick. Don’t forget the recital on 28 Nov.</div></div><span class="chip c-wa">Excused</span></div>
+    <div class="day">Wednesday</div>
+    <div class="les"><time>15:15</time><div><div class="who">Jonas B. <small>Timpani · Level 3</small></div><div class="note">Tuning by ear: fourth G–C.</div></div><span class="chip c-te">Planned</span></div>
+    <div class="stamp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><b>In sync</b><br><span style="color:var(--tx3)">iPad, phone and laptop</span></span></div>
+  </div>
+</div></div>
+
+<section id="funktionen"><div class="wrap">
+  <div class="sec-h"><span class="eyebrow">Features</span><h2>Everything around the teaching itself</h2><p class="lead">Built by a drum teacher for real-world lessons, then extended to all instruments. Anything you don’t need can be switched off in the settings.</p></div>
+  <div class="grid">
+    <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h12l4 4v12H4z"/><path d="M8 10h8M8 14h8M8 18h5"/></svg></span><h3>Lesson notes</h3><p>What you practised, what the homework is, who was there. Next time, your last note is already waiting.</p></div>
+    <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span><h3>Curriculum per student</h3><p>The levels of the Swiss music school curriculum for 28 instruments (in German). Tick off what’s mastered and see what comes next.</p></div>
+    <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span><h3>Sheet music with annotations</h3><p>Your PDFs in the music viewer. Pen and highlighter marks are saved per student and per book.</p></div>
+    <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span><h3>Week and calendar</h3><p>Holidays, recitals, concerts and birthdays. The week view shows what’s coming up and who comes when.</p></div>
+    <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg></span><h3>Lesson scheduling</h3><p>Families enter their availability via a link. Klassenbuch proposes a timetable.</p></div>
+    <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg></span><h3>Invoices</h3><p>Bill private lessons: the invoice is created from the lessons you recorded, with your payment slip.</p></div>
+  </div>
+</div></section>
+
+<section id="planung" class="band"><div class="wrap split">
+  <div>
+    <span class="eyebrow">Scheduling</span>
+    <h2 style="margin-top:14px">Your timetable, without twenty messages back and forth</h2>
+    <ol class="steps">
+      <li><span><b>Send a link.</b> Each family gets a personal link. No account needed.</span></li>
+      <li><span><b>Enter times.</b> On their phone, families tap what suits them well, what works if need be and what doesn’t. They can’t see other families’ entries. The page is available in English too.</span></li>
+      <li><span><b>Review the proposal.</b> Klassenbuch places the students with the fewest options first and shows where it gets tight. You adjust, confirm and let each family know their time.</span></li>
+    </ol>
+  </div>
+  <div class="avail" role="img" aria-label="Example: a family’s availability from Monday to Friday">
+    <table><thead><tr><th></th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th></tr></thead><tbody>
+      <tr><td class="t">13:30</td><td class="c x"></td><td class="c n"></td><td class="c g"></td><td class="c x"></td><td class="c x"></td></tr>
+      <tr><td class="t">14:00</td><td class="c x"></td><td class="c n"></td><td class="c p"></td><td class="c x"></td><td class="c x"></td></tr>
+      <tr><td class="t">14:30</td><td class="c x"></td><td class="c x"></td><td class="c g"></td><td class="c x"></td><td class="c n"></td></tr>
+      <tr><td class="t">15:00</td><td class="c x"></td><td class="c x"></td><td class="c g"></td><td class="c x"></td><td class="c n"></td></tr>
+      <tr><td class="t">15:30</td><td class="c g"></td><td class="c x"></td><td class="c x"></td><td class="c x"></td><td class="c x"></td></tr>
+      <tr><td class="t">16:00</td><td class="c g"></td><td class="c x"></td><td class="c x"></td><td class="c x"></td><td class="c x"></td></tr>
+    </tbody></table>
+    <div class="legend"><span><i style="background:#5f9e2f"></i>Suits well</span><span><i style="background:#e7b45a"></i>If need be</span><span><i style="background:var(--soft);background-image:repeating-linear-gradient(135deg,transparent 0 3px,var(--bd2) 3px 4px)"></i>Not possible</span></div>
+    <div class="result">Proposal for Lia: <b>Wednesday, 14:00–14:30</b>. Suits well, right after Noa.</div>
+  </div>
+</div></section>
+
+<section id="sicherheit"><div class="wrap">
+  <div class="sec-h"><span class="eyebrow">Security</span><h2>What you note about children stays with you</h2><p class="lead">Your entries are encrypted on your device before they leave it. The server only stores data nobody can read, not even the operator.</p></div>
+  <div class="lock" aria-hidden="true"><span class="plain">Lia · paradiddle solid</span><span class="arrow">→</span><span class="enc">9f3a·c41e·77b0·2d8f…</span><span class="arrow">→</span><span>Server</span></div>
+  <div class="trust">
+    <div><b>End-to-end encrypted</b><p>The key is derived from your password and never leaves your device.</p></div>
+    <div><b>On all your devices</b><p>iPad in the lesson, laptop at home, phone on the go. Always up to date.</p></div>
+    <div><b>Works offline</b><p>Keep writing without a connection. Everything syncs once you’re back online.</p></div>
+    <div><b>Recoverable</b><p>Forgot your password? Your recovery key lets you set a new one. Download backups at any time.</p></div>
+  </div>
+</div></section>
+
+<section id="loslegen" style="padding-top:0"><div class="wrap">
+  <div class="sec-h"><span class="eyebrow">Get started</span><h2>Set up in five minutes</h2></div>
+  <div class="start">
+    <div><h3>Create an account</h3><p>With your name, email and a password. During the test phase you need an invitation code. Ask me for one: <a href="mailto:adi.popp@hotmail.com">adi.popp@hotmail.com</a></p></div>
+    <div><h3>Add it to your device</h3><p>Choose “Add to Home Screen” in your browser. Klassenbuch then opens like an app.</p></div>
+    <div><h3>Add your students</h3><p>Enter instrument and lesson time, choose a curriculum and off you go.</p></div>
+  </div>
+  <div class="price" id="testphase">
+    <div><span class="eyebrow">Test phase</span><h2 style="margin-top:14px">Test it, give feedback, help shape it</h2>
+      <p class="lead">Everyone who has received an invitation code from me is a tester. I’m looking forward to your feedback and suggestions: what helps, what’s missing and what gets in the way.</p>
+      <p class="free"><b>The test phase is free.</b> You pay nothing while it lasts.</p></div>
+    <ol class="path">
+      <li><div><b>Test for free</b><span>Use Klassenbuch in your teaching as much as you like.</span></div></li>
+      <li><div><b>Feedback and ideas</b><span>Write to me about anything you notice, even small things: <a href="mailto:adi.popp@hotmail.com">adi.popp@hotmail.com</a></span></div></li>
+      <li><div><b>We’ll set the price together</b><span>There is no price yet. After a few weeks I’ll get in touch with all testers and we’ll work it out together. You’ll know the price before it applies.</span></div></li>
+    </ol>
+  </div>
+  <div class="final">
+    <div><h2>Ready for your next lesson?</h2><p>Free during the test phase, with an invitation code.</p></div>
+    <div class="cta" style="margin:0"><a class="btn" href="app.html#registrieren">Create account</a><a class="btn ghost" href="app.html#anmelden">Sign in</a></div>
+  </div>
+</div></section>
+</main>
+
+<footer><div class="wrap">
+  <span>© 2026 Klassenbuch</span><span class="sp"></span>
+  <a href="anleitung.html">Guide (German)</a><a href="rechtliches.html">Privacy and terms (German)</a><a href="app.html">Open the app</a>
+</div></footer>
+
+<script>
+(function(){ var t = document.getElementById("top"); function f(){ t.classList.toggle("sc", scrollY > 8); } addEventListener("scroll", f, {passive:true}); f(); })();
+</script>
+</body></html>
