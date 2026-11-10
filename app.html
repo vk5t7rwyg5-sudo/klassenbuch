@@ -88,7 +88,7 @@ ul.plain{margin:4px 0 0;padding-left:18px}ul.plain li{margin:2px 0}
 .empty h2{margin-bottom:6px}
 dialog{border:1px solid var(--bd2);border-radius:12px;background:var(--card);color:var(--tx);padding:18px;max-width:min(420px,calc(100vw - 32px))}
 dialog::backdrop{background:rgba(0,0,0,.35)}
-#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:8px 14px;border-radius:var(--r);font-size:14px;z-index:40;max-width:calc(100vw - 32px)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--tx);color:var(--bg);padding:8px 14px;border-radius:var(--r);font-size:14px;z-index:41;max-width:calc(100vw - 32px)}
 .wk{display:grid;grid-template-columns:220px minmax(0,1fr);gap:16px;align-items:start}
 .pk-list{display:flex;flex-direction:column;gap:2px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px)}
 .pk-day{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx2);margin:10px 0 4px;font-weight:600}
@@ -679,7 +679,7 @@ function vDatenApp(){
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.10-0909 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.10-1407 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1565,7 +1565,14 @@ function playBtns(b, cls){
 let mpCur = null;
 // Spotify-Links: am Computer standardmässig in der Spotify-App, auf Touch-Geräten im Player (pro Gerät einstellbar)
 const spPref = () => pref("kb-spotify", matchMedia("(pointer:fine)").matches ? "app" : "player");
-function spOpen(uri){ const a = document.createElement("a"); a.href = uri; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove(); }
+// Öffnet die Spotify-App. Verlässt der Browser die Seite nicht (keine App installiert), folgt nach 2,5 s der Ersatz.
+function spOpen(uri, fallback){
+  let left = false; const gone = () => { left = true; };
+  addEventListener("blur", gone, {once: true}); addEventListener("pagehide", gone, {once: true});
+  const vis = () => { if (document.hidden) left = true; }; document.addEventListener("visibilitychange", vis);
+  const a = document.createElement("a"); a.href = uri; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => { removeEventListener("blur", gone); removeEventListener("pagehide", gone); document.removeEventListener("visibilitychange", vis); if (!left && !document.hidden && fallback) fallback(); }, 2500);
+}
 function playLink(bid, i, list){
   const b = bookById(bid), l = b && (b.links || [])[i]; if (!l) return;
   if (!feat("audio")){ toast("Aufnahmen sind unter Einstellungen ausgeschaltet."); return; }
@@ -1576,9 +1583,11 @@ function playLink(bid, i, list){
   $("mpT").textContent = b.titel + (l.t ? " · " + l.t : "");
   const o = $("mpOpen"); o.href = info.app && spPref() === "app" ? info.app : l.u; o.textContent = "In " + info.svc + " öffnen";
   $("mpL").innerHTML = b.links.length > 1 ? b.links.map((y, k) => `<button class="chip play ${k === i ? "on" : ""}" data-a="play" data-v="${b.id}" data-i="${k}">${esc(linkName(y, k, b.links))}</button>`).join("") : "";
-  if (useApp){ $("mpF").innerHTML = ""; $("mp").hidden = !(list || !$("mp").hidden); if (!list) spOpen(info.app); return; }
-  $("mpF").innerHTML = `<iframe src="${esc(info.embed)}" height="${info.h}" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="lazy" title="${esc(b.titel)}"></iframe>`;
-  $("mp").hidden = false;
+  const embed = () => { $("mpF").innerHTML = `<iframe src="${esc(info.embed)}" height="${info.h}" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="lazy" title="${esc(b.titel)}"></iframe>`; $("mp").hidden = false; };
+  if (useApp){ $("mpF").innerHTML = ""; $("mp").hidden = !(list || !$("mp").hidden);
+    if (!list) spOpen(info.app, () => { if (!mpCur || mpCur.bid !== bid || mpCur.i !== i) return; o.href = l.u; embed(); toast("Die Spotify-App hat sich nicht geöffnet. Die Aufnahme läuft hier im Player."); });
+    return; }
+  embed();
 }
 document.addEventListener("click", ev => { if (ev.target.closest('[data-mp="x"]')){ $("mpF").innerHTML = ""; $("mp").hidden = true; mpCur = null; } });
 /* ---------- Rechnungen für Privatlektionen ---------- */
