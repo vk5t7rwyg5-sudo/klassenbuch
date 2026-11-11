@@ -110,6 +110,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 .ed-f{display:grid;gap:12px;margin-top:14px}.ed-2{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
 .ed textarea{font-size:16px;line-height:1.5}
 .prev{margin-top:12px;background:var(--soft);border-radius:var(--r);padding:8px 12px;font-size:14px}.prev summary{cursor:pointer;color:var(--tx2)}.prev p{margin:6px 0;white-space:pre-wrap}
+.hw-copy{margin-top:6px}
 .ed-nav{margin-top:16px;border-top:1px solid var(--bd);padding-top:12px}
 button:disabled{opacity:.4;cursor:default}
 @media (max-width:760px){.wk{grid-template-columns:minmax(0,1fr)}.pk-list{position:static;flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:4px}.pk-day{display:none}.pk{grid-template-columns:auto auto auto;flex:none;width:auto;border:1px solid var(--bd2)}.ed{padding:14px}.ed-nav .sp{font-size:0}}
@@ -395,7 +396,7 @@ async function api(action, body){
 
 /* --- Lokale Datensätze: meta, books, lesson:<id>, pdf:<id> --- */
 function recOf(key){
-  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, plan: db.plan || null, msEdit: db.msEdit || null, lehrplan: db.lehrplan || null, rechnung: db.rechnung || null, invoices: db.invoices || [], stvCols: db.stvCols || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null, planung: db.planung || null};
+  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, plan: db.plan || null, msEdit: db.msEdit || null, lehrplan: db.lehrplan || null, rechnung: db.rechnung || null, invoices: db.invoices || [], stvCols: db.stvCols || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null, planung: db.planung || null, snapOff: !!db.snapOff};
   if (key === "books") return {books};
   if (key.startsWith("lesson:")) return db.lessons.find(l => l.id === key.slice(7)) || null;
   if (key.startsWith("ink:")){ const v = ink[key.slice(4)]; return v && Object.keys(v.p || {}).length ? v : null; }
@@ -425,7 +426,7 @@ function remoteRender(){ if (!(loaded.meta && loaded.lessons)) return; if (!docu
 document.addEventListener("focusout", () => setTimeout(() => { if (pendingRender && !busyTyping()){ pendingRender = false; render(); } }, 50));
 
 function applyRec(key, v){
-  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.plan = v ? v.plan || null : null; db.msEdit = v ? v.msEdit || null : null; db.lehrplan = v ? v.lehrplan || null : null; db.rechnung = v ? v.rechnung || null : null; db.planung = v ? v.planung || null : null; db.invoices = v ? v.invoices || [] : []; db.stvCols = v ? v.stvCols || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
+  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.plan = v ? v.plan || null : null; db.msEdit = v ? v.msEdit || null : null; db.lehrplan = v ? v.lehrplan || null : null; db.rechnung = v ? v.rechnung || null : null; db.planung = v ? v.planung || null : null; db.snapOff = !!(v && v.snapOff); db.invoices = v ? v.invoices || [] : []; db.stvCols = v ? v.stvCols || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
   else if (key === "books") books = v ? v.books || [] : [];
   else if (key.startsWith("ink:")){ const k = key.slice(4); if (v) ink[k] = v; else delete ink[k]; if (typeof pvInkRemote === "function") pvInkRemote(k); }
   else if (key.startsWith("lesson:")){ const id = key.slice(7), i = db.lessons.findIndex(l => l.id === id); if (v){ v.id = id; if (i < 0) db.lessons.push(v); else db.lessons[i] = v; } else if (i >= 0) db.lessons.splice(i, 1); }
@@ -469,7 +470,7 @@ async function sync(){
     let since = Math.max(0, (cfg.since || 0) - 120000 * 1000), maxRev = cfg.since || 0, changed = false;
     const local = await idbAll("rec"), acc2 = {};
     for (;;){
-      const r = await api("pull", {since});
+      const r = await api("pull", {since, snap: db.snapOff ? 0 : 1});
       if (r.profile === false || (r.consent !== undefined && r.consent !== CONSENT)) askProfile(r.profile === false);
       for (const it of r.items){
         since = Math.max(since, it.rev); maxRev = Math.max(maxRev, it.rev);
@@ -691,6 +692,53 @@ const EYE = ['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 function needAcc(what){
   ask(`${what} kannst du nur mit einem Konto. Ohne Konto lässt sich das Klassenbuch ausprobieren, die Einträge bleiben dann auf diesem Gerät.`, "Konto einrichten", () => { acctView = "up"; location.hash = "daten"; render(); setTimeout(() => { const c = document.getElementById("acct"); c && c.scrollIntoView({block: "center"}); }, 60); });
 }
+/* --- Frühere Stände (Server-Version 8): tägliche, verschlüsselte Kopien, 30 Tage --- */
+let snapList = null, snapMsg = "";
+const snapLabel = x => { const d = new Date(x.at || x.key); return x.key.includes("T")
+  ? d.toLocaleDateString("de-CH", {weekday:"short", day:"numeric", month:"long"}) + ", " + d.toLocaleTimeString("de-CH", {hour:"2-digit", minute:"2-digit"}) + " · vor einer Wiederherstellung"
+  : "Anfang " + d.toLocaleDateString("de-CH", {weekday:"short", day:"numeric", month:"long", year:"numeric"}); };
+function snapCard(){
+  if (!acc) return "";
+  const rows = snapList === null ? "" : !snapList.length
+    ? `<p class="small muted">${db.snapOff ? "Keine früheren Stände vorhanden." : "Noch keine früheren Stände. Der Server legt ab jetzt an jedem Tag, an dem du etwas änderst, einen an."}</p>`
+    : `<div class="rg-l">${snapList.map(x => `<div class="rg-i row"><span class="num">${esc(snapLabel(x))}</span><span class="tiny">${x.cnt} Einträge</span><span class="sp"></span><button class="small" data-a="snapRestore" data-v="${esc(x.key)}">Wiederherstellen</button></div>`).join("")}</div>`;
+  const off = !!db.snapOff;
+  return `<h3>Frühere Stände</h3><div class="card"><div class="opt" style="margin-bottom:10px"><div><label>Tägliche Sicherung auf dem Server</label><div class="seg"><button class="${off ? "" : "on"}" data-a="snapOn" data-v="1">Ein</button><button class="${off ? "on" : ""}" data-a="snapOn" data-v="">Aus</button></div></div></div>
+    ${off ? `<p class="small" style="max-width:65ch;margin-top:0">Ausgeschaltet. Es werden keine neuen Stände angelegt. Vorhandene werden nach 30 Tagen gelöscht.</p>` : ""}<p class="small muted" style="max-width:65ch;margin-top:0">Der Server bewahrt 30 Tage lang von jedem Tag, an dem du etwas änderst, den Stand vom Tagesbeginn auf, verschlüsselt. Damit holst du versehentlich Gelöschtes oder Überschriebenes zurück. PDFs sind nicht enthalten und bleiben unverändert.</p>
+    ${rows}<div class="row" style="margin-top:8px">${snapList === null ? `<button data-a="snapList">Frühere Stände anzeigen</button>` : `<button class="ghost small" data-a="snapHide">Ausblenden</button>${snapList.length ? `<button class="ghost small del" data-a="snapDel">Alle früheren Stände löschen</button>` : ""}`}<span class="small" id="snap-msg">${esc(snapMsg)}</span></div></div>`;
+}
+function snapSay(t){ snapMsg = t; const el = document.getElementById("snap-msg"); if (el) el.textContent = t; }
+async function snapLoad(){
+  snapSay("Wird geladen …");
+  try { const r = await api("snaps", {}); snapList = r.items || []; snapMsg = ""; }
+  catch(e) { snapMsg = e.code === "not_found" ? "Der Server kennt diese Funktion noch nicht." : e.code === "rate" ? "Server kurz ausgelastet. Versuche es in einer Minute nochmals." : "Das hat nicht geklappt. Prüfe die Verbindung."; }
+  render();
+}
+async function snapRestore(key){
+  try {
+    await flush(); snapSay("Jetziger Stand wird gesichert …");
+    await api("snapnow", {});
+    snapSay("Früherer Stand wird geladen …");
+    const parts = []; let n = 1;
+    for (let p = 0; p < n; p++){ const r = await api("snapget", {key, part: p}); n = r.parts || 1; parts.push(r.data || ""); }
+    const list = JSON.parse(parts.join("")), vals = {};
+    for (const x of list) vals[x.k] = await decObj(x.d);
+    if (!vals.meta) throw new Error("leer");
+    snapSay("Wird wiederhergestellt …");
+    const local = await idbAll("rec");
+    const keys = new Set([...Object.keys(vals), ...Object.keys(local).filter(k => !k.startsWith("pdf:"))]);
+    for (const k of keys){
+      const v = vals[k] || null;
+      if (v) await idbPut("rec", k, {v, rev: 0}); else await idbDel("rec", k);
+      applyRec(k, v);
+      cfg.outbox.includes(k) || cfg.outbox.push(k);
+    }
+    await saveCfg();
+    snapList = null; snapMsg = ""; render(); toast("Früherer Stand wiederhergestellt"); syncSoon(300);
+  } catch(e) {
+    snapSay(e.code === "rate" ? "Server kurz ausgelastet. Versuche es in einer Minute nochmals." : "Wiederherstellen hat nicht geklappt. Deine Einträge sind unverändert.");
+  }
+}
 function vDatenApp(){
   const lb = db.lastBackup ? new Date(db.lastBackup).toLocaleString("de-CH") : "noch nie";
   const ls = lastSync ? new Date(lastSync).toLocaleTimeString("de-CH", {hour:"2-digit", minute:"2-digit"}) : "–";
@@ -722,8 +770,9 @@ function vDatenApp(){
   <h3>Backup</h3><div class="card"><p class="small muted num" style="margin-top:0">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine · ${books.length} Hefte</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
+  ${snapCard()}
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.10-2358 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.11-0827 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -782,6 +831,13 @@ document.addEventListener("click", ev => {
     case "recover": accountAction("forgot"); break;
     case "pwEye": { const i = b.previousElementSibling, show = i.type === "password"; i.type = show ? "text" : "password"; b.innerHTML = EYE[show ? 1 : 0]; b.setAttribute("aria-pressed", show); b.setAttribute("aria-label", show ? "Passwort verbergen" : "Passwort anzeigen"); b.title = b.getAttribute("aria-label"); break; }
     case "syncNow": sync().then(() => render()); break;
+    case "snapList": snapLoad(); break;
+    case "snapOn": { const off = !b.dataset.v; if (off === !!db.snapOff) break; db.snapOff = off; save(); render(); toast(off ? "Tägliche Sicherung ausgeschaltet" : "Tägliche Sicherung eingeschaltet"); break; }
+    case "snapDel": ask("Alle früheren Stände auf dem Server löschen? Das lässt sich nicht rückgängig machen. Deine jetzigen Einträge bleiben unverändert.", "Löschen", async () => {
+      snapSay("Wird gelöscht …"); try { await api("snapdel", {}); snapList = []; snapMsg = ""; render(); toast("Frühere Stände gelöscht"); } catch(e) { snapSay("Löschen hat nicht geklappt. Prüfe die Verbindung."); } }); break;
+    case "snapHide": snapList = null; snapMsg = ""; render(); break;
+    case "snapRestore": { const x = (snapList || []).find(y => y.key === b.dataset.v); if (!x) break;
+      ask(`Den Stand «${snapLabel(x)}» wiederherstellen? Deine Einträge werden auf allen Geräten durch diesen Stand ersetzt. Der jetzige Stand wird vorher gesichert und erscheint danach in dieser Liste. PDFs bleiben unverändert.`, "Wiederherstellen", () => snapRestore(x.key)); break; }
     case "pdfSync": { const on = !!b.dataset.v; if (on === pdfSyncOn()) break;
       if (on) ask("PDFs ab jetzt über den Server synchronisieren? Alle PDFs dieses Geräts werden verschlüsselt hochgeladen und belegen Platz auf dem gemeinsamen Server.", "Synchronisieren", () => setPdfSync(true));
       else setPdfSync(false); break; }
@@ -1921,7 +1977,7 @@ function vWoche(){
       <div><label for="w-${s.id}">WarmUp</label><textarea id="w-${s.id}" data-f="warmup" rows="2" placeholder="Einspielen, Technik, Rhythmus …">${esc(l.warmup)}</textarea></div>
       <div><label for="i-${s.id}">Gearbeitet</label><textarea id="i-${s.id}" data-f="inhalt" rows="6" placeholder="Was habt ihr gemacht? Eine Zeile pro Teil.">${esc(l.inhalt)}</textarea></div>
       <div class="ed-2">
-        <div><label for="a-${s.id}">Aufgaben bis nächstes Mal</label><textarea id="a-${s.id}" data-f="aufgaben" rows="3">${esc(l.aufgaben)}</textarea></div>
+        <div><label for="a-${s.id}">Aufgaben bis nächstes Mal</label><textarea id="a-${s.id}" data-f="aufgaben" rows="3">${esc(l.aufgaben)}</textarea><button class="ghost small hw-copy" data-a="hwCopy" title="Kurzer Text für WhatsApp oder SMS">Für Eltern kopieren</button></div>
         <div><label for="n-${s.id}">Notiz (intern, nicht im Elternbericht)</label><textarea id="n-${s.id}" data-f="notiz" rows="3">${esc(l.notiz)}</textarea></div>
       </div>
     </div>
@@ -2365,6 +2421,15 @@ document.addEventListener("click", ev => {
       editBook = null; saveBooks(); render(); toast("Gespeichert"); break; }
     case "bkDel": { const bk = bookById(b.dataset.v), n = db.students.filter(x => (x.lit||[]).some(y => y.b === bk.id)).length;
       ask(`„${bk.titel}“ aus dem Katalog entfernen?${n ? ` ${n} SuS haben es in ihrer Literatur.` : ""}`, "Entfernen", () => { books = books.filter(x => x.id !== bk.id); editBook = null; saveBooks(); render(); }); break; }
+    case "hwCopy": { // Aufgaben als kurzer Text zum Einfügen in WhatsApp
+      const ta = card.querySelector('[data-f="aufgaben"]'), auf = (ta ? ta.value : "").trim();
+      if (!auf){ toast("Noch keine Aufgaben eingetragen."); break; }
+      const d = card.dataset.d, wt = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][parse(d).getDay()];
+      const wer = s.typ === "Gruppe" ? s.name : s.name.split(" ")[0];
+      const zeilen = auf.split(/\n+/).map(z => z.trim()).filter(Boolean), liste = zeilen.length > 1 ? zeilen.map(z => "• " + z.replace(/^[-•*–]\s*/, "")).join("\n") : zeilen[0];
+      const t = `Hoi! Die Aufgaben für ${wer} aus der Lektion vom ${wt}, ${fmt(d, 1)}:\n\n${liste}\n\nBis zum nächsten Mal!`;
+      navigator.clipboard.writeText(t).then(() => toast("Kopiert. Jetzt in WhatsApp einfügen."), () => toast("Kopieren nicht möglich. Markiere den Text von Hand."));
+      break; }
     case "copyRep": { const t = reportText(s); navigator.clipboard.writeText(t).then(() => toast("Text kopiert"), () => toast("Kopieren nicht möglich. Markiere den Text von Hand.")); break; }
     case "saveRep": saveFile("Lernstand " + s.name + " " + today() + ".txt", reportText(s), "text/plain").then(ok => ok && toast("Bericht gesichert")); break;
   }
