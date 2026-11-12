@@ -171,6 +171,8 @@ button:disabled{opacity:.4;cursor:default}
 .ink-t i{display:block;width:18px;height:18px;border-radius:50%;border:2px solid var(--card)}
 .ink-t i.hl{border-radius:3px;width:24px;height:12px}
 .ink-t.on{outline:2px solid var(--ac);outline-offset:1px}
+.ink-tx{font:800 17px/1 var(--display)}
+#pvTx{position:absolute;z-index:3;margin:0;padding:0 2px;border:1px dashed currentColor;border-radius:4px;background:rgba(255,255,255,.85);resize:none;overflow:hidden;min-height:0;white-space:pre;box-sizing:content-box}
 #pvMsg{padding:40px 16px;text-align:center}
 .lit-row{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd);flex-wrap:wrap}
 .lit-row:last-child{border-bottom:0}
@@ -772,7 +774,7 @@ function vDatenApp(){
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   ${snapCard()}
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.11-0827 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.12-1452 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -2646,7 +2648,7 @@ function openPdf(bid, p, ctx){
   $("pvPlay").hidden = !(b.links || []).length || !feat("audio"); $("pvPlay").dataset.v = b.id; if ((b.links || []).length > 3) $("pvPlay").dataset.list = "1"; else delete $("pvPlay").dataset.list; $("pvInkB").hidden = !feat("ink");
   $("pvHere").hidden = !pv.lit; pvMarks(); pvPopRender(); inkBar(); pvShow();
 }
-function closePdf(){ ink_.on = false; ink_.cur = null; pv.drawing = false; $("pv").classList.remove("pv-ink"); $("pv").hidden = true; document.body.style.overflow = ""; pv.tok++; if (pv.task) try { pv.task.cancel(); } catch(e) {} render(); }
+function closePdf(){ txClose(); ink_.on = false; ink_.cur = null; pv.drawing = false; $("pv").classList.remove("pv-ink"); $("pv").hidden = true; document.body.style.overflow = ""; pv.tok++; if (pv.task) try { pv.task.cancel(); } catch(e) {} render(); }
 function pvMarks(){
   const sel = $("pvMarks"), m = (pv.b.marks || []).slice().sort((x,y) => x.p - y.p);
   sel.hidden = !m.length;
@@ -2680,7 +2682,7 @@ async function pvShow(){
     if (tok === pv.tok && !(e && e.name === "RenderingCancelledException")){ pg.hidden = true; msg.textContent = e && /PDF/.test(e.message || "") ? e.message : "Das PDF konnte nicht geladen werden. Prüfe die Verbindung und versuche es nochmals."; }
   }
 }
-function pvGo(p){ if (!pv.b) return; const n = Math.max(1, Math.min(pv.b.seiten, p)); if (n !== pv.p){ pv.p = n; pvShow(); } else $("pvP").value = pv.p - (pv.b.off||0); }
+function pvGo(p){ if (ink_.edit) txClose(); if (!pv.b) return; const n = Math.max(1, Math.min(pv.b.seiten, p)); if (n !== pv.p){ pv.p = n; pvShow(); } else $("pvP").value = pv.p - (pv.b.off||0); }
 function pvPopRender(){
   const el = $("pvPop"), off = pv.b.off || 0;
   if (!pv.pop){ el.hidden = true; el.innerHTML = ""; return; }
@@ -2728,6 +2730,7 @@ $("pvP").addEventListener("change", e => pvGo((+e.target.value || 1) + (pv.b.off
 $("pvMarks").addEventListener("change", e => { if (e.target.value) pvGo(+e.target.value); e.target.value = ""; });
 document.addEventListener("keydown", e => {
   if ($("pv").hidden) return;
+  if (e.key === "Escape" && ink_.edit){ txClose(); return; }
   if (e.key === "Escape"){ if (ink_.on){ ink_.on = false; inkBar(); return; } if (pv.pop){ pv.pop = null; pvPopRender(); } else closePdf(); return; }
   if (/INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName)) return;
   if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " "){ e.preventDefault(); pvGo(pv.p + 1); }
@@ -2742,7 +2745,7 @@ document.addEventListener("keydown", e => {
 window.addEventListener("resize", () => { if (!$("pv").hidden) pvShow(); });
 /* ---------- Stiftnotizen im Notenviewer: pro Schüler:in und Heft, Linien in Seitenkoordinaten (0–10000) ---------- */
 const INK_C = {r:"#d0302f", b:"#1f5fbf", k:"#1b1b1b", y:"#ffd84a"};
-const ink_ = {on:false, tool:"pen", col:"r", hide:false, cur:null, erased:null, undo:[], stylus:false, raf:0};
+const ink_ = {on:false, tool:"pen", col:"r", hide:false, cur:null, erased:null, undo:[], stylus:false, raf:0, tsz:320, edit:null};
 try { ink_.stylus = localStorage.getItem("kb-stylus") === "1"; } catch(e) {}
 const inkKey = () => pv.sid && pv.b ? pv.sid + ":" + pv.b.id : null;
 function inkList(create){
@@ -2767,6 +2770,41 @@ function inkStroke(g, s, W, H){
   if (p.length > 2) g.lineTo(X(p.length - 2), Y(p.length - 2));
   g.stroke();
 }
+// Text-Notizen: {t:"tx", c, x, y (oben links, 0–10000), s (Schriftgrösse in 1/10000 der Seitenbreite), text}
+// pts/w nur für ältere App-Versionen (dort ein unsichtbarer Punkt, Radierer funktioniert)
+const TX_FONT = px => `600 ${px}px Aptos, "Hanken Grotesk", system-ui, sans-serif`;
+function txBox(s, W, H){ // Rahmen in Seiten-Einheiten 0–10000
+  const g = (txBox.g ||= document.createElement("canvas").getContext("2d")), px = s.s * W / 10000, lines = String(s.text || "").split("\n");
+  g.font = TX_FONT(px); const w = Math.max(...lines.map(l => g.measureText(l).width), px);
+  return {x: s.x, y: s.y, w: w * 10000 / W, h: lines.length * px * 1.2 * 10000 / H};
+}
+function txDraw(g, s, W, H){
+  if (s === ink_.edit) return;
+  const px = s.s * W / 10000; g.font = TX_FONT(px); g.fillStyle = INK_C[s.c] || "#000"; g.textBaseline = "top";
+  String(s.text || "").split("\n").forEach((l, i) => g.fillText(l, s.x * W / 10000, s.y * H / 10000 + i * px * 1.2));
+}
+function txHit(p){ const list = inkList(false) || [], cv = $("pvI"); for (let i = list.length - 1; i >= 0; i--){ const s = list[i]; if (s.t !== "tx") continue; const b = txBox(s, cv.width, cv.height); if (p[0] >= b.x - 80 && p[0] <= b.x + b.w + 80 && p[1] >= b.y - 80 && p[1] <= b.y + b.h + 80) return s; } return null; }
+function txOpen(s, isNew){
+  const I = $("pvI"), r = I.getBoundingClientRect(), pg = $("pvPg"), pr = pg.getBoundingClientRect();
+  ink_.edit = s; inkDraw();
+  const ta = document.createElement("textarea"); ta.id = "pvTx"; ta.value = s.text || ""; ta.rows = 1; ta.setAttribute("aria-label", "Text-Notiz");
+  const px = s.s * r.width / 10000;
+  Object.assign(ta.style, {left: (r.left - pr.left + s.x * r.width / 10000) + "px", top: (r.top - pr.top + s.y * r.height / 10000) + "px", font: TX_FONT(px), lineHeight: "1.2", color: INK_C[s.c] || "#000"});
+  const fit = () => { ta.style.height = "auto"; ta.style.height = ta.scrollHeight + "px"; ta.style.width = "auto"; ta.style.width = Math.min(r.width * .9, Math.max(px * 6, ta.scrollWidth + 4)) + "px"; };
+  ta.addEventListener("input", fit);
+  ta.addEventListener("keydown", e => { if (e.key === "Escape"){ e.stopPropagation(); e.preventDefault(); txClose(); } });
+  ta.addEventListener("blur", () => setTimeout(() => { if (ink_.edit === s) txClose(); }, 0));
+  ta._s = s; ta._new = isNew; ta._old = s.text || "";
+  pg.appendChild(ta); fit(); ta.focus();
+}
+function txClose(){
+  const ta = $("pvTx"); if (!ta) { ink_.edit = null; return; }
+  const s = ta._s, k = inkKey(), text = ta.value.replace(/\s+$/, ""); ta.remove(); ink_.edit = null;
+  const list = inkList(true), i = list.indexOf(s);
+  if (!text){ if (i >= 0) list.splice(i, 1); if (!ta._new) ink_.undo.push({k, pg: pv.p, del: [s]}); }
+  else if (text !== ta._old){ s.text = text; if (ta._new){ if (i < 0) list.push(s); ink_.undo.push({k, pg: pv.p, add: s}); } else ink_.undo.push({k, pg: pv.p, edit: s, old: ta._old}); }
+  inkSave(k); inkBar(); inkDraw();
+}
 function inkDraw(){
   const cv = $("pvI"), c = $("pvC"); if (!cv || !c) return;
   if (cv.width !== c.width || cv.height !== c.height){ cv.width = c.width; cv.height = c.height; }
@@ -2774,6 +2812,7 @@ function inkDraw(){
   if (ink_.hide || !feat("ink")) return;
   const st = (inkList(false) || []).concat(ink_.cur ? [ink_.cur] : []);
   for (const pass of ["hl", "pen"]) for (const s of st) if (s.t === pass) inkStroke(g, s, cv.width, cv.height);
+  for (const s of st) if (s.t === "tx") txDraw(g, s, cv.width, cv.height);
 }
 const inkReq = () => { if (!ink_.raf) ink_.raf = requestAnimationFrame(() => { ink_.raf = 0; inkDraw(); }); };
 function pvInkRemote(k){ if (!$("pv").hidden && k === inkKey() && !pv.drawing) inkDraw(); }
@@ -2786,6 +2825,8 @@ function inkBar(){
     <select id="pvInkS" aria-label="Notizen für">${pv.sid ? "" : `<option value="">Notizen für …</option>`}${list.map(s => `<option value="${s.id}" ${s.id === pv.sid ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select>
     ${["r","b","k"].map(c => `<button class="ink-t ${ink_.tool === "pen" && ink_.col === c ? "on" : ""}" data-ink="pen" data-c="${c}" aria-label="Stift ${names[c]}" title="Stift ${names[c]}"><i style="background:${INK_C[c]}"></i></button>`).join("")}
     <button class="ink-t ${ink_.tool === "hl" ? "on" : ""}" data-ink="hl" aria-label="Textmarker" title="Textmarker"><i class="hl" style="background:${INK_C.y}"></i></button>
+    <button class="ink-t ink-tx ${ink_.tool === "text" ? "on" : ""}" data-ink="text" aria-label="Text" title="Text: auf die Seite tippen und schreiben" style="color:${INK_C[ink_.col]}">T</button>
+    ${ink_.tool === "text" ? `<div class="seg">${[[220,"Klein"],[320,"Mittel"],[460,"Gross"]].map(([v, l]) => `<button class="${ink_.tsz === v ? "on" : ""}" data-ink="tsz" data-v="${v}">${l}</button>`).join("")}</div>` : ""}
     <button class="ink-t ${ink_.tool === "erase" ? "on" : ""}" data-ink="erase">Radierer</button>
     <button data-ink="undo" ${ink_.undo.length ? "" : "disabled"}>Rückgängig</button>
     <button class="ghost" data-ink="hide">${ink_.hide ? "Einblenden" : "Ausblenden"}</button>
@@ -2802,17 +2843,20 @@ $("pvInk").addEventListener("click", e => {
   const b = e.target.closest("[data-ink]"); if (!b) return;
   const k = inkKey();
   switch (b.dataset.ink){
-    case "pen": ink_.tool = "pen"; ink_.col = b.dataset.c; ink_.hide = false; break;
+    case "pen": ink_.col = b.dataset.c; if (ink_.tool !== "text") ink_.tool = "pen"; ink_.hide = false; break;
+    case "text": ink_.tool = "text"; ink_.hide = false; break;
+    case "tsz": ink_.tsz = +b.dataset.v; break;
     case "hl": ink_.tool = "hl"; ink_.hide = false; break;
     case "erase": ink_.tool = "erase"; ink_.hide = false; break;
     case "hide": ink_.hide = !ink_.hide; break;
-    case "done": ink_.on = false; break;
+    case "done": txClose(); ink_.on = false; break;
     case "undo": {
       const u = ink_.undo.pop(); if (!u) break;
       if (u.k !== k) break;
       if (u.pg !== pv.p){ ink_.undo.push(u); pvGo(u.pg); return; }
       const list = inkList(true);
       if (u.add){ const i = list.indexOf(u.add); if (i >= 0) list.splice(i, 1); }
+      if (u.edit) u.edit.text = u.old;
       if (u.del) list.push(...u.del);
       inkSave(k); break;
     }
@@ -2836,7 +2880,9 @@ $("pvInk").addEventListener("click", e => {
   const erase = p => {
     const list = inkList(false); if (!list) return;
     for (let i = list.length - 1; i >= 0; i--){
-      const s = list[i], r = 120 + s.w / 2, r2 = r * r;
+      const s = list[i];
+      if (s.t === "tx"){ const cv = $("pvI"), bx = txBox(s, cv.width, cv.height); if (p[0] >= bx.x - 60 && p[0] <= bx.x + bx.w + 60 && p[1] >= bx.y - 60 && p[1] <= bx.y + bx.h + 60) ink_.erased.push(...list.splice(i, 1)); continue; }
+      const r = 120 + s.w / 2, r2 = r * r;
       for (let j = 0; j < s.pts.length; j += 2){ const dx = s.pts[j] - p[0], dy = s.pts[j + 1] - p[1]; if (dx * dx + dy * dy <= r2){ ink_.erased.push(...list.splice(i, 1)); break; } }
     }
   };
@@ -2844,6 +2890,10 @@ $("pvInk").addEventListener("click", e => {
     if (e.pointerType === "pen") noteStylus();
     if (!allowed(e) || (e.pointerType === "mouse" && e.button !== 0)) return;
     e.preventDefault(); try { I.setPointerCapture(e.pointerId); } catch(err) {}
+    if (ink_.edit){ e.preventDefault(); txClose(); return; }   // Tippen neben den Text beendet die Eingabe
+    if (ink_.tool === "text"){ e.preventDefault(); const p = pt(e), hit = txHit(p);
+      if (hit) txOpen(hit, false); else txOpen({t: "tx", c: ink_.col, x: p[0], y: Math.max(0, p[1] - Math.round(ink_.tsz * $("pvI").width / $("pvI").height / 2)), s: ink_.tsz, text: "", pts: [p[0], p[1]], w: 0}, true);
+      return; }
     pv.drawing = e.pointerId; const p = pt(e);
     if (ink_.tool === "erase"){ ink_.erased = []; erase(p); inkReq(); return; }
     const hl = ink_.tool === "hl";
