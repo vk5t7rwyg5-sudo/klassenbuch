@@ -144,6 +144,9 @@ button:disabled{opacity:.4;cursor:default}
 .pw{position:relative}.pw input{padding-right:44px}.pw button{position:absolute;right:2px;top:50%;transform:translateY(-50%);width:38px;height:38px;min-height:0;padding:0;display:grid;place-items:center;color:var(--tx2);background:none;border:0}.pw svg{width:20px;height:20px}
 .card.sel{border-color:var(--ac);background:var(--acbg)}.tick{display:inline-grid;place-items:center;width:20px;height:20px;border:1px solid var(--bd2);border-radius:5px;font-size:13px;color:var(--ac);flex:none}
 .sus-bar{margin:-4px 0 12px;position:sticky;top:60px;z-index:3;background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:6px 10px}
+.abo-r{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.4fr) auto;gap:10px;align-items:end;padding:8px 0;border-bottom:1px solid var(--bd)}.abo-r label{margin-top:0}.abo-s{display:grid;gap:2px;padding-bottom:6px}
+@media (max-width:620px){.abo-r{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr)}.abo-s{grid-column:1/3}}
+.fr-z{margin-top:6px;gap:8px}.fr-z input{width:auto}.pk-add{margin-top:8px;align-self:flex-start}.fr-f{margin-bottom:12px}
 .rg-l{display:grid;margin-top:6px}.rg-r{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bd);margin:0;font-size:15px;color:var(--tx);text-transform:none;letter-spacing:0}.rg-r input{width:auto;flex:none}
 .rg-i{padding:8px 0;border-bottom:1px solid var(--bd)}.rg-i:last-child{border-bottom:0}
 .fl{display:grid;gap:10px;max-width:560px}
@@ -179,6 +182,8 @@ button:disabled{opacity:.4;cursor:default}
 .lit-row input.num{width:70px;padding:5px 6px}
 .lit-add{display:grid;gap:8px;margin-top:12px;grid-template-columns:minmax(0,2fr) minmax(0,2fr) 80px auto;align-items:end}
 @media (max-width:640px){.lit-add{grid-template-columns:minmax(0,1fr) 80px}.lit-add>div:first-child,.lit-add>div:nth-child(2){grid-column:1/-1}}
+.lit-add.song-add{grid-template-columns:minmax(0,2fr) minmax(0,2fr) auto}
+@media (max-width:640px){.lit-add.song-add{grid-template-columns:minmax(0,1fr)}.lit-add.song-add>div{grid-column:auto}}
 .bk{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--bd)}
 .bk:last-child{border-bottom:0}
 .bk-i{width:34px;height:44px;border-radius:4px;background:var(--pubg);color:var(--pu);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
@@ -774,7 +779,7 @@ function vDatenApp(){
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
   ${snapCard()}
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.12-1452 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.12-1838 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -881,9 +886,9 @@ function plEnd(frist){ return new Date(frist + "T23:59:59").getTime(); }
 
 function plNew(){
   const fen = {};
-  for (const s of sorted()){ if (!s.tag || !s.zeit) continue; const k = s.tag + "|" + (s.schule || ""), a = plM(s.zeit), e = a + (s.dauer || 30); if (!fen[k]) fen[k] = {tag: s.tag, von: a, bis: e, schule: s.schule || ""}; fen[k].von = Math.min(fen[k].von, a); fen[k].bis = Math.max(fen[k].bis, e); }
+  for (const s of sorted()){ if (!s.tag || !s.zeit || isFrei(s)) continue; const k = s.tag + "|" + (s.schule || ""), a = plM(s.zeit), e = a + (s.dauer || 30); if (!fen[k]) fen[k] = {tag: s.tag, von: a, bis: e, schule: s.schule || ""}; fen[k].von = Math.min(fen[k].von, a); fen[k].bis = Math.max(fen[k].bis, e); }
   const r = {id: uid(), titel: "Nächstes Semester", lp: (db.rechnung && db.rechnung.name) || "", frist: iso(addDays(new Date(), 14)), raster: 30, wechsel: 15, pause: 0, hinweis: "",
-    fenster: Object.values(fen).sort((a, b) => a.tag - b.tag || a.von - b.von).map(w => ({...w, von: plT(w.von), bis: plT(w.bis)})), sids: sorted().map(s => s.id), links: {}, assign: {}, sent: 0, shared: false, dirty: false};
+    fenster: Object.values(fen).sort((a, b) => a.tag - b.tag || a.von - b.von).map(w => ({...w, von: plT(w.von), bis: plT(w.bis)})), sids: sorted().filter(s => !isFrei(s)).map(s => s.id), links: {}, assign: {}, sent: 0, shared: false, dirty: false};
   if (!r.fenster.length) r.fenster.push({tag: 1, von: "13:00", bis: "18:00", schule: ""});
   (db.planung ||= []).push(r); pl.id = r.id; save(); render();
 }
@@ -1140,7 +1145,7 @@ document.addEventListener("input", ev => {
 
 /* ---------- data helpers ---------- */
 const S = id => db.students.find(x => x.id === id);
-const sorted = () => db.students.filter(s => s.aktiv !== false).slice().sort((a,b) => (a.tag||9)-(b.tag||9) || (a.zeit||"99").localeCompare(b.zeit||"99") || a.name.localeCompare(b.name));
+const sorted = () => db.students.filter(s => s.aktiv !== false).slice().sort((a,b) => (isFrei(a)?9:a.tag||9)-(isFrei(b)?9:b.tag||9) || (a.zeit||"99").localeCompare(b.zeit||"99") || a.name.localeCompare(b.name));
 const lessonsOf = sid => db.lessons.filter(l => l.sid === sid).sort((a,b) => b.datum.localeCompare(a.datum));
 function lpItems(stufe, bereiche){
   const st = LP.stufen[stufe]; if (!st) return [];
@@ -1157,6 +1162,51 @@ function attendance(sid){ const l = db.lessons.filter(x => x.sid === sid && x.st
 const eventsOf = sid => db.events.filter(e => (e.sids||[]).includes(sid)).sort((a,b) => a.datum.localeCompare(b.datum));
 const nextEvent = sid => eventsOf(sid).find(e => (e.bis||e.datum) >= today());
 function lessonDate(s, mon){ return iso(addDays(mon, (s.tag||1)-1)); }
+/* Unregelmässige Lektionen: s.rhythmus === "frei", jede Lektion hat ihr eigenes Datum (und l.zeit) */
+const isFrei = s => s.rhythmus === "frei";
+const wdOf = d => (parse(d).getDay() + 6) % 7 + 1, TG = w => TAGE[w] || "So";
+function weekList(mon){
+  const a = iso(mon), b = iso(addDays(mon, 6)), out = [];
+  for (const s of sorted()){
+    if (isFrei(s)) db.lessons.filter(l => l.sid === s.id && l.datum >= a && l.datum <= b).forEach(l => out.push({s, d: l.datum, z: l.zeit || s.zeit || "", w: wdOf(l.datum), frei: true}));
+    else { const d = lessonDate(s, mon); if (!ferienAm(d, s)) out.push({s, d, z: s.zeit || "", w: s.tag || 0}); }
+  }
+  return out.sort((x, y) => (x.w || 9) - (y.w || 9) || (x.z || "99").localeCompare(y.z || "99") || x.s.name.localeCompare(y.s.name));
+}
+/* Abo: s.abr === "abo", s.abos = [{id, von, n, chf}]; es zählen Lektionen «anwesend» und «unentschuldigt» */
+const ABO_ST = ["anwesend", "unentschuldigt"];
+const isAbo = s => isPriv(s) && s.abr === "abo";
+const aboPreis = (s, a) => a.chf != null && a.chf !== "" ? +a.chf : Math.round(rgCfg().tarif * (s.dauer || 30) / 30 * (+a.n || 0) * 20) / 20;
+function aboCalc(s){
+  const abos = (s.abos || []).slice().sort((a, b) => a.von.localeCompare(b.von)).map(a => ({...a, used: []})), bill = rgBilled(), over = [];
+  db.lessons.filter(l => l.sid === s.id && ABO_ST.includes(l.status)).sort((a, b) => a.datum.localeCompare(b.datum)).forEach(l => {
+    if (bill[rgKey(s.id, l.datum)]) return;
+    const a = abos.find(x => x.von <= l.datum && x.used.length < (+x.n || 0));
+    if (a) a.used.push(l.datum); else if (abos.length && l.datum >= abos[0].von) over.push(l.datum);
+  });
+  abos.forEach(a => a.left = Math.max(0, (+a.n || 0) - a.used.length));
+  return {abos, over};
+}
+function aboBadge(s, d){
+  if (!isAbo(s)) return "";
+  const {abos, over} = aboCalc(s), a = abos.find(x => x.used.includes(d)), cur = abos.find(x => x.left > 0);
+  if (a) return `<span class="badge ${a.left ? "b-ok" : "b-wa"}">Abo: Lektion ${a.used.indexOf(d) + 1} von ${a.n}${a.left ? ` · noch ${a.left}` : " · aufgebraucht"}</span>`;
+  if (over.includes(d) || !cur) return `<a class="badge b-da" href="#s-${s.id}">${abos.length ? "Abo aufgebraucht: neues Abo erfassen" : "Noch kein Abo erfasst"}</a>`;
+  return `<span class="badge b-gr">Abo: noch ${cur.left} von ${cur.n}</span>`;
+}
+function aboCard(s){
+  if (!isAbo(s)) return "";
+  const {abos, over} = aboCalc(s), inv = aboInv();
+  return `<h3>Abo</h3><div class="card">${abos.length ? abos.slice().reverse().map(a => `<div class="abo-r">
+    <div><label for="ab-v-${a.id}">Ab</label><input id="ab-v-${a.id}" type="date" data-abo="${a.id}:von" value="${esc(a.von)}"></div>
+    <div><label for="ab-n-${a.id}">Lektionen</label><input id="ab-n-${a.id}" type="number" min="1" inputmode="numeric" data-abo="${a.id}:n" value="${esc(a.n)}"></div>
+    <div><label for="ab-c-${a.id}">Preis CHF</label><input id="ab-c-${a.id}" type="number" inputmode="decimal" data-abo="${a.id}:chf" value="${esc(chf(aboPreis(s, a)))}"></div>
+    <div class="abo-s"><b class="num">noch ${a.left} von ${a.n}</b><span class="tiny num">${a.used.length ? a.used.length + " gebraucht, zuletzt " + fmt(a.used[a.used.length - 1]) : "noch nicht gebraucht"}${inv[a.id] ? " · Rechnung " + esc(inv[a.id].nr) : ""}</span></div>
+    <button class="ghost del small" data-a="aboDel" data-v="${a.id}" aria-label="Abo löschen">×</button></div>`).join("") : `<p class="muted small" style="margin-top:0">Noch kein Abo. Lege eines an; die Lektionen zählen ab dem Startdatum herunter.</p>`}
+    ${over.length ? `<div class="banner" style="margin:10px 0 0">${over.length} ${over.length === 1 ? "Lektion liegt" : "Lektionen liegen"} ausserhalb eines Abos (${over.map(d => fmt(d)).join(", ")}). Lege ein neues Abo an oder verrechne sie einzeln.</div>` : ""}
+    <div class="row" style="margin-top:12px"><button class="pri" data-a="aboNew">Neues Abo</button><span class="sp"></span><span class="tiny">Es zählen Lektionen mit «anwesend» und «unentsch.». Entschuldigte und ausgefallene zählen nicht.</span></div></div>`;
+}
+function aboInv(){ const m = {}; (db.invoices || []).forEach(i => i.items.forEach(x => { if (x.abo) m[x.abo] = i; })); return m; }
 function getLesson(sid, datum, create){ let l = db.lessons.find(x => x.sid === sid && x.datum === datum); if (!l && create){ l = {id:uid(), sid, datum, status:"", warmup:"", inhalt:"", aufgaben:"", notiz:"", lpDone:[]}; db.lessons.push(l); } return l; }
 
 const SB = [["familie","Familiärer Hintergrund","Geschwister, Eltern, wer bringt/holt ab, Sprache zuhause …"],["instrumente","Instrumente zuhause","Eigenes Instrument, Platz zum Üben, Lärmsituation …"],["schule","Schulsituation","Klasse, Schulhaus, Belastung, andere Hobbys …"],["charakter","Charaktereigenschaften","Wie lernt die Person, was motiviert, worauf achten …"],["sonstiges","Sonstiges","Gesundheit, Ensembles, Absprachen …"]];
@@ -1497,7 +1547,7 @@ function emptyState(){
   <div class="row" style="justify-content:center"><button class="pri" data-a="newS">Person anlegen</button><button data-a="import">Backup laden</button></div></div>`;
 }
 
-let selSid = null;
+let selSid = null, selD = null;
 function ferienAm(ds, s){ return db.events.find(e => e.typ === "Ferien" && ds >= e.datum && ds <= (e.bis||e.datum) && (!s || ferienFuer(e, s))); }
 function ferienFuer(e, s){ const ort = e.ort || ""; if (/Teufen/.test(ort)) return s.schule === "MSAM"; const hit = schulen().filter(k => k && ort.includes(k)); return !hit.length || hit.includes(s.schule); }
 function zeitstrahl(mon){
@@ -1530,7 +1580,8 @@ function stvInit(){
 function stvLessons(){
   const out = []; if (!stv.von || !stv.bis || stv.bis < stv.von) return out;
   for (let mon = monday(parse(stv.von)); iso(mon) <= stv.bis; mon = addDays(mon, 7))
-    for (const s of sorted()){ if (!s.tag) continue; const d = lessonDate(s, mon); if (d < stv.von || d > stv.bis || ferienAm(d, s)) continue; out.push({s, d}); }
+    for (const s of sorted()){ if (!s.tag || isFrei(s)) continue; const d = lessonDate(s, mon); if (d < stv.von || d > stv.bis || ferienAm(d, s)) continue; out.push({s, d}); }
+  db.lessons.forEach(l => { const s = S(l.sid); if (s && s.aktiv !== false && isFrei(s) && l.datum >= stv.von && l.datum <= stv.bis) out.push({s, d: l.datum}); });
   return out.sort((a, b) => a.d.localeCompare(b.d) || (a.s.zeit || "99").localeCompare(b.s.zeit || "99"));
 }
 const stvSel = all => all.filter(x => !stv.offTage.has(x.d) && !stv.offKids.has(x.s.id));
@@ -1538,7 +1589,7 @@ function stvRow({s, d}){
   const grp = s.typ === "Gruppe", m = grp ? gMembers(s) : [];
   const per = f => { if (!grp) return f(s); const r = m.map(x => { const v = f(x); return v ? (x.name ? x.name.split(" ")[0] + ": " : "") + v : ""; }).filter(Boolean).join("\n"); return r || f(s); };
   const last = lessonsOf(s.id).find(l => l.datum < d && (l.inhalt || l.aufgaben));
-  return {datum: fmt(d, 1), tag: TAGE[s.tag] || "", zeit: s.zeit || "", dauer: s.dauer ? s.dauer + " Min." : "", name: s.name,
+  return {datum: fmt(d, 1), tag: TG(wdOf(d)), zeit: (isFrei(s) && (getLesson(s.id, d) || {}).zeit) || s.zeit || "", dauer: s.dauer ? s.dauer + " Min." : "", name: s.name,
     kinder: grp ? m.map(x => x.name + (ageOf(x.geburt) !== null ? " (" + ageOf(x.geburt) + ")" : "")).join("\n") : (alter(s) !== null ? alter(s) + " J." : ""),
     schule: s.schule || "", stufe: sStufeL(s) || "", instr: sInstrList(s).join(", "),
     eltern: per(x => x.eltern || ""), tel: per(x => kOf(x).tel), mail: per(x => kOf(x).mail),
@@ -1675,9 +1726,9 @@ function spOpen(uri, fallback){
   const a = document.createElement("a"); a.href = uri; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => { removeEventListener("blur", gone); removeEventListener("pagehide", gone); document.removeEventListener("visibilitychange", vis); if (!left && !document.hidden && fallback) fallback(); }, 2500);
 }
-function playLink(bid, i, list){
-  const b = bookById(bid), l = b && (b.links || [])[i]; if (!l) return;
-  if (!feat("audio")){ toast("Aufnahmen sind unter Einstellungen ausgeschaltet."); return; }
+function playLink(bid, i, list, bObj){
+  const b = bObj || bookById(bid), l = b && (b.links || [])[i]; if (!l) return;
+  if (!feat("audio") && !bObj){ toast("Aufnahmen sind unter Einstellungen ausgeschaltet."); return; }
   const info = mediaInfo(l.u);
   const useApp = !!info.app && spPref() === "app";
   if (!info.embed && !useApp){ window.open(l.u, "_blank", "noopener"); return; }
@@ -1699,12 +1750,20 @@ const rgCfg = () => Object.assign({tarif: 40, name: "", adresse: "", iban: "", b
 const isPriv = s => s.verr ? s.verr === "privat" : /privat/i.test(s.schule || "");
 const rgKey = (sid, d) => sid + "|" + d, chf = n => (+n).toFixed(2);
 const rgDay = d => (TAGE[(parse(d).getDay() + 6) % 7 + 1] || "So") + " " + fmt(d, 1);
-function rgBilled(){ const m = {}; (db.invoices || []).forEach(i => i.items.forEach(x => m[rgKey(i.sid, x.d)] = i)); return m; }
+function rgBilled(){ const m = {}; (db.invoices || []).forEach(i => i.items.forEach(x => { if (x.d) m[rgKey(i.sid, x.d)] = i; })); return m; }
 function rgItems(s){
   const bill = rgBilled(), t = rg.bis || today(), min = s.dauer || 30, price = Math.round(rgCfg().tarif * min / 30 * 20) / 20, main = [], more = [], by = {};
+  if (isAbo(s)){
+    const {abos, over} = aboCalc(s), inv = aboInv();
+    abos.filter(a => !inv[a.id]).forEach(a => main.push({k: "abo:" + a.id, abo: a.id, von: a.von, n: +a.n || 0, min, chf: aboPreis(s, a), st: "Abo", def: true}));
+    over.forEach(d => { if (d <= t) main.push({d, min, chf: price, st: "ausserhalb Abo", def: true}); });
+    return {main, more};
+  }
+  if ((s.abos || []).length){ const {abos} = aboCalc(s), inv = aboInv(); abos.forEach(a => { if (inv[a.id]) a.used.forEach(d => bill[rgKey(s.id, d)] = inv[a.id]); }); }
   const ls = lessonsOf(s.id).filter(l => l.status || l.inhalt || l.aufgaben || l.warmup || l.notiz); ls.forEach(l => by[l.datum] = l);
   ls.slice().reverse().forEach(l => { if (l.datum <= t && !bill[rgKey(s.id, l.datum)]) main.push({d: l.datum, min, chf: price, st: l.status || "", def: l.status !== "ausgefallen" && l.status !== "entschuldigt"}); });
-  if (s.tag){
+  if (isFrei(s)) lessonsOf(s.id).slice().reverse().forEach(l => { if (!by[l.datum] && l.datum <= t && !bill[rgKey(s.id, l.datum)]) more.push({d: l.datum, min, chf: price, st: "kein Eintrag", def: false}); });
+  else if (s.tag){
     const now = new Date(), sy = (now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1) + "-08-01";
     const lastB = (db.invoices || []).filter(i => i.sid === s.id).flatMap(i => i.items.map(x => x.d)).sort().pop() || "";
     let start = ls.length ? ls[ls.length - 1].datum : sy; if (lastB >= start) start = iso(addDays(parse(lastB), 1));
@@ -1715,7 +1774,7 @@ function rgItems(s){
   }
   return {main, more};
 }
-const rgIsOn = x => rg.on.has(x.d) || (x.def && !rg.off.has(x.d));
+const rgK = x => x.k || x.d, rgIsOn = x => rg.on.has(rgK(x)) || (x.def && !rg.off.has(rgK(x)));
 function rgPrefill(s){
   let name = s.eltern || s.name, ad = kOf(s).adresse;
   if (s.typ === "Gruppe"){ const m = gMembers(s).find(x => x.adresse) || gMembers(s)[0]; if (m){ name = m.eltern || m.name || name; ad = m.adresse || ad; } }
@@ -1728,20 +1787,20 @@ function vRechnung(){
   if (!list.length){ app.innerHTML = `<h2>Rechnungen</h2><div class="card empty"><p class="muted">Noch keine privaten Schüler:innen. Stelle bei einer Person unter SuS die Verrechnung auf «Privat».</p></div>`; return; }
   if (!list.some(s => s.id === rg.sid)) rgSel(list[0].id);
   const s = S(rg.sid), cfg = rgCfg(), {main, more} = rgItems(s), sel = [...main, ...more].filter(rgIsOn), total = sel.reduce((a, x) => a + x.chf, 0), done = (db.invoices || []).filter(i => i.sid === s.id);
-  const row = x => `<label class="rg-r"><input type="checkbox" data-rgc="${x.d}" ${rgIsOn(x) ? "checked" : ""}><span class="num">${rgDay(x.d)}</span><span class="tiny">${esc(x.st)}</span><span class="sp"></span><span class="tiny num">${x.min} Min.</span><span class="num">${chf(x.chf)}</span></label>`;
+  const row = x => `<label class="rg-r"><input type="checkbox" data-rgc="${rgK(x)}" ${rgIsOn(x) ? "checked" : ""}><span class="num">${x.abo ? "ab " + fmt(x.von, 1) : rgDay(x.d)}</span><span class="tiny">${esc(x.st)}</span><span class="sp"></span><span class="tiny num">${x.abo ? x.n + " × " : ""}${x.min} Min.</span><span class="num">${chf(x.chf)}</span></label>`;
   app.innerHTML = `<h2>Rechnungen</h2>
   <div class="row" style="margin-bottom:12px">${list.map(p => { const o = rgItems(p).main.filter(x => x.def).length; return `<button class="chip ${p.id === s.id ? "on" : ""}" data-a="rgPick" data-v="${p.id}">${esc(p.name)}${o ? ` <span class="num">· ${o}</span>` : ""}</button>`; }).join("")}</div>
   ${cfg.name ? "" : `<div class="banner">Trage zuerst unter <a href="#daten">Einstellungen → Rechnungen</a> deinen Namen und deine Adresse ein.</div>`}
   <div class="card"><div class="row"><b>Noch nicht verrechnet</b><span class="sp"></span><label class="small" for="rg-bis" style="margin:0">Termine bis</label><input type="date" id="rg-bis" data-rgf="bis" value="${esc(rg.bis || today())}" style="width:auto"></div>
-    <div class="rg-l">${main.map(row).join("") || `<p class="muted small">Keine offenen Termine mit Eintrag.</p>`}</div>
+    <div class="rg-l">${main.map(row).join("") || `<p class="muted small">${isAbo(s) ? `Alle Abos sind verrechnet. Ein neues Abo legst du bei <a href="#s-${s.id}">${esc(s.name)}</a> an.` : "Keine offenen Termine mit Eintrag."}</p>`}</div>
     ${more.length ? `<details style="margin-top:8px"><summary class="small">${more.length} weitere Termine laut Stundenplan, ohne Eintrag</summary><div class="rg-l">${more.map(row).join("")}</div></details>` : ""}
-    <div class="row" style="margin-top:12px"><b>Total CHF <span class="num">${chf(total)}</span></b><span class="small muted num">${sel.length} ${sel.length === 1 ? "Termin" : "Termine"} · ${chf(cfg.tarif)} pro 30 Min.</span></div>
+    <div class="row" style="margin-top:12px"><b>Total CHF <span class="num">${chf(total)}</span></b><span class="small muted num">${sel.length} Posten · ${chf(cfg.tarif)} pro 30 Min.</span></div>
     <div class="f" style="margin-top:12px"><div><label for="rg-addr">Rechnungsadresse</label><textarea id="rg-addr" data-rga rows="4">${esc(rg.addr === null ? rgPrefill(s) : rg.addr)}</textarea></div>
       <div><label for="rg-dat">Rechnungsdatum</label><input type="date" id="rg-dat" data-rgf="datum" value="${esc(rg.datum || today())}"></div></div>
     <div class="row" style="margin-top:12px"><button class="pri" data-a="rgMake" ${sel.length && cfg.name ? "" : "disabled"}>Rechnung als PDF erstellen</button>${acc ? "" : `<span class="small muted">Rechnungen stellst du mit einem Konto aus. <a href="#daten">Konto einrichten</a></span>`}</div></div>
   <h3>Bereits verrechnet</h3><div class="card">${done.length ? done.slice().reverse().map(i => `<div class="rg-i"><div class="row"><b class="num">${esc(i.nr)}</b><span class="small muted num">${fmt(i.datum, 1)}</span><span class="sp"></span><b class="num">CHF ${chf(i.total)}</b>
       <button class="chip ${i.paid ? "on" : ""}" data-a="rgPaid" data-v="${i.id}">${i.paid ? "✓ bezahlt" : "offen"}</button><button class="ghost small" data-a="rgAgain" data-v="${i.id}">PDF</button><button class="ghost del small" data-a="rgDel" data-v="${i.id}" aria-label="Rechnung löschen">×</button></div>
-      <div class="tiny num">✓ ${i.items.map(x => fmt(x.d)).join(" · ")}</div></div>`).join("") : `<span class="muted small">Noch keine Rechnung.</span>`}</div>`;
+      <div class="tiny num">✓ ${i.items.map(x => x.abo ? `Abo ${x.n} Lektionen ab ${fmt(x.von)}` : fmt(x.d)).join(" · ")}</div></div>`).join("") : `<span class="muted small">Noch keine Rechnung.</span>`}</div>`;
   app.querySelectorAll("textarea").forEach(autosize);
 }
 function rgCard(){
@@ -1895,7 +1954,7 @@ async function rgPdf(inv){
   y = H - 290; TR(R, y, "Datum: " + fmt(inv.datum, 1), 10); T(L, y, "Rechnung " + inv.nr, 16, true);
   y -= 20; T(L, y, "Instrumentalunterricht" + (S(inv.sid) && !sAP(S(inv.sid)) && sInstr(S(inv.sid)) ? " " + sInstr(S(inv.sid)) : S(inv.sid) ? " Perkussion" : "") + ": " + inv.name, 11);
   y -= 26; const head = () => { T(L, y, "Datum", 10, true); T(L + 150, y, "Leistung", 10, true); TR(R, y, "CHF", 10, true); y -= 6; LN(y); y -= 16; }; head();
-  inv.items.forEach(x => { if (y < 120){ flush(); y = H - 70; head(); } T(L, y, rgDay(x.d), 10); T(L + 150, y, `Lektion ${x.min} Min.`, 10); TR(R, y, chf(x.chf), 10); y -= 16; });
+  inv.items.forEach(x => { if (y < 120){ flush(); y = H - 70; head(); } T(L, y, x.abo ? "ab " + fmt(x.von, 1) : rgDay(x.d), 10); T(L + 150, y, x.abo ? `Abo ${x.n} Lektionen à ${x.min} Min.` : `Lektion ${x.min} Min.`, 10); TR(R, y, chf(x.chf), 10); y -= 16; });
   if (y < 190){ flush(); y = H - 70; }
   y += 8; LN(y); y -= 18; T(L, y, "Total", 12, true); TR(R, y, "CHF " + chf(inv.total), 12, true); y -= 34;
   T(L, y, `Zahlbar innert ${+c.frist || 30} Tagen. Vielen Dank.`, 10); y -= 18;
@@ -1917,11 +1976,11 @@ async function rgPdf(inv){
 }
 function rgNr(datum){ const y = datum.slice(0, 4), max = (db.invoices || []).filter(i => i.nr.startsWith(y + "-")).reduce((a, i) => Math.max(a, +i.nr.slice(5) || 0), 0); return y + "-" + String(max + 1).padStart(3, "0"); }
 async function rgMake(){
-  const s = S(rg.sid), {main, more} = rgItems(s), sel = [...main, ...more].filter(rgIsOn).sort((a, b) => a.d.localeCompare(b.d)); if (!s || !sel.length) return;
-  const datum = rg.datum || today(), inv = {id: uid(), nr: rgNr(datum), sid: s.id, name: s.name, datum, addr: rg.addr === null ? rgPrefill(s) : rg.addr, total: Math.round(sel.reduce((a, x) => a + x.chf, 0) * 100) / 100, paid: false, items: sel.map(({d, min, chf}) => ({d, min, chf}))};
+  const s = S(rg.sid), {main, more} = rgItems(s), sel = [...main, ...more].filter(rgIsOn).sort((a, b) => (a.d || a.von).localeCompare(b.d || b.von)); if (!s || !sel.length) return;
+  const datum = rg.datum || today(), inv = {id: uid(), nr: rgNr(datum), sid: s.id, name: s.name, datum, addr: rg.addr === null ? rgPrefill(s) : rg.addr, total: Math.round(sel.reduce((a, x) => a + x.chf, 0) * 100) / 100, paid: false, items: sel.map(x => x.abo ? {abo: x.abo, von: x.von, n: x.n, min: x.min, chf: x.chf} : {d: x.d, min: x.min, chf: x.chf})};
   toast("Rechnung wird erstellt …");
   let blob; try { blob = await rgPdf(inv); } catch(e) { toast("Die Rechnung konnte nicht erstellt werden. Prüfe das hinterlegte PDF."); return; }
-  ask(`Rechnung ${inv.nr} über CHF ${chf(inv.total)} ist bereit. Sichern oder teilen und die ${inv.items.length} Termine als verrechnet markieren?`, "Sichern", async () => {
+  ask(`Rechnung ${inv.nr} über CHF ${chf(inv.total)} ist bereit. Sichern oder teilen und ${inv.items.length === 1 ? "den Posten" : "die " + inv.items.length + " Posten"} als verrechnet markieren?`, "Sichern", async () => {
     if (await saveFile(`Rechnung ${inv.nr} ${s.name}.pdf`, blob, "application/pdf")){ (db.invoices ||= []).push(inv); rg.on.clear(); rg.off.clear(); rg.addr = null; save(); render(); toast("Termine als verrechnet markiert"); }
   });
 }
@@ -1929,6 +1988,18 @@ async function rgAgain(id){
   const inv = (db.invoices || []).find(i => i.id === id); if (!inv) return;
   let blob; try { blob = await rgPdf(inv); } catch(e) { toast("Die Rechnung konnte nicht erstellt werden."); return; }
   ask(`Rechnung ${inv.nr} ist bereit.`, "Sichern", () => saveFile(`Rechnung ${inv.nr} ${inv.name}.pdf`, blob, "application/pdf"));
+}
+let freiF = null;
+function freiForm(mon, frei){
+  if (!freiF || !frei.length) return "";
+  if (!frei.some(s => s.id === freiF.sid)) freiF.sid = frei[0].id;
+  const a = iso(mon), b = iso(addDays(mon, 6)), t = today(), s = S(freiF.sid);
+  if (!freiF.d) freiF.d = t >= a && t <= b ? t : a;
+  return `<div class="card fr-f"><b>Lektion eintragen</b><div class="f" style="margin-top:8px">
+    <div><label for="fa-s">Schüler:in</label><select id="fa-s" data-fa="sid">${frei.map(x => `<option value="${x.id}" ${x.id === freiF.sid ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select></div>
+    <div><label for="fa-d">Datum</label><input id="fa-d" type="date" data-fa="d" value="${esc(freiF.d)}"></div>
+    <div><label for="fa-z">Zeit</label><input id="fa-z" type="time" data-fa="z" value="${esc(freiF.z ?? (s.zeit || ""))}"></div></div>
+    <div class="row" style="margin-top:12px"><button class="pri" data-a="freiGo">Eintragen</button><button class="ghost" data-a="freiX">Abbrechen</button><span class="sp"></span><span class="tiny">Für Schüler:innen ohne festen Wochentag</span></div></div>`;
 }
 function vWoche(){
   const mon = weekStart, sun = addDays(mon, 6);
@@ -1943,34 +2014,41 @@ function vWoche(){
     ${bdays(iso(mon), iso(sun)).map(b => `<span class="badge b-da">Geburtstag ${fmt(b.datum)}: ${esc(b.name)} (${b.alter})</span>`).join("")}</div>`;
   html += zeitstrahl(mon) + gnCard();
   if (!db.students.length){ app.innerHTML = html + planPrompt() + emptyState(); return; }
-  const list = sorted().filter(s => !ferienAm(lessonDate(s, mon), s));
-  if (!list.length){ app.innerHTML = html + `<div class="card empty"><h2>${esc(fer[0]?.titel || "Ferien")}</h2><p class="muted">In dieser Woche finden keine Lektionen statt.</p><div class="row" style="justify-content:center"><button class="pri" data-a="wk" data-n="7">Zur nächsten Schulwoche</button></div></div>`; return; }
-  if (!list.some(s => s.id === selSid)){
+  const list = weekList(mon), frei = sorted().filter(isFrei), addBtn = frei.length ? `<button class="ghost small pk-add" data-a="freiAdd">+ Lektion</button>` : "";
+  html += freiForm(mon, frei);
+  if (!list.length){ app.innerHTML = html + (fer.length || !frei.length ? `<div class="card empty"><h2>${esc(fer[0]?.titel || "Ferien")}</h2><p class="muted">In dieser Woche finden keine Lektionen statt.</p><div class="row" style="justify-content:center">${addBtn}<button class="pri" data-a="wk" data-n="7">Zur nächsten Schulwoche</button></div></div>`
+    : `<div class="card empty"><p class="muted">In dieser Woche ist noch keine Lektion eingetragen.</p><div class="row" style="justify-content:center">${addBtn.replace("ghost small ", "pri ")}</div></div>`); return; }
+  let i = list.findIndex(e => e.s.id === selSid && (!selD || e.d === selD)); if (i < 0) i = list.findIndex(e => e.s.id === selSid);
+  if (i < 0){
     const t = today(), now = new Date().toTimeString().slice(0,5);
-    const isThisWeek = iso(monday(new Date())) === iso(mon);
-    selSid = (isThisWeek && (list.find(s => lessonDate(s, mon) === t && (s.zeit||"") >= now.slice(0,2)+":00" && !(getLesson(s.id, t)||{}).status) || list.find(s => lessonDate(s, mon) >= t && !(getLesson(s.id, lessonDate(s, mon))||{}).status)) || list[0]).id;
+    const isThisWeek = iso(monday(new Date())) === iso(mon), st = e => (getLesson(e.s.id, e.d)||{}).status;
+    const e0 = (isThisWeek && (list.find(e => e.d === t && (e.z||"") >= now.slice(0,2)+":00" && !st(e)) || list.find(e => e.d >= t && !st(e)))) || list[0];
+    i = list.indexOf(e0);
   }
+  selSid = list[i].s.id; selD = list[i].d;
   let lastTag = -1, items = "";
-  list.forEach(s => {
-    const d = lessonDate(s, mon), l = getLesson(s.id, d) || {}, f = ferienAm(d, s);
-    if (s.tag !== lastTag){ items += `<div class="pk-day">${s.tag ? TAGE[s.tag] + " " + fmt(d) : "Ohne Tag"}</div>`; lastTag = s.tag; }
+  list.forEach(({s, d, z, w}) => {
+    const l = getLesson(s.id, d) || {}, f = ferienAm(d, s);
+    if (w !== lastTag){ items += `<div class="pk-day">${w ? TG(w) + " " + fmt(d) : "Ohne Tag"}</div>`; lastTag = w; }
     const filled = l.inhalt || l.aufgaben || l.warmup || l.notiz;
     const dot = l.status === "anwesend" ? "var(--ok)" : l.status === "entschuldigt" ? "var(--wa)" : l.status === "unentschuldigt" ? "var(--da)" : l.status === "ausgefallen" || f ? "var(--tx3)" : "transparent";
-    items += `<button class="pk ${s.id===selSid?"on":""}" data-a="pick" data-v="${s.id}">
-      <span class="tiny num">${esc(s.zeit||"–")}</span><span class="pk-n">${esc(s.name)}</span>
+    items += `<button class="pk ${s.id===selSid && d===selD?"on":""}" data-a="pick" data-v="${s.id}" data-d="${d}">
+      <span class="tiny num">${esc(z||"–")}</span><span class="pk-n">${esc(s.name)}</span>
       <span class="pk-s">${filled?'<span title="Notiz erfasst">✎</span>':""}<span class="dot" style="background:${dot};border:1px solid ${dot==="transparent"?"var(--bd2)":dot}"></span></span></button>`;
   });
-  const i = list.findIndex(s => s.id === selSid), s = list[i];
-  const d = lessonDate(s, mon), l = getLesson(s.id, d) || {}, f = ferienAm(d, s);
+  items += addBtn;
+  const {s, d} = list[i], l = getLesson(s.id, d) || {}, f = ferienAm(d, s), fr = isFrei(s);
   const prev = lessonsOf(s.id).find(x => x.datum < d && (x.inhalt || x.aufgaben));
   const open = feat("lp") ? sItems(s).filter(it => (s.lp||{})[it.id] === 1) : [];
   const pS = list[i-1], nS = list[i+1];
   const editor = `<div class="card ed" data-sid="${s.id}" data-d="${d}">
     <div class="row"><div style="min-width:0"><a href="#s-${s.id}" class="ed-name">${esc(s.name)}</a>
-      <div class="small muted num">${s.tag?TAGE[s.tag]+" "+fmt(d,1):fmt(d,1)}${s.zeit?" · "+esc(s.zeit):""}${s.dauer?" · "+s.dauer+" Min.":""}${alterTxt(s)?" · "+esc(alterTxt(s)):""} · ${esc(sStufeL(s))}</div>${s.typ==="Gruppe" ? gList(s) : ""}</div>
+      <div class="small muted num">${fr ? TG(wdOf(d))+" "+fmt(d,1) : s.tag?TAGE[s.tag]+" "+fmt(d,1):fmt(d,1)}${fr ? "" : s.zeit?" · "+esc(s.zeit):""}${s.dauer?" · "+s.dauer+" Min.":""}${alterTxt(s)?" · "+esc(alterTxt(s)):""} · ${esc(sStufeL(s))}</div>${s.typ==="Gruppe" ? gList(s) : ""}
+      ${fr ? `<div class="row fr-z"><label for="fz-${s.id}" class="small" style="margin:0">Zeit</label><input id="fz-${s.id}" type="time" data-f="zeit" value="${esc(l.zeit || s.zeit || "")}"><button class="ghost del small" data-a="freiDel">Termin löschen</button></div>` : ""}</div>
       <span class="sp"></span>
       <div class="seg">${STATUS.map(([k,t]) => `<button class="${l.status===k?"on s-"+k:""}" data-a="att" data-st="${k}">${t}</button>`).join("")}</div></div>
-    ${litChips(s)}
+    ${litChips(s)}${songChips(s)}
+    ${isAbo(s) ? `<div class="row" style="margin-top:8px">${aboBadge(s, d)}</div>` : ""}
     ${feat("rg") && isPriv(s) && rgBilled()[rgKey(s.id, d)] ? `<div class="row" style="margin-top:8px"><span class="badge b-ok">✓ verrechnet · Rechnung ${esc(rgBilled()[rgKey(s.id, d)].nr)}</span></div>` : ""}
     ${f ? `<div class="banner" style="margin:10px 0 0">${esc(f.titel)}: an diesem Tag ist schulfrei.</div>` : ""}
     ${prev ? `<details class="prev" ${prev.aufgaben?"open":""}><summary>Letzte Lektion, ${fmt(prev.datum,1)}${prev.aufgaben?" · Aufgaben: "+esc(prev.aufgaben.replace(/\n+/g," · ")):""}</summary>
@@ -1985,7 +2063,7 @@ function vWoche(){
     </div>
     ${open.length ? `<div style="margin-top:12px"><label>Lehrplanziele in Arbeit: antippen, wenn erreicht</label><div class="row">${open.map(it => `<button class="chip" data-a="lpdone" data-i="${esc(it.id)}" title="${esc(it.bereich)}">${esc(it.text)}</button>`).join("")}</div></div>` : ""}
     ${feat("lp") && (l.lpDone||[]).length ? `<div class="row small" style="margin-top:6px">${l.lpDone.map(id => `<span class="chip on">✓ ${esc(lpBer(id))}: ${esc(lpText(id))}</span>`).join("")}</div>` : ""}
-    <div class="row ed-nav"><button ${pS?`data-a="pick" data-v="${pS.id}"`:"disabled"}>‹ ${pS?esc(pS.name):""}</button><span class="sp tiny" style="text-align:center">${i+1} von ${list.length} · wird automatisch gespeichert</span><button ${nS?`data-a="pick" data-v="${nS.id}"`:"disabled"}>${nS?esc(nS.name):""} ›</button></div>
+    <div class="row ed-nav"><button ${pS?`data-a="pick" data-v="${pS.s.id}" data-d="${pS.d}"`:"disabled"}>‹ ${pS?esc(pS.s.name):""}</button><span class="sp tiny" style="text-align:center">${i+1} von ${list.length} · wird automatisch gespeichert</span><button ${nS?`data-a="pick" data-v="${nS.s.id}" data-d="${nS.d}"`:"disabled"}>${nS?esc(nS.s.name):""} ›</button></div>
   </div>`;
   app.innerHTML = html + `<div class="wk"><nav class="pk-list" aria-label="SuS dieser Woche">${items}</nav>${editor}</div>`;
   const on = app.querySelector(".pk.on"); if (on && on.scrollIntoView && window.matchMedia("(max-width:760px)").matches) on.scrollIntoView({block:"nearest", inline:"center"});
@@ -2011,7 +2089,7 @@ function vSus(){
   list.forEach(s => {
     const p = progress(s), a = attendance(s.id), ne = nextEvent(s.id), last = lessonsOf(s.id).find(l => l.aufgaben);
     html += `<a href="#s-${s.id}" class="card ${susSel && susSel.has(s.id) ? "sel" : ""}" ${susSel ? `data-a="susTog" data-v="${s.id}" aria-pressed="${susSel.has(s.id)}"` : ""} style="text-decoration:none;color:inherit;display:block">
-      <div class="row">${susSel ? `<span class="tick">${susSel.has(s.id) ? "✓" : ""}</span>` : ""}<b>${esc(s.name)}</b><span class="sp"></span><span class="tiny num">${s.tag?TAGE[s.tag]:""} ${esc(s.zeit)}${s.dauer?" · "+s.dauer+"'":""}</span></div>
+      <div class="row">${susSel ? `<span class="tick">${susSel.has(s.id) ? "✓" : ""}</span>` : ""}<b>${esc(s.name)}</b><span class="sp"></span><span class="tiny num">${isFrei(s) ? "unregelm." : s.tag?TAGE[s.tag]:""} ${esc(s.zeit)}${s.dauer?" · "+s.dauer+"'":""}</span></div>
       <div class="small muted">${alterTxt(s)?esc(alterTxt(s))+" · ":""}${esc(sStufeL(s))} · ${esc(s.schule)}${s.typ==="Gruppe"?" · Gruppe":""}</div>
       ${sAP(s) ? `<div class="tiny">${esc((s.instrumente||[]).join(", "))}</div>` : ""}
       ${s.typ==="Gruppe" ? gList(s) : ""}
@@ -2044,9 +2122,11 @@ function vDetail(id){
     <div><label for="sf-name">Name</label><input id="sf-name" data-sf="name" value="${esc(s.name)}"></div>
     <div><label for="sf-schule">Schule</label><select id="sf-schule" data-sf="schule">${schulOpts(s.schule)}</select></div>
     <div><label for="sf-verr">Verrechnung</label><select id="sf-verr" data-sf="verr" data-rr><option value="schule" ${isPriv(s) ? "" : "selected"}>Über die Schule</option><option value="privat" ${isPriv(s) ? "selected" : ""}>Privat</option></select></div>
+    ${isPriv(s) ? `<div><label for="sf-abr">Abrechnung</label><select id="sf-abr" data-sf="abr" data-rr><option value="" ${isAbo(s) ? "" : "selected"}>Pro Lektion</option><option value="abo" ${isAbo(s) ? "selected" : ""}>Mit Abo</option></select></div>` : ""}
     <div><label for="sf-typ">Einzel/Gruppe</label><select id="sf-typ" data-sf="typ" data-rr>${["Einzel","Gruppe"].map(k=>`<option ${s.typ===k?"selected":""}>${k}</option>`).join("")}</select></div>
-    <div><label for="sf-tag">Wochentag</label><select id="sf-tag" data-sf="tag" data-num>${TAGE.map((t,i)=>`<option value="${i}" ${s.tag==i?"selected":""}>${t||"–"}</option>`).join("")}</select></div>
-    <div><label for="sf-zeit">Zeit</label><input id="sf-zeit" type="time" data-sf="zeit" value="${esc(s.zeit)}"></div>
+    <div><label for="sf-rhythmus">Rhythmus</label><select id="sf-rhythmus" data-sf="rhythmus" data-rr><option value="" ${isFrei(s) ? "" : "selected"}>Jede Woche</option><option value="frei" ${isFrei(s) ? "selected" : ""}>Unregelmässig</option></select></div>
+    ${isFrei(s) ? "" : `<div><label for="sf-tag">Wochentag</label><select id="sf-tag" data-sf="tag" data-num>${TAGE.map((t,i)=>`<option value="${i}" ${s.tag==i?"selected":""}>${t||"–"}</option>`).join("")}</select></div>`}
+    <div><label for="sf-zeit">${isFrei(s) ? "Übliche Zeit" : "Zeit"}</label><input id="sf-zeit" type="time" data-sf="zeit" value="${esc(s.zeit)}"></div>
     <div><label for="sf-dauer">Dauer (Min.)</label><input id="sf-dauer" type="number" data-sf="dauer" data-num value="${esc(s.dauer)}"></div>
     ${msInstrs().length > 1 || !sAP(s) ? `<div><label for="sf-msInstr">Instrument</label><select id="sf-msInstr" data-sf="msInstr" data-rr>${[...new Set([...msInstrs(), sInstr(s)].filter(Boolean))].map(k=>`<option ${sInstr(s)===k?"selected":""}>${esc(k)}</option>`).join("")}</select></div>` : ""}
     ${!sAP(s) ? `<div><label for="sf-msStufe">Stufe</label><select id="sf-msStufe" data-sf="msStufe" data-rr>${MS_ST.map(k=>`<option value="${k}" ${sStufe(s)===k?"selected":""}>${k} · ${MS_NIV[k]}</option>`).join("")}</select></div>`
@@ -2062,12 +2142,14 @@ function vDetail(id){
   <div class="row" style="margin-top:12px"><span class="small muted num">Präsenz ${a.n?a.a+"/"+a.n:"–"} · entschuldigt ${a.e} · unentschuldigt ${a.u}</span><span class="sp"></span>
     <button class="ghost small" data-a="toggleAktiv">${s.aktiv===false?"Wieder aktiv setzen":"Als ehemalig markieren"}</button><button class="ghost del small" data-a="delS">Löschen</button></div></div>
 
+  ${aboCard(s)}
   ${s.typ==="Gruppe" ? gruppeCard(s) : ""}
   ${s.typ==="Gruppe" ? gStamm(s) : `<h3>Stammblatt <span id="sbCount" class="badge ${sbDone(s)===SBN?"b-ok":"b-wa"}" style="text-transform:none;letter-spacing:0">${sbDone(s)} von ${SBN} ausgefüllt</span></h3>
   <div class="card"><div class="sb"><div><label for="sb-geburt">Geburtsdatum</label><div class="row" style="flex-wrap:nowrap"><input id="sb-geburt" type="date" data-sb="geburt" value="${esc((s.stammblatt||{}).geburt)}" style="flex:1;min-width:0"><b id="ageOut" class="num" style="white-space:nowrap">${alter(s)!==null?alter(s)+" Jahre":""}</b></div></div>${SB.map(([k,lab,ph]) => `<div><label for="sb-${k}">${lab}</label><textarea id="sb-${k}" data-sb="${k}" rows="3" placeholder="${ph}">${esc((s.stammblatt||{})[k])}</textarea></div>`).join("")}</div>
   <p class="tiny" style="margin:8px 0 0">Nur für dich. Das Stammblatt erscheint nicht im Elternbericht.</p></div>`}
 
   ${litSection(s)}
+  ${songSection(s)}
 
   ${feat("lp") ? `<h3>Lehrplan</h3>
   <div class="row" style="margin-bottom:8px"><div class="seg">${(sAP(s) ? STUFEN : MS_ST).map(k => `<button class="${st===k?"on":""}" data-a="dstufe" data-v="${k}">${k}${k===sStufe(s)?" ●":""}</button>`).join("")}</div>
@@ -2096,6 +2178,7 @@ function reportText(s){
   Object.entries(groups).forEach(([b, its]) => { const d = its.filter(i=>s.lp[i.id]===2), w = its.filter(i=>s.lp[i.id]===1); if (!d.length && !w.length) return;
     lines.push("", b); if (d.length) lines.push("Erreicht:", ...d.map(i=>"- "+i.text)); if (w.length) lines.push("Daran arbeiten wir:", ...w.map(i=>"- "+i.text)); });
   const lr = litReport(s); if (lr.length) lines.push("", "Aktuelle Literatur:", ...lr.map(x => "- " + x));
+  const sg = curSongs(s).map(x => x.t); if (sg.length) lines.push("", "Aktuelle Songs:", ...sg.map(x => "- " + x));
   const up = eventsOf(s.id).filter(e => e.datum >= today());
   if (up.length) lines.push("", "Nächste Termine:", ...up.map(e => `- ${fmt(e.datum,1)}: ${e.titel} (${e.typ})${e.ort?", "+e.ort:""}`));
   return lines.join("\n");
@@ -2120,6 +2203,7 @@ function vBericht(id){
     ${wip.length?`<div class="small" style="margin-top:6px"><b>Daran arbeiten wir</b><ul class="plain">${wip.map(i=>`<li>${esc(i.text)}</li>`).join("")}</ul></div>`:""}`; }).join("")}
   ${recent.length?`<h3>Letzte Lektionen</h3><div class="tw"><table>${recent.map(l=>`<tr><td style="white-space:nowrap" class="num">${fmt(l.datum,1)}</td><td class="small">${esc(l.inhalt)}${l.aufgaben?`<br><span class="muted">Aufgaben: ${esc(l.aufgaben)}</span>`:""}</td></tr>`).join("")}</table></div>`:""}
   ${litReport(s).length?`<h3>Aktuelle Literatur</h3><ul class="plain small">${litReport(s).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+  ${curSongs(s).length?`<h3>Aktuelle Songs</h3><ul class="plain small">${curSongs(s).map(x=>`<li>${esc(x.t)}</li>`).join("")}</ul>`:""}
   ${up.length?`<h3>Nächste Termine</h3><ul class="plain small">${up.map(e=>`<li>${fmt(e.datum,1)}: ${esc(e.titel)} (${esc(e.typ)})${e.ort?", "+esc(e.ort):""}</li>`).join("")}</ul>`:""}
   <p class="tiny" style="margin-top:20px">Interne Notizen sind in diesem Bericht nicht enthalten.</p>
   </div></div>`;
@@ -2315,9 +2399,19 @@ document.addEventListener("click", ev => {
   const s = sid ? S(sid) : null;
   switch (a){
     case "wk": { const n = +b.dataset.n; weekStart = n ? addDays(weekStart, n) : monday(new Date());
-      if (n && db.students.length) for (let k = 0; k < 12 && sorted().every(s => ferienAm(lessonDate(s, weekStart), s)); k++) weekStart = addDays(weekStart, n);
+      if (n && sorted().some(s => !isFrei(s))) for (let k = 0; k < 12 && !weekList(weekStart).length; k++) weekStart = addDays(weekStart, n);
       render(); break; }
-    case "gowk": weekStart = monday(parse(b.dataset.d)); break;
+    case "gowk": weekStart = monday(parse(b.dataset.d)); if (sid){ selSid = sid; selD = b.dataset.d; } break;
+    case "freiAdd": freiF = {sid: selSid, d: "", z: null}; render(); window.scrollTo(0, 0); break;
+    case "freiX": freiF = null; render(); break;
+    case "freiGo": { const fs = S(freiF && freiF.sid), d = freiF && freiF.d; if (!fs || !/^\d{4}-\d\d-\d\d$/.test(d || "")){ toast("Bitte ein Datum wählen."); break; }
+      const l = getLesson(fs.id, d, true), z = freiF.z ?? (fs.zeit || ""); if (z) l.zeit = z; saveL(l.id); weekStart = monday(parse(d)); selSid = fs.id; selD = d; freiF = null; render(); toast(`Lektion am ${fmt(d, 1)} eingetragen`); break; }
+    case "freiDel": { const l = getLesson(sid, card.dataset.d); if (!l) break; const used = l.status || l.inhalt || l.aufgaben || l.warmup || l.notiz;
+      const go = () => { db.lessons = db.lessons.filter(x => x !== l); dropL(l.id); selD = null; render(); toast("Termin gelöscht"); };
+      if (used) ask(`Lektion vom ${fmt(l.datum, 1)} mit allen Einträgen löschen?`, "Löschen", go); else go(); break; }
+    case "aboNew": { const last = (s.abos || []).slice().sort((x, y) => x.von.localeCompare(y.von)).pop(); const ov = aboCalc(s).over[0]; (s.abos ||= []).push({id: uid(), von: ov && ov < today() ? ov : today(), n: last ? +last.n || 10 : 10, chf: last && last.chf != null && last.chf !== "" ? last.chf : null}); save(); render(); break; }
+    case "aboDel": { const ab = (s.abos || []).find(x => x.id === b.dataset.v); if (!ab) break; const inv = aboInv()[ab.id];
+      ask(inv ? `Dieses Abo ist mit Rechnung ${inv.nr} verrechnet. Trotzdem löschen? Die Rechnung bleibt bestehen.` : "Dieses Abo löschen?", "Löschen", () => { s.abos = s.abos.filter(x => x !== ab); save(); render(); }); break; }
     case "att": { const l = getLesson(sid, card.dataset.d, true); l.status = l.status === b.dataset.st ? "" : b.dataset.st; saveL(l.id); render(); break; }
     case "lpdone": { const l = getLesson(sid, card.dataset.d, true); (s.lp ||= {})[b.dataset.i] = 2; (l.lpDone ||= []).push(b.dataset.i); if (!l.status) l.status = "anwesend"; saveL(l.id); save(); render(); break; }
     case "lp": { s.lp ||= {}; const v = ((s.lp[b.dataset.i]||0)+1)%3; if (v) s.lp[b.dataset.i] = v; else delete s.lp[b.dataset.i]; save(); render(); break; }
@@ -2327,7 +2421,7 @@ document.addEventListener("click", ev => {
     case "delS": ask(`${s.name} und alle Lektionen löschen?`, "Löschen", () => { db.students = db.students.filter(x => x.id !== sid); db.lessons.filter(l => l.sid === sid).forEach(l => dropL(l.id)); db.lessons = db.lessons.filter(l => l.sid !== sid); db.events.forEach(e => e.sids = (e.sids||[]).filter(x => x !== sid)); Object.keys(ink).filter(k => k.startsWith(sid + ":")).forEach(k => { delete ink[k]; saveInk(k); }); save(); location.hash = "sus"; }); break;
     case "delL": ask("Diese Lektion löschen?", "Löschen", () => { dropL(b.dataset.v); db.lessons = db.lessons.filter(l => l.id !== b.dataset.v); render(); }); break;
     case "newL": { const d = document.getElementById("newLd").value; if (d){ const l = getLesson(sid, d, true); saveL(l.id); weekStart = monday(parse(d)); location.hash = "woche"; } break; }
-    case "pick": selSid = b.dataset.v; render(); if (window.matchMedia("(max-width:760px)").matches) document.querySelector(".ed")?.scrollIntoView({block:"start"}); else window.scrollTo(0,0); break;
+    case "pick": selSid = b.dataset.v; selD = b.dataset.d || null; render(); if (window.matchMedia("(max-width:760px)").matches) document.querySelector(".ed")?.scrollIntoView({block:"start"}); else window.scrollTo(0,0); break;
     case "fs": filt.schule = b.dataset.v; render(); break;
     case "slLoad": case "slMore": { const inp = document.createElement("input"); inp.type = "file"; inp.multiple = true; inp.accept = ".csv,.txt,.xlsx,.xls,.pdf,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; inp.onchange = () => slLoad([...inp.files]); inp.click(); break; }
     case "slX": imp = null; render(); break;
@@ -2395,6 +2489,14 @@ document.addEventListener("click", ev => {
     case "litAdd": { const b = bookById(document.getElementById("nl-b").value); if (!b) return;
       (s.lit ||= []).push({id:uid(), b:b.id, stueck:document.getElementById("nl-st").value.trim(), seite:+document.getElementById("nl-se").value || 1, status:"aktuell", seit:today()}); save(); render(); break; }
     case "litOpen": { const x = (s?.lit || []).find(y => y.id === b.dataset.v), bk = x && bookById(x.b); if (bk) openPdf(bk.id, pdfP(bk, x.seite), {sid, lit:x.id}); break; }
+    case "songAdd": { const ti = document.getElementById("ns-t").value.trim(); let u = document.getElementById("ns-u").value.trim(); if (!ti){ toast("Bitte einen Songtitel eingeben."); return; }
+      if (u && !/^https?:\/\//i.test(u)) u = "https://" + u;
+      if (!u){ const k = songAll().find(y => y.t.toLowerCase() === ti.toLowerCase()); if (k && k.u) u = k.u; }
+      (s.songs ||= []).push({id: uid(), t: ti, u, status: "aktuell", seit: today()}); save(); render(); break; }
+    case "songPlay": playSong(s, b.dataset.v); break;
+    case "songDone": { const x = s.songs.find(y => y.id === b.dataset.v); x.status = "fertig"; x.bis = today(); save(); render(); break; }
+    case "songBack": { const x = s.songs.find(y => y.id === b.dataset.v); x.status = "aktuell"; delete x.bis; save(); render(); break; }
+    case "songDel": ask("Diesen Song entfernen?", "Entfernen", () => { s.songs = s.songs.filter(y => y.id !== b.dataset.v); save(); render(); }); break;
     case "litDone": { const x = s.lit.find(y => y.id === b.dataset.v); x.status = "fertig"; x.bis = today(); save(); render(); break; }
     case "litBack": { const x = s.lit.find(y => y.id === b.dataset.v); x.status = "aktuell"; delete x.bis; save(); render(); break; }
     case "litDel": ask("Diesen Eintrag entfernen?", "Entfernen", () => { s.lit = s.lit.filter(y => y.id !== b.dataset.v); save(); render(); }); break;
@@ -2448,6 +2550,7 @@ document.addEventListener("input", ev => {
   if (t.dataset.rgs){ const k = t.dataset.rgs; db.rechnung = {...rgCfg(), [k]: t.type === "number" ? +t.value || 0 : t.value}; save(); const m = document.getElementById("rgQrS"); if (m) m.textContent = rgQrMsg(); return; }
   if (t.dataset.rgf){ rg[t.dataset.rgf] = t.value; render(); return; }
   if ("rga" in t.dataset){ rg.addr = t.value; return; }
+  if (t.dataset.fa && freiF){ freiF[t.dataset.fa] = t.value; if (t.dataset.fa === "sid"){ freiF.z = null; render(); } return; }
   if (t.dataset.rgc){ const d = t.dataset.rgc; rg.on.delete(d); rg.off.delete(d); (t.checked ? rg.on : rg.off).add(d); render(); return; }
   if (stv && t.dataset.stv){ stv[t.dataset.stv] = t.value; render(); return; }
   if (imp && t.dataset.sla){ const [fi, ri] = t.dataset.sla.split(":").map(Number); imp.files[fi].rows[ri].act = t.value; render(); return; }
@@ -2459,9 +2562,12 @@ document.addEventListener("input", ev => {
   const s = S(card.dataset.sid); if (!s) return;
   if (t.dataset.f){ const l = getLesson(s.id, card.dataset.d, true); l[t.dataset.f] = t.value; saveL(l.id); }
   if (t.dataset.sb){ (s.stammblatt ||= {})[t.dataset.sb] = t.value; save(); const c = document.getElementById("sbCount"); if (c){ const n = sbDone(s); c.textContent = n + " von " + SBN + " ausgefüllt"; c.className = "badge " + (n === SBN ? "b-ok" : "b-wa"); } const ao = document.getElementById("ageOut"); if (ao) ao.textContent = alter(s) !== null ? alter(s) + " Jahre" : ""; }
+  if (t.dataset.abo){ const [id, k] = t.dataset.abo.split(":"), ab = (s.abos || []).find(x => x.id === id); if (!ab) return;
+    if (k === "von"){ if (/^\d{4}-\d\d-\d\d$/.test(t.value)) ab.von = t.value; } else if (k === "n") ab.n = Math.max(1, Math.round(+t.value) || 1); else ab.chf = t.value === "" ? null : +t.value; save(); return; }
   if (t.dataset.lit){ const x = (s.lit || []).find(y => y.id === t.dataset.lit); if (x){ x.seite = +t.value || 1; save(); } }
   if (t.dataset.sf){ if (/^(tel|mail|adresse)$/.test(t.dataset.sf)){ kOf(s); s[t.dataset.sf] = t.value; s.kontakt = kJoin(s); save(); return; } s[t.dataset.sf] = "num" in t.dataset ? +t.value : t.value; save(); if ("rr" in t.dataset){ detailStufe = null; render(); } }
 });
+document.addEventListener("change", ev => { if (ev.target.dataset && ev.target.dataset.abo) render(); });
 window.addEventListener("beforeunload", () => { if (mode === "local") flush(); });
 /* ---------- Literatur: Katalog (eigenes Dokument), Zuweisungen pro SuS (s.lit), Notenviewer ---------- */
 let books = [], litRef = null, booksDirty = false, lastBooksJson = "", assetsNs = null;
@@ -2509,6 +2615,36 @@ function litChips(s){
   const cur = curLit(s); if (!cur.length) return "";
   return `<div class="row" style="margin-top:10px">${cur.map(x => { const bk = bookById(x.b), noPdf = bk && !(bk.teile||[]).length;
       return `<button class="chip" data-a="litOpen" data-v="${x.id}" ${bk?"":"disabled"}>${noPdf ? "♫ " + esc(litLabel(x)) : "♪ " + esc(litLabel(x)) + " · S. " + esc(x.seite)}</button>${bk && !(noPdf && (bk.links||[]).length < 2) ? playBtns(bk) : ""}`; }).join("")}</div>`;
+}
+/* Songs pro Kind: s.songs = [{id, t, u, status, seit, bis}] */
+const curSongs = s => (s.songs || []).filter(x => x.status !== "fertig");
+const songAll = () => { const m = {}; db.students.forEach(s => (s.songs || []).forEach(x => { const k = x.t.toLowerCase(); if (!m[k] || (!m[k].u && x.u)) m[k] = x; })); return Object.values(m).sort((a, b) => a.t.localeCompare(b.t)); };
+function songRow(s, x, done){
+  const info = x.u ? mediaInfo(x.u) : null;
+  return `<div class="lit-row">
+    ${x.u ? `<button class="${done ? "" : "pri"} small" data-a="songPlay" data-v="${x.id}" title="Abspielen">♫ ${esc(info.svc)}</button>` : `<span class="badge b-gr">ohne Link</span>`}
+    <div style="min-width:0;flex:1 1 180px"><b class="small">${esc(x.t)}</b><div class="tiny">${x.seit ? "seit " + fmt(x.seit, 1) : ""}${done && x.bis ? " · fertig " + fmt(x.bis, 1) : ""}</div></div>
+    ${done ? `<button class="ghost small" data-a="songBack" data-v="${x.id}">Wieder aktiv</button>` : `<button class="ghost small" data-a="songDone" data-v="${x.id}">Fertig</button>`}
+    <button class="ghost del small" data-a="songDel" data-v="${x.id}" aria-label="Song entfernen">×</button></div>`;
+}
+function songSection(s){
+  const cur = curSongs(s), done = (s.songs || []).filter(x => x.status === "fertig"), all = songAll();
+  return `<h3>Songs</h3><div class="card">
+    ${cur.length ? cur.map(x => songRow(s, x, false)).join("") : `<span class="small muted">Noch keine Songs. Trage unten einen Song ein, an dem ${esc(s.name.split(" ")[0])} gerade arbeitet.</span>`}
+    <div class="lit-add song-add">
+      <div><label for="ns-t">Song</label><input id="ns-t" list="ns-dl" placeholder="z. B. Seven Nation Army – The White Stripes" autocomplete="off"><datalist id="ns-dl">${all.map(x => `<option value="${esc(x.t)}"></option>`).join("")}</datalist></div>
+      <div><label for="ns-u">Link (Spotify, YouTube …)</label><input id="ns-u" type="url" inputmode="url" placeholder="https://open.spotify.com/track/…"></div>
+      <div><button class="pri" data-a="songAdd">Hinzufügen</button></div></div>
+    ${done.length ? `<details style="margin-top:10px"><summary class="small muted">Abgeschlossen (${done.length})</summary>${done.map(x => songRow(s, x, true)).join("")}</details>` : ""}
+  </div>`;
+}
+function songChips(s){
+  const cur = curSongs(s); if (!cur.length) return "";
+  return `<div class="row" style="margin-top:8px">${cur.map(x => x.u ? `<button class="chip play" data-a="songPlay" data-v="${x.id}" title="Song abspielen">♫ ${esc(x.t)}</button>` : `<span class="chip">♫ ${esc(x.t)}</span>`).join("")}</div>`;
+}
+function playSong(s, id){
+  const x = (s?.songs || []).find(y => y.id === id); if (!x || !x.u) return;
+  playLink("song:" + x.id, 0, false, {id: "song:" + x.id, titel: x.t, links: [{u: x.u}]});
 }
 function litReport(s){ return curLit(s).map(x => { const b = bookById(x.b); return (x.stueck ? x.stueck + " – " : "") + (b ? b.titel + (b.autor ? " (" + b.autor + ")" : "") : ""); }).filter(Boolean); }
 
