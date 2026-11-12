@@ -150,6 +150,7 @@ button:disabled{opacity:.4;cursor:default}
 .set-g{grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))}.set-t{display:flex;gap:14px;align-items:center;text-decoration:none;color:inherit;min-height:92px}
 .set-i{flex:none;width:44px;height:44px;border-radius:50%;background:var(--card);display:grid;place-items:center}.set-i svg{width:22px;height:22px}
 .set-x{flex:1;min-width:0;display:grid;gap:3px;justify-items:start}.set-x .small{color:var(--tx2)}.set-c{font-size:22px;color:var(--tx2)}
+.hw-pv{white-space:pre-wrap;background:var(--soft);border-radius:var(--r);padding:10px 12px;max-width:65ch}
 .rg-l{display:grid;margin-top:6px}.rg-r{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--bd);margin:0;font-size:15px;color:var(--tx);text-transform:none;letter-spacing:0}.rg-r input{width:auto;flex:none}
 .rg-i{padding:8px 0;border-bottom:1px solid var(--bd)}.rg-i:last-child{border-bottom:0}
 .fl{display:grid;gap:10px;max-width:560px}
@@ -406,7 +407,7 @@ async function api(action, body){
 
 /* --- Lokale Datensätze: meta, books, lesson:<id>, pdf:<id> --- */
 function recOf(key){
-  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, plan: db.plan || null, msEdit: db.msEdit || null, lehrplan: db.lehrplan || null, rechnung: db.rechnung || null, invoices: db.invoices || [], stvCols: db.stvCols || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null, planung: db.planung || null, snapOff: !!db.snapOff};
+  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, plan: db.plan || null, msEdit: db.msEdit || null, lehrplan: db.lehrplan || null, rechnung: db.rechnung || null, invoices: db.invoices || [], stvCols: db.stvCols || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null, planung: db.planung || null, snapOff: !!db.snapOff, hwText: db.hwText || null};
   if (key === "books") return {books};
   if (key.startsWith("lesson:")) return db.lessons.find(l => l.id === key.slice(7)) || null;
   if (key.startsWith("ink:")){ const v = ink[key.slice(4)]; return v && Object.keys(v.p || {}).length ? v : null; }
@@ -436,7 +437,7 @@ function remoteRender(){ if (!(loaded.meta && loaded.lessons)) return; if (!docu
 document.addEventListener("focusout", () => setTimeout(() => { if (pendingRender && !busyTyping()){ pendingRender = false; render(); } }, 50));
 
 function applyRec(key, v){
-  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.plan = v ? v.plan || null : null; db.msEdit = v ? v.msEdit || null : null; db.lehrplan = v ? v.lehrplan || null : null; db.rechnung = v ? v.rechnung || null : null; db.planung = v ? v.planung || null : null; db.snapOff = !!(v && v.snapOff); db.invoices = v ? v.invoices || [] : []; db.stvCols = v ? v.stvCols || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
+  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.plan = v ? v.plan || null : null; db.msEdit = v ? v.msEdit || null : null; db.lehrplan = v ? v.lehrplan || null : null; db.rechnung = v ? v.rechnung || null : null; db.planung = v ? v.planung || null : null; db.snapOff = !!(v && v.snapOff); db.hwText = v ? v.hwText || null : null; db.invoices = v ? v.invoices || [] : []; db.stvCols = v ? v.stvCols || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
   else if (key === "books") books = v ? v.books || [] : [];
   else if (key.startsWith("ink:")){ const k = key.slice(4); if (v) ink[k] = v; else delete ink[k]; if (typeof pvInkRemote === "function") pvInkRemote(k); }
   else if (key.startsWith("lesson:")){ const id = key.slice(7), i = db.lessons.findIndex(l => l.id === id); if (v){ v.id = id; if (i < 0) db.lessons.push(v); else db.lessons[i] = v; } else if (i >= 0) db.lessons.splice(i, 1); }
@@ -789,8 +790,8 @@ function vDatenApp(){
       `${lbl(THEMES, pref("kb-theme", "dark"))} · ${lbl(PALETTES, pref("kb-palette", "bunt"))} · Schrift ${lbl(ZOOMS, pref("kb-zoom", "1")).toLowerCase()}`, "",
       () => noH(appearanceCard(), "Darstellung")],
     ["unterricht", "Unterricht", '<path d="M4 19V5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h6M8 11h6"/>',
-      `${msInstrs().length} ${msInstrs().length === 1 ? "Instrument" : "Instrumente"} · ${schulen().length} ${schulen().length === 1 ? "Schule" : "Schulen"} · Schülerlisten`, imp ? "Import offen" : "",
-      () => slPreview() + planCard() + schulenCard() + slCard()],
+      `${msInstrs().length} ${msInstrs().length === 1 ? "Instrument" : "Instrumente"} · ${schulen().length} ${schulen().length === 1 ? "Schule" : "Schulen"} · Elterntext`, imp ? "Import offen" : "",
+      () => slPreview() + planCard() + hwCard() + schulenCard() + slCard()],
     ["funktionen", "Funktionen", '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
       `${FEATS.filter(x => feat(x[0])).length} von ${FEATS.length} eingeschaltet`, "",
       () => noH(featCard(), "Funktionen")],
@@ -808,7 +809,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.12-1848 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.12-1859 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -2037,6 +2038,23 @@ function freiForm(mon, frei){
     <div><label for="fa-z">Zeit</label><input id="fa-z" type="time" data-fa="z" value="${esc(freiF.z ?? (s.zeit || ""))}"></div></div>
     <div class="row" style="margin-top:12px"><button class="pri" data-a="freiGo">Eintragen</button><button class="ghost" data-a="freiX">Abbrechen</button><span class="sp"></span><span class="tiny">Für Schüler:innen ohne festen Wochentag</span></div></div>`;
 }
+/* Text «Für Eltern kopieren»: Vorlage in db.hwText (Einstellungen → Unterricht), Platzhalter in {…} */
+const HW_DEF = "Hoi! Die Aufgaben für {Vorname} aus der Lektion vom {Wochentag}, {Datum}:\n\n{Aufgaben}\n\nBis zum nächsten Mal!";
+const HW_VARS = [["Vorname", "Vorname (bei Gruppen der Gruppenname)"], ["Name", "ganzer Name"], ["Wochentag", "Tag der Lektion"], ["Datum", "Datum der Lektion"], ["Aufgaben", "die Aufgaben als Liste"], ["Eltern", "Name der Eltern"], ["Instrument", "Instrument"]];
+function hwText(s, d, auf, tpl){
+  const zeilen = String(auf).split(/\n+/).map(z => z.trim()).filter(Boolean), liste = zeilen.length > 1 ? zeilen.map(z => "• " + z.replace(/^[-•*–]\s*/, "")).join("\n") : zeilen[0] || "";
+  const v = {vorname: s.typ === "Gruppe" ? s.name : s.name.split(" ")[0], name: s.name, wochentag: ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][parse(d).getDay()], datum: fmt(d, 1), aufgaben: liste,
+    eltern: s.eltern || "", instrument: sAP(s) ? "Schlagzeug" : sInstr(s) || ""};
+  return (tpl || db.hwText || HW_DEF).replace(/\{([^{}]+)\}/g, (m, k) => k.trim().toLowerCase() in v ? v[k.trim().toLowerCase()] : m);
+}
+function hwPreview(){ const s = {name: "Lea Muster", eltern: "Familie Muster", typ: "Einzel", msInstr: ""}; return hwText({...s, stufe: "Unterstufe"}, today(), "Groove Seite 12 langsam üben\nRudiment Paradiddle", $("hwT") ? $("hwT").value : undefined); }
+function hwCard(){
+  return `<h3>Text für Eltern</h3><div class="card"><p class="small muted" style="margin-top:0;max-width:65ch">Diesen Text kopiert der Knopf «Für Eltern kopieren» in der Lektion. Tippe auf einen Platzhalter, um ihn an der Stelle des Cursors einzufügen.</p>
+    <div class="row">${HW_VARS.map(([k, t]) => `<button class="chip" data-a="hwVar" data-v="${k}" title="${esc(t)}">{${k}}</button>`).join("")}</div>
+    <textarea id="hwT" data-hw rows="6" style="margin-top:10px" aria-label="Vorlage für den Elterntext">${esc(db.hwText || HW_DEF)}</textarea>
+    <label style="margin-top:10px">Vorschau</label><div class="hw-pv small" id="hwPv">${esc(hwPreview())}</div>
+    <div class="row" style="margin-top:10px"><span class="sp"></span><button class="ghost small" data-a="hwReset" ${db.hwText ? "" : "disabled"}>Standardtext</button></div></div>`;
+}
 function vWoche(){
   const mon = weekStart, sun = addDays(mon, 6);
   const evs = db.events.filter(e => e.typ !== "Ferien" && (e.bis||e.datum) >= iso(mon) && e.datum <= iso(sun));
@@ -2406,7 +2424,7 @@ function vDaten(){
   const where = mode === "cloud"
     ? "Deine Daten liegen in deinem privaten Bereich dieser Seite. Nur du siehst sie, auf jedem Gerät, auf dem du mit deinem Konto angemeldet bist. Auch wenn du die Seite teilst, sehen andere nur ein leeres Klassenbuch."
     : "Deine Daten liegen nur in diesem Browser auf diesem Gerät. Lade regelmässig ein Backup herunter.";
-  app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${featCard()}${rgCard()}${schulenCard()}${slCard()}<h3>Daten</h3>
+  app.innerHTML = `<h2>Einstellungen</h2>${slPreview()}${appearanceCard()}${featCard()}${rgCard()}${hwCard()}${schulenCard()}${slCard()}<h3>Daten</h3>
   <div class="card"><p style="margin-top:0;max-width:65ch">${where}</p>
   <p class="small muted num">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Startpaket oder Backup laden</button></div>
@@ -2423,7 +2441,7 @@ async function saveFile(filename, data, type){
 }
 function replaceAll(d){
   delL.clear(); db.lessons.forEach(l => delL.add(l.id)); dirtyL.clear();
-  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null, schulen:d.schulen||null, notiz:d.notiz||"", features:d.features||null, stvCols:d.stvCols||null, lehrplan:d.lehrplan||null, plan:d.plan||null, msEdit:d.msEdit||null, rechnung:d.rechnung||null, invoices:d.invoices||[], planung:d.planung||null};
+  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null, schulen:d.schulen||null, notiz:d.notiz||"", features:d.features||null, stvCols:d.stvCols||null, lehrplan:d.lehrplan||null, plan:d.plan||null, msEdit:d.msEdit||null, rechnung:d.rechnung||null, invoices:d.invoices||[], hwText:d.hwText||null, planung:d.planung||null};
   db.lessons.forEach(l => { delL.delete(l.id); dirtyL.add(l.id); });
   if (Array.isArray(d.books)){ books = d.books; saveBooks(); }
   if (d.ink && typeof d.ink === "object"){ Object.keys(ink).forEach(k => { if (!d.ink[k]){ delete ink[k]; saveInk(k); } }); Object.entries(d.ink).forEach(([k, v]) => { ink[k] = v; saveInk(k); }); }
@@ -2562,13 +2580,13 @@ document.addEventListener("click", ev => {
       editBook = null; saveBooks(); render(); toast("Gespeichert"); break; }
     case "bkDel": { const bk = bookById(b.dataset.v), n = db.students.filter(x => (x.lit||[]).some(y => y.b === bk.id)).length;
       ask(`„${bk.titel}“ aus dem Katalog entfernen?${n ? ` ${n} SuS haben es in ihrer Literatur.` : ""}`, "Entfernen", () => { books = books.filter(x => x.id !== bk.id); editBook = null; saveBooks(); render(); }); break; }
+    case "hwVar": { const ta = $("hwT"); if (!ta) break; const p = ta.selectionStart ?? ta.value.length, e = ta.selectionEnd ?? p, ins = "{" + b.dataset.v + "}";
+      ta.value = ta.value.slice(0, p) + ins + ta.value.slice(e); ta.focus(); ta.setSelectionRange(p + ins.length, p + ins.length); ta.dispatchEvent(new Event("input", {bubbles: true})); break; }
+    case "hwReset": ask("Den Elterntext auf den Standard zurücksetzen?", "Zurücksetzen", () => { db.hwText = null; save(); render(); }); break;
     case "hwCopy": { // Aufgaben als kurzer Text zum Einfügen in WhatsApp
       const ta = card.querySelector('[data-f="aufgaben"]'), auf = (ta ? ta.value : "").trim();
       if (!auf){ toast("Noch keine Aufgaben eingetragen."); break; }
-      const d = card.dataset.d, wt = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"][parse(d).getDay()];
-      const wer = s.typ === "Gruppe" ? s.name : s.name.split(" ")[0];
-      const zeilen = auf.split(/\n+/).map(z => z.trim()).filter(Boolean), liste = zeilen.length > 1 ? zeilen.map(z => "• " + z.replace(/^[-•*–]\s*/, "")).join("\n") : zeilen[0];
-      const t = `Hoi! Die Aufgaben für ${wer} aus der Lektion vom ${wt}, ${fmt(d, 1)}:\n\n${liste}\n\nBis zum nächsten Mal!`;
+      const t = hwText(s, card.dataset.d, auf);
       navigator.clipboard.writeText(t).then(() => toast("Kopiert. Jetzt in WhatsApp einfügen."), () => toast("Kopieren nicht möglich. Markiere den Text von Hand."));
       break; }
     case "copyRep": { const t = reportText(s); navigator.clipboard.writeText(t).then(() => toast("Text kopiert"), () => toast("Kopieren nicht möglich. Markiere den Text von Hand.")); break; }
@@ -2584,6 +2602,7 @@ document.getElementById("fileIn").onchange = e => {
 document.addEventListener("input", ev => {
   const t = ev.target; if (t.tagName === "TEXTAREA") autosize(t);
   if ("gn" in t.dataset){ db.notiz = t.value; save(); return; }
+  if ("hw" in t.dataset){ db.hwText = t.value.trim() && t.value !== HW_DEF ? t.value : null; save(); const pv = $("hwPv"); if (pv) pv.textContent = hwPreview(); const r = document.querySelector('[data-a="hwReset"]'); if (r) r.disabled = !db.hwText; return; }
   if (t.dataset.rgs){ const k = t.dataset.rgs; db.rechnung = {...rgCfg(), [k]: t.type === "number" ? +t.value || 0 : t.value}; save(); const m = document.getElementById("rgQrS"); if (m) m.textContent = rgQrMsg(); return; }
   if (t.dataset.rgf){ rg[t.dataset.rgf] = t.value; render(); return; }
   if ("rga" in t.dataset){ rg.addr = t.value; return; }
