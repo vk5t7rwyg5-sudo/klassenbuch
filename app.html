@@ -160,6 +160,9 @@ button:disabled{opacity:.4;cursor:default}
 .mp-bar a{font-size:13px;white-space:nowrap;color:var(--ac)}
 #mpL{display:flex;gap:4px;flex-wrap:wrap;padding:6px 10px 0;max-height:96px;overflow-y:auto}#mpL:empty{display:none}
 #mpF iframe{display:block;width:100%;border:0;background:var(--soft)}
+#mp.mp-aud #mpL{display:block;max-height:min(46vh,340px);padding:6px 8px}.mp-q{width:100%;margin-bottom:6px}
+.mp-r{display:flex;gap:8px;align-items:baseline;width:100%;text-align:left;border:0;background:none;border-radius:10px;padding:6px 8px;min-height:0}.mp-r>span:nth-child(2){flex:1;min-width:0}.mp-r:hover{background:var(--soft)}.mp-r.on{background:var(--acbg);color:var(--ac)}.mp-r.miss{opacity:.5}
+.mp-a{display:grid;gap:6px;padding:8px 10px 10px}.mp-a audio{width:100%}.mp-a select{width:100%}
 .play{min-height:0;padding:2px 8px;font-size:12px;border-radius:999px}
 .lit-play{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
 .stv-t{width:100%;border-collapse:collapse;font-size:14px}.stv-t th,.stv-t td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bd);vertical-align:top}
@@ -258,13 +261,13 @@ kbBuntApply();</script>
 <dialog id="dlg"><p id="dlgText" style="margin-top:0"></p><div class="row" style="justify-content:flex-end"><button id="dlgNo">Abbrechen</button><button id="dlgYes" class="pri">OK</button></div></dialog>
 <div id="toast" hidden></div>
 <div id="mp" hidden role="region" aria-label="Aufnahme"><div class="mp-bar"><b id="mpT"></b><a id="mpOpen" target="_blank" rel="noopener"></a><button class="ghost" data-mp="x" aria-label="Player schliessen">✕</button></div><div id="mpL"></div><div id="mpF"></div></div>
-<input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple hidden>
+<input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple hidden><input type="file" id="audIn" accept=".zip,application/zip,audio/*,.mp3,.m4a,.wav" multiple hidden>
 <div id="pv" hidden role="dialog" aria-modal="true" aria-label="Notenviewer">
   <div class="pv-bar"><button data-pv="close" aria-label="Schliessen">✕</button><span class="pv-t" id="pvT"></span>
     <select id="pvMarks" aria-label="Lesezeichen" hidden></select>
     <button data-pv="prev" aria-label="Vorherige Seite">‹</button><input class="pg num" id="pvP" inputmode="numeric" aria-label="Seite"><span class="small muted num" id="pvN"></span><button data-pv="next" aria-label="Nächste Seite">›</button>
     <button data-pv="print" aria-label="Seite drucken" title="Seite drucken">⎙</button><button data-pv="fit" id="pvFit">Breite</button><button data-pv="out" aria-label="Verkleinern">−</button><button data-pv="in" aria-label="Vergrössern">+</button>
-    <button data-pv="here" id="pvHere" hidden>Hier weiter</button><button data-a="play" id="pvPlay" data-i="0" hidden aria-label="Aufnahme abspielen">♫</button><button data-pv="ink" id="pvInkB">✎ Notizen</button><button data-pv="mark">Lesezeichen</button><button data-pv="assign" class="pri">Für SuS</button></div>
+    <button data-pv="here" id="pvHere" hidden>Hier weiter</button><button data-a="play" id="pvPlay" data-i="0" hidden aria-label="Aufnahme abspielen">♫</button><button data-a="audPage" id="pvAud" hidden>♫</button><button data-pv="ink" id="pvInkB">✎ Notizen</button><button data-pv="mark">Lesezeichen</button><button data-pv="assign" class="pri">Für SuS</button></div>
   <div class="pv-pop" id="pvPop" hidden></div>
   <div class="pv-pop" id="pvInk" hidden></div>
   <div class="pv-body" id="pvBody"><div class="pv-pg" id="pvPg" hidden><canvas id="pvC"></canvas><canvas id="pvI"></canvas></div><div id="pvMsg" class="muted"></div></div>
@@ -359,8 +362,8 @@ const syncOn = () => !!acc;
 /* --- IndexedDB --- */
 function idbOpen(){
   return new Promise((ok, no) => {
-    const r = indexedDB.open("klassenbuch", 1);
-    r.onupgradeneeded = () => { const d = r.result; ["rec","pdf","cfg"].forEach(s => d.objectStoreNames.contains(s) || d.createObjectStore(s)); };
+    const r = indexedDB.open("klassenbuch", 2);
+    r.onupgradeneeded = () => { const d = r.result; ["rec","pdf","cfg","audio"].forEach(s => d.objectStoreNames.contains(s) || d.createObjectStore(s)); };
     r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
   });
 }
@@ -531,6 +534,11 @@ window.addEventListener("pagehide", () => flush());
    Mit «Nur auf diesem Gerät» (db.pdfSync === false) gehen nur die Angaben (Name, Seiten) in den Sync, nicht die Datei. */
 const pdfMeta = {}; let pdfLocal = new Set(), pdfAny = false;
 function pdfNote(id, v){ if (!v){ delete pdfMeta[id]; return; } pdfMeta[id] = {name: v.name || "", files: (v.files || []).length, pending: !!v.pending}; if (pdfMeta[id].files) pdfAny = true; }
+// Lieder (Audiodateien) bleiben auf dem Gerät; synchronisiert wird nur die Liste im Heft (b.audio)
+let audLocal = new Set();
+async function audScan(){ try { audLocal = new Set(await new Promise((ok, no) => { const r = idb.transaction("audio").objectStore("audio").getAllKeys(); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); })); } catch(e) {} }
+async function audPut(id, v){ await idbPut("audio", id, v); audLocal.add(id); }
+const audGet = id => idbGet("audio", id);
 async function pdfScanLocal(){ try { pdfLocal = new Set(await new Promise((ok, no) => { const r = idb.transaction("pdf").objectStore("pdf").getAllKeys(); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); })); } catch(e) {} }
 // Ohne ausdrückliche Wahl: synchronisieren nur, wenn das Konto schon PDFs auf dem Server hat (bestehende Konten)
 const pdfSyncOn = () => typeof db.pdfSync === "boolean" ? db.pdfSync : pdfAny;
@@ -630,7 +638,7 @@ async function startApp(){
   const a = await idbGet("cfg", "account"); if (a) await useAcc(a);
   const all = await idbAll("rec");
   for (const [k, r] of Object.entries(all)) if (!k.startsWith("pdf:")) applyRec(k, r.v); else pdfNote(k.slice(4), r.v);
-  await pdfScanLocal();
+  await pdfScanLocal(); await audScan();
   mode = "app"; assetsNs = true; loaded = {meta:true, lessons:true};
   setSync(acc ? "Bereit" : "Nur auf diesem Gerät");
   render();
@@ -817,7 +825,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.14-2158 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.15-1813 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1755,10 +1763,12 @@ function mediaInfo(u){
 }
 const linkName = (l, i, all) => l.t || (all.length > 1 && all.filter(y => mediaInfo(y.u).svc === mediaInfo(l.u).svc).length > 1 ? mediaInfo(l.u).svc + " " + (i + 1) : mediaInfo(l.u).svc);
 function playBtns(b, cls){
-  const ls = b.links || []; if (!ls.length || !feat("audio")) return "";
+  const ls = b.links || [], au = (b.audio || []).length ? `<button class="chip play" data-a="audList" data-v="${b.id}" title="Lieder abspielen">♫ ${b.audio.length} Lieder</button>` : "";
+  if (au && (!ls.length || !feat("audio"))) return cls ? `<div class="${cls}">${au}</div>` : au;
+  if (!ls.length || !feat("audio")) return "";
   const btns = ls.length > 3 ? `<button class="chip play" data-a="play" data-v="${b.id}" data-i="0" data-list="1" title="Aufnahmen abspielen">♫ ${ls.length} Aufnahmen</button>`
     : ls.map((l, i) => `<button class="chip play" data-a="play" data-v="${b.id}" data-i="${i}" title="Aufnahme abspielen">♫ ${esc(linkName(l, i, ls))}</button>`).join("");
-  return cls ? `<div class="${cls}">${btns}</div>` : btns;
+  return cls ? `<div class="${cls}">${au}${btns}</div>` : au + btns;
 }
 let mpCur = null;
 // Spotify-Links: am Computer standardmässig in der Spotify-App, auf Touch-Geräten im Player (pro Gerät einstellbar)
@@ -1772,6 +1782,7 @@ function spOpen(uri, fallback){
   setTimeout(() => { removeEventListener("blur", gone); removeEventListener("pagehide", gone); document.removeEventListener("visibilitychange", vis); if (!left && !document.hidden && fallback) fallback(); }, 2500);
 }
 function playLink(bid, i, list, bObj){
+  if (mpAud) audClose();
   const b = bObj || bookById(bid), l = b && (b.links || [])[i]; if (!l) return;
   if (!feat("audio") && !bObj){ toast("Aufnahmen sind unter Einstellungen ausgeschaltet."); return; }
   const info = mediaInfo(l.u);
@@ -1787,7 +1798,7 @@ function playLink(bid, i, list, bObj){
     return; }
   embed();
 }
-document.addEventListener("click", ev => { if (ev.target.closest('[data-mp="x"]')){ $("mpF").innerHTML = ""; $("mp").hidden = true; mpCur = null; } });
+document.addEventListener("click", ev => { if (ev.target.closest('[data-mp="x"]')){ $("mpF").innerHTML = ""; $("mp").hidden = true; mpCur = null; if (mpAud) audClose(); } });
 /* ---------- Rechnungen für Privatlektionen ---------- */
 const rg = {sid: null, on: new Set(), off: new Set(), addr: null, bis: "", datum: ""};
 let stvLogo;
@@ -2553,7 +2564,7 @@ document.addEventListener("click", ev => {
       (s.lit ||= []).push({id:uid(), b:b.id, stueck:document.getElementById("nl-st").value.trim(), seite:+document.getElementById("nl-se").value || 1, status:"aktuell", seit:today()}); save(); render(); break; }
     case "litOpen": { const x = (s?.lit || []).find(y => y.id === b.dataset.v), bk = x && bookById(x.b); if (bk) openPdf(bk.id, pdfP(bk, x.seite), {sid, lit:x.id}); break; }
     case "songAdd": { const ti = document.getElementById("ns-t").value.trim(); let u = document.getElementById("ns-u").value.trim(); if (!ti){ toast("Bitte einen Songtitel eingeben."); return; }
-      if (u && !/^https?:\/\//i.test(u)) u = "https://" + u;
+      if (u && !/^(https?:\/\/|kb:audio:)/i.test(u)) u = "https://" + u;
       if (!u){ const k = songAll().find(y => y.t.toLowerCase() === ti.toLowerCase()); if (k && k.u) u = k.u; }
       (s.songs ||= []).push({id: uid(), t: ti, u, status: "aktuell", seit: today()}); save(); render(); break; }
     case "songPlay": playSong(s, b.dataset.v); break;
@@ -2568,6 +2579,10 @@ document.addEventListener("click", ev => {
     case "litGrp": litF.group = !!b.dataset.v; render(); break;
     case "litVg": { const k = b.dataset.v; litOpenV.has(k) ? litOpenV.delete(k) : litOpenV.add(k); render(); break; }
     case "litUp": document.getElementById("pdfIn").click(); break;
+    case "audUp": document.getElementById("audIn").click(); break;
+    case "audList": audList(b.dataset.v, null); break;
+    case "audPlay": audPlay(b.dataset.v, b.dataset.t); break;
+    case "audPage": if (pv.b) audList(pv.b.id, pv.p - (pv.b.off || 0)); break;
     case "bkNew": { const n = {id: uid(), titel: "Neuer Play-Along", autor: "", kat: "Play-Along", ordner: "Play-Along", instr: [], seiten: 0, off: 0, teile: [], marks: [], stufen: [], links: []};
       books.unshift(n); saveBooks(); litF.q = ""; if (litF.kat !== "Alle" && litF.kat !== "Play-Along") litF.kat = "Alle"; editBook = n.id; render();
       setTimeout(() => { const el = document.getElementById("be-titel"); if (el){ el.scrollIntoView({block:"center"}); el.select(); } }, 0); break; }
@@ -2685,9 +2700,11 @@ function litChips(s){
 }
 /* Songs pro Kind: s.songs = [{id, t, u, status, seit, bis}] */
 const curSongs = s => (s.songs || []).filter(x => x.status !== "fertig");
-const songAll = () => { const m = {}; db.students.forEach(s => (s.songs || []).forEach(x => { const k = x.t.toLowerCase(); if (!m[k] || (!m[k].u && x.u)) m[k] = x; })); return Object.values(m).sort((a, b) => a.t.localeCompare(b.t)); };
+const songAll = () => { const m = {}; db.students.forEach(s => (s.songs || []).forEach(x => { const k = x.t.toLowerCase(); if (!m[k] || (!m[k].u && x.u)) m[k] = x; }));
+  books.forEach(b => (b.audio || []).forEach(t => { const k = (t.t + " – " + b.titel).toLowerCase(); if (!m[k]) m[k] = {t: t.t + " – " + b.titel, u: `kb:audio:${b.id}:${t.id}`}; }));
+  return Object.values(m).sort((a, b) => a.t.localeCompare(b.t, "de")); };
 function songRow(s, x, done){
-  const info = x.u ? mediaInfo(x.u) : null;
+  const info = x.u ? (x.u.startsWith("kb:audio:") ? {svc: "Lied"} : mediaInfo(x.u)) : null;
   return `<div class="lit-row">
     ${x.u ? `<button class="${done ? "" : "pri"} small" data-a="songPlay" data-v="${x.id}" title="Abspielen">♫ ${esc(info.svc)}</button>` : `<span class="badge b-gr">ohne Link</span>`}
     <div style="min-width:0;flex:1 1 180px"><b class="small">${esc(x.t)}</b><div class="tiny">${x.seit ? "seit " + fmt(x.seit, 1) : ""}${done && x.bis ? " · fertig " + fmt(x.bis, 1) : ""}</div></div>
@@ -2711,6 +2728,7 @@ function songChips(s){
 }
 function playSong(s, id){
   const x = (s?.songs || []).find(y => y.id === id); if (!x || !x.u) return;
+  if (x.u.startsWith("kb:audio:")){ const [, , bid, tid] = x.u.split(":"); audPlay(bid, tid); return; }
   playLink("song:" + x.id, 0, false, {id: "song:" + x.id, titel: x.t, links: [{u: x.u}]});
 }
 function litReport(s){ return curLit(s).map(x => { const b = bookById(x.b); return (x.stueck ? x.stueck + " – " : "") + (b ? b.titel + (b.autor ? " (" + b.autor + ")" : "") : ""); }).filter(Boolean); }
@@ -2729,6 +2747,127 @@ function litVoices(arr){
   }
   return out;
 }
+/* ---------- Lieder (Audiodateien) zu Heften: Import aus ZIP oder Einzeldateien.
+   Die Dateien bleiben auf dem Gerät (IndexedDB «audio»), synchronisiert wird nur die Liste b.audio = [{id, f, t, n, d, p, x}]. ---------- */
+const audHas = id => typeof audLocal !== "undefined" && audLocal.has(id);
+const AUD_EXT = /\.(mp3|m4a|aac|wav|ogg)$/i;
+const audType = n => /\.m4a$|\.aac$/i.test(n) ? "audio/mp4" : /\.wav$/i.test(n) ? "audio/wav" : /\.ogg$/i.test(n) ? "audio/ogg" : "audio/mpeg";
+function fnv(s){ let h = 0x811c9dc5; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36); }
+const audId = s => { s = s.normalize("NFC"); return "au" + fnv(s) + fnv("kb|" + s); };
+// ZIP lesen, ohne die ganze Datei in den Speicher zu laden (nur «gespeichert» oder «deflate»)
+async function zipEntries(file){
+  const tail = Math.min(file.size, 65557), dv = new DataView(await file.slice(file.size - tail).arrayBuffer());
+  let e = -1; for (let i = dv.byteLength - 22; i >= 0; i--) if (dv.getUint32(i, true) === 0x06054b50){ e = i; break; }
+  if (e < 0) throw new Error("zip");
+  const cnt = dv.getUint16(e + 10, true), cdSize = dv.getUint32(e + 12, true), cdOff = dv.getUint32(e + 16, true);
+  if (cdOff === 0xffffffff || cnt === 0xffff) throw new Error("zip64");
+  const cd = new DataView(await file.slice(cdOff, cdOff + cdSize).arrayBuffer()), out = [], dec = new TextDecoder("utf-8");
+  for (let p = 0, k = 0; k < cnt && p + 46 <= cd.byteLength; k++){
+    if (cd.getUint32(p, true) !== 0x02014b50) break;
+    const meth = cd.getUint16(p + 10, true), csz = cd.getUint32(p + 20, true), sz = cd.getUint32(p + 24, true), nl = cd.getUint16(p + 28, true), xl = cd.getUint16(p + 30, true), cl = cd.getUint16(p + 32, true), lo = cd.getUint32(p + 42, true);
+    const name = dec.decode(new Uint8Array(cd.buffer, cd.byteOffset + p + 46, nl));
+    if (!name.endsWith("/")) out.push({path: name, size: sz, blob: async () => {
+      const h = new DataView(await file.slice(lo, lo + 30).arrayBuffer()), st = lo + 30 + h.getUint16(26, true) + h.getUint16(28, true), raw = file.slice(st, st + csz);
+      if (meth === 0) return raw;
+      if (meth === 8 && typeof DecompressionStream === "function") return await new Response(raw.stream().pipeThrough(new DecompressionStream("deflate-raw"))).blob();
+      throw new Error("method");
+    }});
+    p += 46 + nl + xl + cl;
+  }
+  return out;
+}
+function audParse(base){
+  base = base.replace(/\.[^.]+$/, "");
+  let m = base.match(/^(\d+)-(\d+)\s+(.*?)(?:\s+-\s+S\.\s*(\d+))?$/);
+  if (m) return {d: +m[1], n: +m[2], t: m[3], p: m[4] ? +m[4] : null};
+  m = base.match(/^(x\s+)?(\d+)\s*[-.]?\s+(.*?)(?:\s+-\s+S\.\s*(\d+))?$/i);
+  if (m) return {n: +m[2], t: m[3], x: !!m[1], p: m[4] ? +m[4] : null};
+  return {t: base, p: null};
+}
+const audClean = t => t.normalize("NFC").replace(/_/g, " ").replace(/\s+([!?.,])/g, "$1").replace(/\s+/g, " ").trim();
+function audTitle(key, subs){
+  let t = key, pb = false;
+  const s = subs.filter(Boolean)[0];
+  if (s){ const m = s.match(/^(.*?)\s+-\s+Playback\b/i) || s.match(/^(.*?)\s*\[(?:Disc|CD)\s*\d+\]/i); if (m){ t = m[1]; pb = /playback/i.test(s); } }
+  t = t.normalize("NFC").replace(/^[_\s]+|[_\s]+$/g, "").replace(/_/g, " ").replace(/\s+-\s+/g, " – ").replace(/\bFuer\b/g, "für").replace(/\bDie UST\b/g, "die Unterstufe").replace(/\s+/g, " ");
+  return t + (pb ? " (Playback)" : "");
+}
+async function audImport(files){
+  const items = [];
+  for (const f of files){
+    if (/\.zip$/i.test(f.name)){ try { (await zipEntries(f)).forEach(x => items.push({...x, zip: f.name})); } catch(e){ toast(`${f.name} konnte nicht gelesen werden.`); } }
+    else items.push({path: f.webkitRelativePath || f.name, size: f.size, blob: async () => f, zip: ""});
+  }
+  const groups = {};
+  for (const x of items){
+    const parts = x.path.split("/").filter(Boolean); if (!parts.length || parts.some(q => q.startsWith("__MACOSX") || q.startsWith("."))) continue;
+    const base = parts[parts.length - 1]; if (!AUD_EXT.test(base) && !/\.pdf$/i.test(base)) continue;
+    const key = parts.length > 1 ? parts[0] : x.zip ? x.zip.replace(/\.zip$/i, "") : "Lieder";
+    (groups[key] ||= []).push({...x, base, sub: parts.length > 2 ? parts[parts.length - 2] : ""});
+  }
+  const total = Object.values(groups).reduce((a, g) => a + g.filter(x => AUD_EXT.test(x.base)).length, 0);
+  if (!total){ toast("In der Auswahl sind keine Audiodateien (MP3, M4A, WAV)."); return; }
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch(e) {}
+  let nB = 0, nNew = 0, done = 0, fail = 0;
+  for (const [key, g] of Object.entries(groups)){
+    const tracks = g.filter(x => AUD_EXT.test(x.base)), pdf = g.find(x => /\.pdf$/i.test(x.base));
+    if (!tracks.length) continue;
+    let b = books.find(y => y.src === key);
+    if (!b){ b = {id: uid(), titel: audTitle(key, tracks.map(x => x.sub)), autor: "", kat: "Liederbücher", ordner: "Lieder", instr: [], seiten: 0, off: 0, teile: [], marks: [], stufen: [], links: [], src: key, audio: []}; books.push(b); nB++; }
+    b.audio ||= [];
+    if (pdf && !(b.teile || []).length && typeof storePdf === "function"){
+      try { toast("Das Heft wird gelesen …"); const u8 = new Uint8Array(await (await pdf.blob()).arrayBuffer()), lib = await loadPdfjs(), doc = await lib.getDocument({data: u8.slice(), isEvalSupported: false}).promise, n = doc.numPages; doc.destroy();
+        const id = pdfNameMap()[pdf.base] || uid() + uid(); await storePdf(id, u8, n, pdf.base); b.teile = [{a: id, n}]; b.seiten = n; } catch(e){ toast("Das PDF im Ordner konnte nicht gelesen werden."); }
+    }
+    for (const x of tracks){
+      const id = audId(key + "/" + x.base); let t = b.audio.find(y => y.id === id);
+      if (!t){ const p = audParse(x.base); t = {id, f: x.base, t: audClean(p.t)}; if (p.n != null) t.n = p.n; if (p.d != null) t.d = p.d; if (p.p != null) t.p = p.p; if (p.x) t.x = 1; b.audio.push(t); nNew++; }
+      try { if (!audHas(id)){ const bl = await x.blob(); await audPut(id, {type: audType(x.base), buf: await bl.arrayBuffer(), name: x.base}); } } catch(e){ fail++; }
+      done++; if (done % 4 === 0 || done === total) toast(`Lieder werden gespeichert … ${done} von ${total}`);
+    }
+    b.audio.sort((a, c) => (a.d || 0) - (c.d || 0) || (a.n ?? 1e9) - (c.n ?? 1e9) || a.t.localeCompare(c.t, "de"));
+  }
+  saveBooks(); render();
+  toast(fail ? `${done - fail} Lieder gespeichert, ${fail} nicht (Speicher voll?).` : nNew ? `${nNew} Lieder in ${Object.keys(groups).length === 1 ? "einem Heft" : Object.keys(groups).length + " Heften"} gespeichert` : `${done} Lieder auf diesem Gerät gespeichert`);
+}
+const audMissing = () => books.filter(b => (b.audio || []).length && !(b.audio || []).some(t => audHas(t.id)));
+// Player: Liste der Lieder (ganzes Heft oder eine Seite), Abspielen aus dem Gerätespeicher
+let mpAud = null, audUrl = null;
+function audList(bid, page){
+  const b = bookById(bid); if (!b || !(b.audio || []).length) return;
+  if (mpCur){ $("mpF").innerHTML = ""; mpCur = null; }
+  mpAud = {bid, page: page ?? null, q: "", cur: mpAud && mpAud.bid === bid ? mpAud.cur : null};
+  const list = (b.audio || []).filter(t => mpAud.page == null || t.p === mpAud.page);
+  $("mp").classList.add("mp-aud"); $("mpOpen").hidden = true;
+  $("mpT").textContent = b.titel + (mpAud.page != null ? " · S. " + mpAud.page : "");
+  $("mpL").innerHTML = (list.length > 8 ? `<input class="mp-q" data-audq type="search" placeholder="Lied suchen" aria-label="Lied suchen">` : "") + `<div id="mpLL"></div>`;
+  audRenderList(); $("mp").hidden = false;
+}
+function audRenderList(){
+  const b = bookById(mpAud.bid), q = mpAud.q.normalize("NFC").toLowerCase(), list = (b.audio || []).filter(t => (mpAud.page == null || t.p === mpAud.page) && (!q || (t.t + " " + (t.n ?? "")).normalize("NFC").toLowerCase().includes(q)));
+  $("mpLL").innerHTML = list.map(t => `<button class="mp-r ${mpAud.cur === t.id ? "on" : ""} ${audHas(t.id) ? "" : "miss"}" data-a="audPlay" data-v="${b.id}" data-t="${t.id}">${t.n != null ? `<span class="num tiny">${t.d ? t.d + "-" : ""}${t.n}</span>` : ""}<span>${esc(t.t)}</span>${t.p ? `<span class="tiny num">S. ${t.p}</span>` : ""}</button>`).join("") || `<p class="tiny" style="margin:4px 2px">Kein Lied gefunden.</p>`;
+}
+async function audPlay(bid, tid){
+  const b = bookById(bid), t = b && (b.audio || []).find(x => x.id === tid); if (!t) return;
+  if (!mpAud || mpAud.bid !== bid || !$("mpLL")) audList(bid, null);
+  const v = audHas(tid) ? await audGet(tid) : null;
+  if (!v){ toast("Dieses Lied ist auf diesem Gerät nicht gespeichert. Unter Literatur → «Lieder importieren» dieselbe ZIP-Datei wählen."); return; }
+  if (audUrl) URL.revokeObjectURL(audUrl); audUrl = URL.createObjectURL(new Blob([v.buf], {type: v.type || "audio/mpeg"}));
+  mpAud.cur = tid; audRenderList();
+  $("mpF").innerHTML = `<div class="mp-a"><b class="small">${t.n != null ? (t.d ? t.d + "-" : "") + t.n + " · " : ""}${esc(t.t)}</b><audio controls autoplay src="${audUrl}"></audio>
+    <select data-auds aria-label="Lied einer Schülerin oder einem Schüler zuordnen"><option value="">Für Schüler:in merken …</option>${sorted().map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></div>`;
+  $("mp").hidden = false;
+}
+function audClose(){ if (audUrl){ URL.revokeObjectURL(audUrl); audUrl = null; } mpAud = null; $("mp").classList.remove("mp-aud"); $("mpOpen").hidden = false; }
+document.addEventListener("input", e => { if ("audq" in (e.target.dataset || {}) && mpAud){ mpAud.q = e.target.value; audRenderList(); } });
+document.addEventListener("change", e => {
+  if (!("auds" in (e.target.dataset || {})) || !mpAud || !e.target.value) return;
+  const s = S(e.target.value), b = bookById(mpAud.bid), t = b && (b.audio || []).find(x => x.id === mpAud.cur); e.target.value = ""; if (!s || !t) return;
+  const u = `kb:audio:${b.id}:${t.id}`; if ((s.songs || []).some(x => x.u === u && x.status !== "fertig")){ toast(`${t.t} ist bei ${s.name} schon eingetragen.`); return; }
+  (s.songs ||= []).push({id: uid(), t: t.t, u, status: "aktuell", seit: today()}); save(); toast(`${t.t} bei ${s.name} unter Songs eingetragen`);
+});
+// Lieder zur Seite nur, wenn das PDF das Buch selbst ist (genug Seiten), nicht z. B. ein CD-Booklet
+function pvAud(){ const b = pv.b, btn = $("pvAud"); if (!btn || !b) return; const pr = pv.p - (b.off || 0), mx = Math.max(0, ...(b.audio || []).map(t => t.p || 0)), n = mx && b.seiten - (b.off || 0) >= mx ? (b.audio || []).filter(t => t.p === pr).length : 0; btn.hidden = !n; btn.textContent = "♫ " + n; btn.title = n === 1 ? "1 Lied zu dieser Seite" : n + " Lieder zu dieser Seite"; }
 function vLiteratur(){
   const q = litF.q.trim().toLowerCase();
   const list = books.filter(b => (litF.kat === "Alle" || (litF.kat === "♫" ? (b.links||[]).length : b.kat === litF.kat)) && (!litF.instr || (b.instr||[]).includes(litF.instr)) && (!litF.stufe || (litF.stufe === "-" ? !(b.stufen||[]).length : (b.stufen||[]).includes(litF.stufe)))
@@ -2740,7 +2879,8 @@ function vLiteratur(){
   if (feat("audio") && books.some(b => (b.links||[]).length)) kats.push("♫");
   const th = (k, t, cls) => `<th class="${cls||""}"><button class="ghost th-s ${key===k?"on":""}" data-a="litSort" data-v="${k}">${t}${key===k?" ↓":""}</button></th>`;
   let html = `<div class="row" style="margin-bottom:12px"><h2 style="margin:0">Literatur</h2><span class="sp"></span>
-    ${feat("audio") ? `<button data-a="bkNew">Play-Along ohne Noten</button>` : ""}${assetsNs ? `<button data-a="litUp">PDF hinzufügen</button>` : ""}</div>
+    ${feat("audio") ? `<button data-a="bkNew">Play-Along ohne Noten</button>` : ""}${assetsNs ? `<button data-a="litUp">PDF hinzufügen</button>` : ""}${typeof audPut === "function" ? `<button data-a="audUp" title="ZIP-Datei oder MP3s, z. B. Playbacks zu einem Liederbuch">Lieder importieren</button>` : ""}</div>
+  ${audMissing().length ? `<div class="banner">${audMissing().length === 1 ? "Die Lieder von «" + esc(audMissing()[0].titel) + "» sind" : audMissing().length + " Liederbücher sind"} nicht auf diesem Gerät gespeichert. Tippe auf «Lieder importieren» und wähle dieselbe ZIP-Datei wie auf dem anderen Gerät.</div>` : ""}
   <div class="row" style="margin-bottom:8px"><div class="seg">${kats.map(k => `<button class="${litF.kat===k?"on":""}" data-a="litKat" data-v="${esc(k)}">${k === "♫" ? "♫ Aufnahmen" : esc(k)} <span class="tiny num">${cnt(k)}</span></button>`).join("")}</div></div>
   <div class="row" style="margin-bottom:12px"><input id="litQ" type="search" placeholder="Suchen: Titel, Autor, Lesezeichen …" value="${esc(litF.q)}" style="flex:1 1 220px;width:auto" aria-label="Literatur suchen">
     <div class="seg"><button class="${litF.group?"on":""}" data-a="litGrp" data-v="1">Nach Ordnern</button><button class="${litF.group?"":"on"}" data-a="litGrp" data-v="">Liste</button></div>
@@ -2842,6 +2982,7 @@ async function pdfExtern(b, p){
 }
 function openPdf(bid, p, ctx){
   const b = bookById(bid); if (!b){ toast("Dieses Heft ist nicht mehr im Katalog."); return; }
+  if (!(b.teile||[]).length && (b.audio||[]).length){ audList(b.id, null); return; }
   if (!(b.teile||[]).length){ if ((b.links||[]).length) playLink(b.id, 0, b.links.length > 3); else toast("Dieser Eintrag hat keine Noten. Unter «Bearbeiten» kannst du Aufnahmen verlinken."); return; }
   if (!b.teile.every(t => t.a)){ toast("Das PDF ist noch nicht hochgeladen."); return; }
   if (pref("kb-pdfopen", "viewer") === "extern"){ pdfExtern(b, p); return; }
@@ -2859,7 +3000,7 @@ function pvMarks(){
 }
 async function pvShow(){
   const b = pv.b, tok = ++pv.tok, off = b.off || 0;
-  $("pvT").textContent = b.titel; $("pvP").value = pv.p - off; $("pvN").textContent = "/ " + (b.seiten - off);
+  $("pvT").textContent = b.titel; $("pvP").value = pv.p - off; pvAud(); $("pvN").textContent = "/ " + (b.seiten - off);
   $("pvFit").textContent = pv.fit === "page" ? "Breite" : "Ganze Seite";
   const msg = $("pvMsg"), c = $("pvC"), body = $("pvBody"), pg = $("pvPg");
   const slow = setTimeout(() => { if (tok === pv.tok){ msg.textContent = "Noten werden geladen …"; pg.hidden = true; } }, 250);
@@ -3195,6 +3336,7 @@ $("pvInk").addEventListener("click", e => {
 
 
 /* ---------- PDFs direkt im Klassenbuch hinzufügen ---------- */
+$("audIn").onchange = async e => { const fs = [...e.target.files]; e.target.value = ""; if (fs.length) audImport(fs).catch(() => toast("Der Import wurde abgebrochen.")); };
 $("pdfIn").onchange = async e => {
   const fs = [...e.target.files]; e.target.value = ""; if (!fs.length) return;
   let ok = 0, mapped = 0; const map = Object.assign(pdfNameMap(), (await idbGet("cfg", "pdfmap")) || {});
