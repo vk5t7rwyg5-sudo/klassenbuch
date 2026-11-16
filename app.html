@@ -185,6 +185,10 @@ button:disabled{opacity:.4;cursor:default}
 .ink-tools button{display:inline-flex;gap:6px;align-items:center}.ink-dot{display:inline-block;width:12px;height:12px;border-radius:50%}.ink-dot.hl{border-radius:2px;width:16px;height:8px}
 .ink-w{display:inline-block;border-radius:50%;margin-right:6px;vertical-align:middle}
 #prt{display:none}
+#pvCrop{position:absolute;inset:0;overflow:hidden;touch-action:none;cursor:crosshair;z-index:2}
+.crop-r{position:absolute;border:2px solid var(--ac);box-shadow:0 0 0 9999px rgba(0,0,0,.4);cursor:move}
+.crop-r i{position:absolute;width:22px;height:22px;border-radius:50%;background:var(--ac);border:2px solid #fff;transform:translate(-50%,-50%)}
+.crop-r i[data-h="0"]{left:0;top:0;cursor:nwse-resize}.crop-r i[data-h="1"]{left:100%;top:0;cursor:nesw-resize}.crop-r i[data-h="2"]{left:0;top:100%;cursor:nesw-resize}.crop-r i[data-h="3"]{left:100%;top:100%;cursor:nwse-resize}
 @media print{body>*:not(#prt){display:none!important}#prt{display:block}#prt img{display:block;max-width:100%;max-height:275mm;margin:0 auto;object-fit:contain}@page{margin:10mm}}
 .ink-t i{display:block;width:18px;height:18px;border-radius:50%;border:2px solid var(--card)}
 .ink-t i.hl{border-radius:3px;width:24px;height:12px}
@@ -261,12 +265,12 @@ kbBuntApply();</script>
 <dialog id="dlg"><p id="dlgText" style="margin-top:0"></p><div class="row" style="justify-content:flex-end"><button id="dlgNo">Abbrechen</button><button id="dlgYes" class="pri">OK</button></div></dialog>
 <div id="toast" hidden></div>
 <div id="mp" hidden role="region" aria-label="Aufnahme"><div class="mp-bar"><b id="mpT"></b><a id="mpOpen" target="_blank" rel="noopener"></a><button class="ghost" data-mp="x" aria-label="Player schliessen">✕</button></div><div id="mpL"></div><div id="mpF"></div></div>
-<input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple hidden><input type="file" id="audIn" accept=".zip,application/zip,audio/*,.mp3,.m4a,.wav" multiple hidden>
+<input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple hidden><input type="file" id="replIn" accept="application/pdf,.pdf" multiple hidden><input type="file" id="audIn" accept=".zip,application/zip,audio/*,.mp3,.m4a,.wav" multiple hidden>
 <div id="pv" hidden role="dialog" aria-modal="true" aria-label="Notenviewer">
   <div class="pv-bar"><button data-pv="close" aria-label="Schliessen">✕</button><span class="pv-t" id="pvT"></span>
     <select id="pvMarks" aria-label="Lesezeichen" hidden></select>
     <button data-pv="prev" aria-label="Vorherige Seite">‹</button><input class="pg num" id="pvP" inputmode="numeric" aria-label="Seite"><span class="small muted num" id="pvN"></span><button data-pv="next" aria-label="Nächste Seite">›</button>
-    <button data-pv="print" aria-label="Seite drucken" title="Seite drucken">⎙</button><button data-pv="fit" id="pvFit">Breite</button><button data-pv="out" aria-label="Verkleinern">−</button><button data-pv="in" aria-label="Vergrössern">+</button>
+    <button data-pv="rot" aria-label="Seite drehen" title="Seite um 90° drehen">⟳</button><button data-pv="crop" aria-label="Seite zuschneiden" title="Seite zuschneiden">✂</button><button data-pv="print" aria-label="Seite drucken" title="Seite drucken">⎙</button><button data-pv="fit" id="pvFit">Breite</button><button data-pv="out" aria-label="Verkleinern">−</button><button data-pv="in" aria-label="Vergrössern">+</button>
     <button data-pv="here" id="pvHere" hidden>Hier weiter</button><button data-a="play" id="pvPlay" data-i="0" hidden aria-label="Aufnahme abspielen">♫</button><button data-a="audPage" id="pvAud" hidden>♫</button><button data-pv="ink" id="pvInkB">✎ Notizen</button><button data-pv="mark">Lesezeichen</button><button data-pv="assign" class="pri">Für SuS</button></div>
   <div class="pv-pop" id="pvPop" hidden></div>
   <div class="pv-pop" id="pvInk" hidden></div>
@@ -825,7 +829,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.15-1813 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.16-1218 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -2587,6 +2591,7 @@ document.addEventListener("click", ev => {
       books.unshift(n); saveBooks(); litF.q = ""; if (litF.kat !== "Alle" && litF.kat !== "Play-Along") litF.kat = "Alle"; editBook = n.id; render();
       setTimeout(() => { const el = document.getElementById("be-titel"); if (el){ el.scrollIntoView({block:"center"}); el.select(); } }, 0); break; }
     case "bkOpen": openPdf(b.dataset.v, +b.dataset.p || 1); break;
+    case "bkRepl": { const inp = $("replIn"); inp.dataset.v = b.dataset.v; inp.click(); break; }
     case "bkEdit": editBook = b.dataset.v; render(); document.getElementById("bkEdit")?.scrollIntoView({block:"nearest"}); break;
     case "bkCancel": { const bk = bookById(editBook); if (bk && bk.titel === "Neuer Play-Along" && !(bk.teile||[]).length && !(bk.links||[]).length){ books = books.filter(x => x.id !== bk.id); saveBooks(); } editBook = null; render(); break; }
     case "bkSave": { const bk = bookById(b.dataset.v), g = id => document.getElementById(id).value.trim();
@@ -2923,7 +2928,7 @@ function vLiteratur(){
         <div style="grid-column:1/-1" ${feat("audio") ? "" : "hidden"}><label for="be-links">Aufnahmen: ein Link pro Zeile (Spotify, YouTube, Apple Music …), optional mit Namen davor</label><textarea id="be-links" rows="2" placeholder="Original https://open.spotify.com/track/…&#10;Play-Along https://youtu.be/…">${esc((b.links||[]).map(l => (l.t ? l.t + " " : "") + l.u).join("\n"))}</textarea></div></div>
         <label style="margin-top:8px">Stufen</label><div class="row" id="be-stufen">${stufenL().map(k => `<button class="chip ${(b.stufen||[]).includes(k)?"on":""}" data-a="evs" data-v="${k}">${k}</button>`).join("")}</div>
         <label style="margin-top:8px">Bereiche</label><div class="row" id="be-instr">${instrL().map(k => `<button class="chip ${(b.instr||[]).includes(k)?"on":""}" data-a="evs" data-v="${k}">${k}</button>`).join("")}</div>
-        <div class="row" style="margin-top:10px"><button class="pri" data-a="bkSave" data-v="${b.id}">Speichern</button><button data-a="bkCancel">Abbrechen</button><span class="sp"></span><button class="del" data-a="bkDel" data-v="${b.id}">Aus Katalog entfernen</button></div></div></td></tr>`;
+        <div class="row" style="margin-top:10px"><button class="pri" data-a="bkSave" data-v="${b.id}">Speichern</button><button data-a="bkCancel">Abbrechen</button><span class="sp"></span>${typeof storePdf === "function" && (b.teile||[]).length ? `<button data-a="bkRepl" data-v="${b.id}" title="Zum Beispiel eine korrigierte Fassung mit gedrehten Seiten">PDF ersetzen</button>` : ""}<button class="del" data-a="bkDel" data-v="${b.id}">Aus Katalog entfernen</button></div></div></td></tr>`;
       return `<tr class="${voice ? "lit-sub" : ""}">
         <td class="c-t"><button class="lit-open" data-a="bkOpen" data-v="${b.id}">${esc(voice || b.titel)}</button>${playBtns(b, "lit-play")}<div class="tiny m-only">${esc(meta)}</div>
           ${(b.marks||[]).length ? `<div class="lit-marks">${b.marks.slice().sort((x,y) => x.p - y.p).map(m => `<button class="chip" data-a="bkOpen" data-v="${b.id}" data-p="${m.p}">${esc(m.t)} · S. ${m.p - (b.off||0)}</button>`).join("")}</div>` : ""}</td>
@@ -2992,7 +2997,7 @@ function openPdf(bid, p, ctx){
   $("pvPlay").hidden = !(b.links || []).length || !feat("audio"); $("pvPlay").dataset.v = b.id; if ((b.links || []).length > 3) $("pvPlay").dataset.list = "1"; else delete $("pvPlay").dataset.list; $("pvInkB").hidden = !feat("ink");
   $("pvHere").hidden = !pv.lit; pvMarks(); pvPopRender(); inkBar(); pvShow();
 }
-function closePdf(){ txClose(); ink_.on = false; ink_.cur = null; pv.drawing = false; $("pv").classList.remove("pv-ink"); $("pv").hidden = true; document.body.style.overflow = ""; pv.tok++; if (pv.task) try { pv.task.cancel(); } catch(e) {} render(); }
+function closePdf(){ txClose(); pv.crop = null; const co = $("pvCrop"); if (co) co.remove(); ink_.on = false; ink_.cur = null; pv.drawing = false; $("pv").classList.remove("pv-ink"); $("pv").hidden = true; document.body.style.overflow = ""; pv.tok++; if (pv.task) try { pv.task.cancel(); } catch(e) {} render(); }
 function pvMarks(){
   const sel = $("pvMarks"), m = (pv.b.marks || []).slice().sort((x,y) => x.p - y.p);
   sel.hidden = !m.length;
@@ -3008,17 +3013,19 @@ async function pvShow(){
   try {
     const doc = await getDoc(t.a); if (tok !== pv.tok) return;
     const page = await doc.getPage(Math.min(lp, doc.numPages)); if (tok !== pv.tok) return;
-    const w = body.clientWidth - 16, h = body.clientHeight - 16, v1 = page.getViewport({scale: 1});
-    const base = pv.fit === "width" ? w / v1.width : Math.min(w / v1.width, h / v1.height);
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.5), vp = page.getViewport({scale: base * pv.zoom * dpr});
+    const rot = pvRot(page), w = body.clientWidth - 16, h = body.clientHeight - 16, v1 = page.getViewport({scale: 1, rotation: rot});
+    const cr = pvCrop(), fw = cr ? (cr[2] - cr[0]) / 1e4 : 1, fh = cr ? (cr[3] - cr[1]) / 1e4 : 1;
+    const base = pv.fit === "width" ? w / (v1.width * fw) : Math.min(w / (v1.width * fw), h / (v1.height * fh));
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5), vp = page.getViewport({scale: base * pv.zoom * dpr, rotation: rot});
     const cv = document.createElement("canvas"); cv.width = Math.floor(vp.width); cv.height = Math.floor(vp.height);
     if (pv.task) try { pv.task.cancel(); } catch(e) {}
     pv.task = page.render({canvasContext: cv.getContext("2d"), viewport: vp});
     await pv.task.promise; if (tok !== pv.tok) return;
     clearTimeout(slow);
-    c.width = cv.width; c.height = cv.height; c.getContext("2d").drawImage(cv, 0, 0);
-    c.style.width = (vp.width / dpr) + "px"; c.style.height = (vp.height / dpr) + "px"; pg.hidden = false; msg.textContent = "";
-    inkDraw();
+    const cw = Math.max(1, Math.round(cv.width * fw)), ch = Math.max(1, Math.round(cv.height * fh));
+    c.width = cw; c.height = ch; c.getContext("2d").drawImage(cv, cr ? Math.round(cv.width * cr[0] / 1e4) : 0, cr ? Math.round(cv.height * cr[1] / 1e4) : 0, cw, ch, 0, 0, cw, ch);
+    c.style.width = (cw / dpr) + "px"; c.style.height = (ch / dpr) + "px"; pg.hidden = false; msg.textContent = "";
+    inkDraw(); if (pv.crop) cropDraw();
     body.scrollTop = 0; body.scrollLeft = Math.max(0, (body.scrollWidth - body.clientWidth) / 2);
     const nx = locate(b, Math.min(pv.p + 1, b.seiten)); if (nx.t !== t) getDoc(nx.t.a).catch(() => {});
   } catch(e) {
@@ -3026,11 +3033,77 @@ async function pvShow(){
     if (tok === pv.tok && !(e && e.name === "RenderingCancelledException")){ pg.hidden = true; msg.textContent = e && /PDF/.test(e.message || "") ? e.message : "Das PDF konnte nicht geladen werden. Prüfe die Verbindung und versuche es nochmals."; }
   }
 }
-function pvGo(p){ if (ink_.edit) txClose(); if (!pv.b) return; const n = Math.max(1, Math.min(pv.b.seiten, p)); if (n !== pv.p){ pv.p = n; pvShow(); } else $("pvP").value = pv.p - (pv.b.off||0); }
+/* Seiten drehen: b.rot = {PDF-Seite: 90|180|270}, gilt für alle Geräte. Notizen auf der Seite drehen mit. */
+const pvRot = page => ((page.rotate || 0) + ((pv.b && pv.b.rot && pv.b.rot[pv.p]) || 0)) % 360;
+function pvRotate(){
+  const b = pv.b; if (!b) return; if (ink_.edit) txClose();
+  b.rot ||= {}; const r = ((b.rot[pv.p] || 0) + 90) % 360; if (r) b.rot[pv.p] = r; else delete b.rot[pv.p]; if (!Object.keys(b.rot).length) delete b.rot;
+  // Notizen aller Schüler:innen auf dieser Seite um 90° mitdrehen: (x, y) → (10000 − y, x)
+  for (const k of Object.keys(ink)){ if (!k.endsWith(":" + b.id)) continue; const list = ink[k].p && ink[k].p[pv.p]; if (!list || !list.length) continue;
+    for (const s of list){ if (s.pts) for (let i = 0; i < s.pts.length; i += 2){ const x = s.pts[i], y = s.pts[i + 1]; s.pts[i] = 10000 - y; s.pts[i + 1] = x; }
+      if (s.t === "tx"){ const x = s.x, y = s.y; s.x = Math.max(0, 10000 - y - Math.round(s.s * 1.2)); s.y = x; } }
+    inkSave(k); }
+  const cr = b.crop && b.crop[pv.p]; if (cr) b.crop[pv.p] = [1e4 - cr[3], cr[0], 1e4 - cr[1], cr[2]];
+  ink_.undo = []; saveBooks(); pvShow();
+}
+/* Seite zuschneiden: b.crop = {PDF-Seite: [x0, y0, x1, y1]} in 0–10000 der (gedrehten) Seite. Notizen werden auf den neuen Ausschnitt umgerechnet. */
+const pvCrop = () => !pv.crop && pv.b && pv.b.crop && pv.b.crop[pv.p] || null;
+function cropStart(){
+  if (!pv.b) return; if (ink_.edit) txClose();
+  const cur = pv.b.crop && pv.b.crop[pv.p];
+  pv.crop = {r: cur ? cur.slice() : [400, 400, 9600, 9600]}; pv.pop = "crop"; pvPopRender(); pvShow();
+}
+function cropDraw(){
+  const pg = $("pvPg"); let o = $("pvCrop"); if (!pv.crop){ if (o) o.remove(); return; }
+  if (!o){ o = document.createElement("div"); o.id = "pvCrop"; o.innerHTML = `<div class="crop-r"><i data-h="0"></i><i data-h="1"></i><i data-h="2"></i><i data-h="3"></i></div>`; pg.appendChild(o); cropEvents(o); }
+  const [x0, y0, x1, y1] = pv.crop.r, r = o.firstChild; Object.assign(r.style, {left: x0 / 100 + "%", top: y0 / 100 + "%", width: (x1 - x0) / 100 + "%", height: (y1 - y0) / 100 + "%"});
+}
+function cropEvents(o){
+  let drag = null;
+  const pt = e => { const b = o.getBoundingClientRect(); return [Math.round(Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)) * 1e4), Math.round(Math.min(1, Math.max(0, (e.clientY - b.top) / b.height)) * 1e4)]; };
+  o.addEventListener("pointerdown", e => {
+    e.preventDefault(); try { o.setPointerCapture(e.pointerId); } catch(err) {}
+    const p = pt(e), r = pv.crop.r, h = e.target.dataset.h;
+    if (h != null) drag = {k: +h};
+    else if (p[0] > r[0] && p[0] < r[2] && p[1] > r[1] && p[1] < r[3]) drag = {move: p, r0: r.slice()};
+    else { pv.crop.r = [p[0], p[1], p[0], p[1]]; drag = {k: 3}; }
+  });
+  o.addEventListener("pointermove", e => {
+    if (!drag) return; e.preventDefault(); const p = pt(e), r = pv.crop.r;
+    if (drag.move){ const dx = Math.max(-drag.r0[0], Math.min(1e4 - drag.r0[2], p[0] - drag.move[0])), dy = Math.max(-drag.r0[1], Math.min(1e4 - drag.r0[3], p[1] - drag.move[1])); pv.crop.r = [drag.r0[0] + dx, drag.r0[1] + dy, drag.r0[2] + dx, drag.r0[3] + dy]; }
+    else { if (drag.k === 0 || drag.k === 2) r[0] = p[0]; else r[2] = p[0]; if (drag.k < 2) r[1] = p[1]; else r[3] = p[1]; }
+    cropDraw();
+  });
+  const end = () => { if (!drag) return; drag = null; const r = pv.crop.r; pv.crop.r = [Math.min(r[0], r[2]), Math.min(r[1], r[3]), Math.max(r[0], r[2]), Math.max(r[1], r[3])]; cropDraw(); };
+  o.addEventListener("pointerup", end); o.addEventListener("pointercancel", end);
+}
+// Notizen vom alten in den neuen Ausschnitt umrechnen (gilt für alle Schüler:innen auf dieser Seite)
+function cropInk(oldR, newR){
+  const A = oldR || [0, 0, 1e4, 1e4], B = newR || [0, 0, 1e4, 1e4];
+  const fx = x => Math.round(((A[0] + x * (A[2] - A[0]) / 1e4) - B[0]) * 1e4 / (B[2] - B[0])), fy = y => Math.round(((A[1] + y * (A[3] - A[1]) / 1e4) - B[1]) * 1e4 / (B[3] - B[1]));
+  for (const k of Object.keys(ink)){ if (!k.endsWith(":" + pv.b.id)) continue; const list = ink[k].p && ink[k].p[pv.p]; if (!list || !list.length) continue;
+    for (const s of list){ if (s.pts) for (let i = 0; i < s.pts.length; i += 2){ s.pts[i] = fx(s.pts[i]); s.pts[i + 1] = fy(s.pts[i + 1]); } if (s.t === "tx"){ s.x = fx(s.x); s.y = fy(s.y); } }
+    inkSave(k); }
+}
+function cropEnd(apply, full){
+  const b = pv.b; if (!pv.crop || !b) return;
+  const old = b.crop && b.crop[pv.p] || null, r = pv.crop.r, ok = r[2] - r[0] > 300 && r[3] - r[1] > 300;
+  pv.crop = null; pv.pop = null; pvPopRender(); cropDraw();
+  if (apply){
+    const nr = full || !ok || (r[0] < 50 && r[1] < 50 && r[2] > 9950 && r[3] > 9950) ? null : r.map(Math.round);
+    if (JSON.stringify(nr) !== JSON.stringify(old)){
+      cropInk(old, nr); b.crop ||= {}; if (nr) b.crop[pv.p] = nr; else delete b.crop[pv.p]; if (!Object.keys(b.crop).length) delete b.crop; ink_.undo = []; saveBooks();
+      toast(nr ? "Seite zugeschnitten" : "Ganze Seite wird angezeigt"); }
+  }
+  pvShow();
+}
+function pvGo(p){ if (ink_.edit) txClose(); if (pv.crop) cropEnd(false); if (!pv.b) return; const n = Math.max(1, Math.min(pv.b.seiten, p)); if (n !== pv.p){ pv.p = n; pvShow(); } else $("pvP").value = pv.p - (pv.b.off||0); }
 function pvPopRender(){
   const el = $("pvPop"), off = pv.b.off || 0;
   if (!pv.pop){ el.hidden = true; el.innerHTML = ""; return; }
   el.hidden = false;
+  if (pv.pop === "crop"){ el.innerHTML = `<div class="row"><b class="small">Zuschneiden</b><span class="small muted">Rahmen ziehen oder an den Ecken anpassen.</span><span class="sp"></span>
+    <button class="pri" data-pv="cropOk">Zuschneiden</button><button data-pv="cropFull">Ganze Seite</button><button class="ghost" data-pv="popx">Abbrechen</button></div>`; return; }
   if (pv.pop === "assign"){
     const list = sorted();
     el.innerHTML = `<div class="row"><b class="small">Für SuS merken</b>
@@ -3057,10 +3130,14 @@ $("pv").addEventListener("click", ev => {
     case "next": pvGo(pv.p + 1); break;
     case "fit": pv.fit = pv.fit === "page" ? "width" : "page"; pv.zoom = 1; pvShow(); break;
     case "in": pv.zoom = Math.min(4, pv.zoom * 1.25); pvShow(); break;
+    case "rot": if (pv.crop) cropEnd(false); pvRotate(); break;
+    case "crop": if (pv.crop) cropEnd(false); else { if (ink_.on){ ink_.on = false; inkBar(); } cropStart(); } break;
+    case "cropOk": cropEnd(true); break;
+    case "cropFull": cropEnd(true, true); break;
     case "out": pv.zoom = Math.max(.5, pv.zoom / 1.25); pvShow(); break;
-    case "assign": case "mark": pv.pop = pv.pop === t.dataset.pv ? null : t.dataset.pv; pvPopRender(); break;
+    case "assign": case "mark": if (pv.crop) cropEnd(false); pv.pop = pv.pop === t.dataset.pv ? null : t.dataset.pv; pvPopRender(); break;
     case "ink": ink_.on = !ink_.on; if (ink_.on && pv.pop){ pv.pop = null; pvPopRender(); } inkBar(); inkDraw(); break;
-    case "popx": pv.pop = null; pvPopRender(); break;
+    case "popx": if (pv.crop){ cropEnd(false); break; } pv.pop = null; pvPopRender(); break;
     case "assignOk": {
       const s = S($("pvS").value); if (!s) return;
       const x = {id: uid(), b: pv.b.id, stueck: $("pvSt").value.trim(), seite: +$("pvSe").value || (pv.p - off), status: "aktuell", seit: today()};
@@ -3159,7 +3236,7 @@ function inkDraw(){
   const cv = $("pvI"), c = $("pvC"); if (!cv || !c) return;
   if (cv.width !== c.width || cv.height !== c.height){ cv.width = c.width; cv.height = c.height; }
   const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height);
-  if (ink_.hide || !feat("ink")) return;
+  if (ink_.hide || !feat("ink") || pv.crop) return;
   const st = (inkList(false) || []).concat(ink_.cur ? [ink_.cur] : []);
   for (const pass of ["hl", "pen"]) for (const s of st) if (s.t === pass) inkStroke(g, s, cv.width, cv.height);
   for (const s of st) if (s.t === "tx") txDraw(g, s, cv.width, cv.height);
@@ -3175,10 +3252,12 @@ async function pvPrint(){
   if (ink_.edit) txClose();
   const b = pv.b; if (!b) return; toast("Seite wird vorbereitet …");
   try {
-    const {t: part, lp} = locate(b, pv.p), doc = await getDoc(part.a), page = await doc.getPage(Math.min(lp, doc.numPages)), v1 = page.getViewport({scale: 1});
-    const vp = page.getViewport({scale: Math.min(4, 2400 / v1.width)}), cv = document.createElement("canvas"); cv.width = Math.floor(vp.width); cv.height = Math.floor(vp.height);
+    const {t: part, lp} = locate(b, pv.p), doc = await getDoc(part.a), page = await doc.getPage(Math.min(lp, doc.numPages)), rot = pvRot(page), v1 = page.getViewport({scale: 1, rotation: rot});
+    const vp = page.getViewport({scale: Math.min(4, 2400 / v1.width), rotation: rot}), cv = document.createElement("canvas"); cv.width = Math.floor(vp.width); cv.height = Math.floor(vp.height);
     const g = cv.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, cv.width, cv.height);
     await page.render({canvasContext: g, viewport: vp, intent: "print"}).promise;
+    const cr = pvCrop(); if (cr){ const c2 = document.createElement("canvas"), x = Math.round(cv.width * cr[0] / 1e4), y = Math.round(cv.height * cr[1] / 1e4); c2.width = Math.round(cv.width * (cr[2] - cr[0]) / 1e4); c2.height = Math.round(cv.height * (cr[3] - cr[1]) / 1e4);
+      c2.getContext("2d").drawImage(cv, x, y, c2.width, c2.height, 0, 0, c2.width, c2.height); cv.width = c2.width; cv.height = c2.height; g.drawImage(c2, 0, 0); }
     const list = feat("ink") && !ink_.hide ? inkList(false) || [] : [];
     if (list.length){
       const ic = document.createElement("canvas"); ic.width = cv.width; ic.height = cv.height; const h = ic.getContext("2d");
@@ -3336,6 +3415,21 @@ $("pvInk").addEventListener("click", e => {
 
 
 /* ---------- PDFs direkt im Klassenbuch hinzufügen ---------- */
+// PDF eines Hefts ersetzen: Dateien nach Namen den Teilen zuordnen, sonst in Reihenfolge (gleiche Anzahl)
+$("replIn").onchange = async e => {
+  const fs = [...e.target.files].sort((x, y) => x.name.localeCompare(y.name, "de", {numeric: true})), b = bookById(e.target.dataset.v); e.target.value = ""; if (!fs.length || !b) return;
+  const teile = b.teile || [], nm = k => (typeof pdfMeta !== "undefined" && pdfMeta[teile[k].a] && pdfMeta[teile[k].a].name) || "";
+  const pick = teile.map((t, k) => fs.find(f => f.name === nm(k)) || (fs.length === teile.length ? fs[k] : null));
+  if (!pick.some(Boolean)){ toast(teile.length > 1 ? `Dieses Heft besteht aus ${teile.length} Teilen. Wähle ${teile.length} PDFs oder Dateien mit denselben Namen.` : "Bitte ein PDF wählen."); return; }
+  let n = 0, diff = false;
+  for (let k = 0; k < teile.length; k++){ const f = pick[k]; if (!f) continue;
+    try { toast(`Ersetzt ${f.name} …`); const u8 = new Uint8Array(await f.arrayBuffer()), lib = await loadPdfjs(), doc = await lib.getDocument({data: u8.slice(), isEvalSupported: false}).promise, np = doc.numPages; doc.destroy();
+      const id = uid() + uid(); await storePdf(id, u8, np, f.name); if (np !== teile[k].n) diff = true; teile[k] = {a: id, n: np}; n++; } catch(err){ toast(`${f.name} ist kein lesbares PDF.`); }
+  }
+  if (!n) return;
+  b.seiten = teile.reduce((a, t) => a + (t.n || 0), 0); delete b.rot; delete b.crop; saveBooks(); render();
+  toast(`${n} ${n === 1 ? "PDF" : "PDFs"} ersetzt${diff ? ". Achtung: Die Seitenzahl hat sich geändert, prüfe Lesezeichen und Notizen." : ""}`);
+};
 $("audIn").onchange = async e => { const fs = [...e.target.files]; e.target.value = ""; if (fs.length) audImport(fs).catch(() => toast("Der Import wurde abgebrochen.")); };
 $("pdfIn").onchange = async e => {
   const fs = [...e.target.files]; e.target.value = ""; if (!fs.length) return;
