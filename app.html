@@ -146,6 +146,9 @@ button:disabled{opacity:.4;cursor:default}
 .sus-bar{margin:-4px 0 12px;position:sticky;top:60px;z-index:3;background:var(--card);border:1px solid var(--bd);border-radius:var(--r);padding:6px 10px}
 .abo-r{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(0,1.4fr) auto;gap:10px;align-items:end;padding:8px 0;border-bottom:1px solid var(--bd)}.abo-r label{margin-top:0}.abo-s{display:grid;gap:2px;padding-bottom:6px}
 @media (max-width:620px){.abo-r{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr)}.abo-s{grid-column:1/3}}
+.song-f{margin-bottom:12px}.ed-lit{margin-top:8px}.ed-lit summary{cursor:pointer;color:var(--ac);padding:4px 0}.ld-d{display:block;width:auto;margin-top:4px;padding:3px 6px;font-size:13px}
+main{padding-bottom:calc(60px + var(--mph,0px))}
+#toast{bottom:calc(16px + env(safe-area-inset-bottom,0px) + var(--mph,0px))}
 .fr-z{margin-top:6px;gap:8px}.fr-z input{width:auto}.pk-add{margin-top:8px;align-self:flex-start}.fr-f{margin-bottom:12px}
 .set-g{grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))}.set-t{display:flex;gap:14px;align-items:center;text-decoration:none;color:inherit;min-height:92px}
 .set-i{flex:none;width:44px;height:44px;border-radius:50%;background:var(--card);display:grid;place-items:center}.set-i svg{width:22px;height:22px}
@@ -829,7 +832,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.16-1218 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.16-1903 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1802,6 +1805,7 @@ function playLink(bid, i, list, bObj){
     return; }
   embed();
 }
+if (window.ResizeObserver){ const mpEl = document.getElementById("mp"); new ResizeObserver(() => document.documentElement.style.setProperty("--mph", mpEl.hidden ? "0px" : (mpEl.offsetHeight + 12) + "px")).observe(mpEl); new MutationObserver(() => document.documentElement.style.setProperty("--mph", mpEl.hidden ? "0px" : (mpEl.offsetHeight + 12) + "px")).observe(mpEl, {attributes: true, attributeFilter: ["hidden"]}); }
 document.addEventListener("click", ev => { if (ev.target.closest('[data-mp="x"]')){ $("mpF").innerHTML = ""; $("mp").hidden = true; mpCur = null; if (mpAud) audClose(); } });
 /* ---------- Rechnungen für Privatlektionen ---------- */
 const rg = {sid: null, on: new Set(), off: new Set(), addr: null, bis: "", datum: ""};
@@ -2049,7 +2053,7 @@ async function rgAgain(id){
   let blob; try { blob = await rgPdf(inv); } catch(e) { toast("Die Rechnung konnte nicht erstellt werden."); return; }
   ask(`Rechnung ${inv.nr} ist bereit.`, "Sichern", () => saveFile(`Rechnung ${inv.nr} ${inv.name}.pdf`, blob, "application/pdf"));
 }
-let freiF = null;
+let freiF = null, songF = null;
 function freiForm(mon, frei){
   if (!freiF || !frei.length) return "";
   if (!frei.some(s => s.id === freiF.sid)) freiF.sid = frei[0].id;
@@ -2120,12 +2124,17 @@ function vWoche(){
   const pS = list[i-1], nS = list[i+1];
   const editor = `<div class="card ed" data-sid="${s.id}" data-d="${d}">
     <div class="row"><div style="min-width:0"><a href="#s-${s.id}" class="ed-name">${esc(s.name)}</a>
-      <div class="small muted num">${fr ? TG(wdOf(d))+" "+fmt(d,1) : s.tag?TAGE[s.tag]+" "+fmt(d,1):fmt(d,1)}${fr ? "" : s.zeit?" · "+esc(s.zeit):""}${s.dauer?" · "+s.dauer+" Min.":""}${alterTxt(s)?" · "+esc(alterTxt(s)):""} · ${esc(sStufeL(s))}</div>${s.typ==="Gruppe" ? gList(s) : ""}
-      ${fr ? `<div class="row fr-z"><label for="fd-${s.id}" class="small" style="margin:0">Datum</label><input id="fd-${s.id}" type="date" data-fd value="${d}"><label for="fz-${s.id}" class="small" style="margin:0">Zeit</label><input id="fz-${s.id}" type="time" data-f="zeit" value="${esc(l.zeit || s.zeit || "")}">${l.id ? `<button class="ghost del small" data-a="freiDel">Termin löschen</button>` : ""}</div>
-      ${l.id ? "" : `<div class="tiny" style="margin-top:4px">Noch keine Lektion an diesem Tag. Sobald du etwas einträgst, wird sie gespeichert.</div>`}` : ""}</div>
+      <div class="small muted num">${[fr ? "" : s.tag ? TAGE[s.tag]+" "+fmt(d,1) : fmt(d,1), fr ? "" : esc(s.zeit || ""), s.dauer ? s.dauer+" Min." : "", esc(alterTxt(s) || ""), esc(sStufeL(s))].filter(Boolean).join(" · ")}</div>${s.typ==="Gruppe" ? gList(s) : ""}
+      ${fr ? `<div class="row fr-z"><label for="fd-${s.id}" class="small" style="margin:0">Datum</label><input id="fd-${s.id}" type="date" data-fd value="${l.id ? d : ""}"><label for="fz-${s.id}" class="small" style="margin:0">Zeit</label><input id="fz-${s.id}" type="time" data-f="zeit" value="${esc(l.zeit || s.zeit || "")}">${l.id ? `<button class="ghost del small" data-a="freiDel">Termin löschen</button>` : ""}</div>
+      ${l.id ? "" : `<div class="tiny" style="margin-top:4px">Wähle das Datum der Lektion. Ohne Datum gilt ${fmt(d, 1)}.</div>`}` : ""}</div>
       <span class="sp"></span>
       <div class="seg">${STATUS.map(([k,t]) => `<button class="${l.status===k?"on s-"+k:""}" data-a="att" data-st="${k}">${t}</button>`).join("")}</div></div>
     ${litChips(s)}${songChips(s)}
+    ${books.length ? `<details class="ed-lit"><summary class="small">+ Literatur zu ${esc(s.name.split(" ")[0])} hinzufügen</summary>
+      <div class="lit-add"><div><label for="nl-b">Heft</label><select id="nl-b">${bookOptions(s)}</select></div>
+      <div><label for="nl-st">Stück / Übung</label><input id="nl-st" placeholder="z. B. Etüde Nr. 12"></div>
+      <div><label for="nl-se">Seite</label><input id="nl-se" type="number" inputmode="numeric" value="1"></div>
+      <div><button class="pri" data-a="litAdd">Hinzufügen</button></div></div></details>` : ""}
     ${isAbo(s) ? `<div class="row" style="margin-top:8px">${aboBadge(s, d)}</div>` : ""}
     ${feat("rg") && isPriv(s) && rgBilled()[rgKey(s.id, d)] ? `<div class="row" style="margin-top:8px"><span class="badge b-ok">✓ verrechnet · Rechnung ${esc(rgBilled()[rgKey(s.id, d)].nr)}</span></div>` : ""}
     ${f ? `<div class="banner" style="margin:10px 0 0">${esc(f.titel)}: an diesem Tag ist schulfrei.</div>` : ""}
@@ -2242,7 +2251,7 @@ function vDetail(id){
   <h3>Lektionen</h3>
   <div class="row" style="margin-bottom:8px"><input type="date" id="newLd" value="${today()}" style="width:170px" aria-label="Datum der Lektion"><button data-a="newL">Lektion an diesem Datum</button></div>
   <div class="card tw"><table><tr><th>Datum</th><th>Status</th><th>Gearbeitet</th><th>Aufgaben</th><th>Notiz</th><th></th></tr>
-  ${ls.map(l => `<tr><td style="white-space:nowrap" class="num"><a href="#woche" data-a="gowk" data-d="${l.datum}">${fmt(l.datum,1)}</a></td><td>${l.status?`<span class="badge ${{anwesend:"b-ok",entschuldigt:"b-wa",unentschuldigt:"b-da",ausgefallen:"b-gr"}[l.status]}">${l.status}</span>`:""}</td>
+  ${ls.map(l => `<tr><td style="white-space:nowrap" class="num"><a href="#woche" data-a="gowk" data-d="${l.datum}">${fmt(l.datum,1)}</a>${isFrei(s) ? `<input type="date" class="ld-d" data-ld="${l.id}" value="${l.datum}" aria-label="Datum ändern" title="Datum ändern">` : ""}</td><td>${l.status?`<span class="badge ${{anwesend:"b-ok",entschuldigt:"b-wa",unentschuldigt:"b-da",ausgefallen:"b-gr"}[l.status]}">${l.status}</span>`:""}</td>
     <td class="small">${esc([l.warmup,l.inhalt].filter(Boolean).join(" · "))}</td><td class="small">${esc(l.aufgaben)}</td><td class="small muted">${esc(l.notiz)}</td><td><button class="ghost del small" data-a="delL" data-v="${l.id}" aria-label="Lektion löschen">×</button></td></tr>`).join("") || `<tr><td colspan="6" class="muted small">Noch keine Lektionen. In der Wochenansicht eintragen.</td></tr>`}
   </table></div>`;
   app.innerHTML = `<div data-sid="${s.id}">${html}</div>`;
@@ -2590,6 +2599,15 @@ document.addEventListener("click", ev => {
     case "bkNew": { const n = {id: uid(), titel: "Neuer Play-Along", autor: "", kat: "Play-Along", ordner: "Play-Along", instr: [], seiten: 0, off: 0, teile: [], marks: [], stufen: [], links: []};
       books.unshift(n); saveBooks(); litF.q = ""; if (litF.kat !== "Alle" && litF.kat !== "Play-Along") litF.kat = "Alle"; editBook = n.id; render();
       setTimeout(() => { const el = document.getElementById("be-titel"); if (el){ el.scrollIntoView({block:"center"}); el.select(); } }, 0); break; }
+    case "songNew": songF = {bid: b.dataset.v || ""}; litF.q = ""; render(); setTimeout(() => { const el = document.getElementById("sf-t"); if (el){ el.scrollIntoView({block:"center"}); el.focus(); } }, 0); break;
+    case "songX": songF = null; render(); break;
+    case "songGo": { const g = id => document.getElementById(id).value.trim(), t = g("sf-t"), u = g("sf-u"), a = g("sf-a"), bid = g("sf-b");
+      if (!t){ toast("Bitte einen Titel eingeben."); break; }
+      if (u && !/^https?:\/\/\S+$/.test(u)){ toast("Der Link muss mit https:// beginnen."); break; }
+      const bk = bid && bookById(bid);
+      if (bk){ if (!u){ toast("Bitte einen Link eingeben."); break; } (bk.links ||= []).push({t, u}); toast(`«${t}» bei ${bk.titel} hinzugefügt`); }
+      else { const n = {id: uid(), titel: t, autor: a, kat: "Songs", ordner: "Songs", instr: [], seiten: 0, off: 0, teile: [], marks: [], stufen: []}; if (u) n.links = [{u}]; books.unshift(n); litF.kat = "Alle"; toast(`«${t}» hinzugefügt`); }
+      songF = null; saveBooks(); render(); break; }
     case "bkOpen": openPdf(b.dataset.v, +b.dataset.p || 1); break;
     case "bkRepl": { const inp = $("replIn"); inp.dataset.v = b.dataset.v; inp.click(); break; }
     case "bkEdit": editBook = b.dataset.v; render(); document.getElementById("bkEdit")?.scrollIntoView({block:"nearest"}); break;
@@ -2644,6 +2662,8 @@ document.addEventListener("input", ev => {
   if (t.dataset.sn){ const i = +t.dataset.sn, list = schulen(), alt = list[i], neu = t.value.trim(); if (!neu || alt === undefined || list.includes(neu)) return; list[i] = neu; db.schulen = list; db.students.forEach(s => { if (s.schule === alt) s.schule = neu; }); if (filt.schule === alt) filt.schule = neu; save(); return; }
   const card = t.closest("[data-sid]"); if (!card) return;
   const s = S(card.dataset.sid); if (!s) return;
+  if (t.dataset.ld){ const l = db.lessons.find(x => x.id === t.dataset.ld), v = t.value; if (!l || !/^\d{4}-\d\d-\d\d$/.test(v) || v === l.datum) return;
+    if (getLesson(l.sid, v)){ toast("An diesem Tag gibt es schon eine Lektion."); t.value = l.datum; return; } l.datum = v; saveL(l.id); render(); return; }
   if ("fd" in t.dataset){ const v = t.value; if (!/^\d{4}-\d\d-\d\d$/.test(v)) return; const l = getLesson(s.id, card.dataset.d);
     if (l && v !== l.datum){ if (getLesson(s.id, v)){ toast("An diesem Tag gibt es schon eine Lektion."); t.value = l.datum; return; } l.datum = v; saveL(l.id); } else if (!l) freiDate[s.id] = v;
     weekStart = monday(parse(v)); selSid = s.id; selD = v; render(); return; }
@@ -2659,7 +2679,7 @@ window.addEventListener("beforeunload", () => { if (mode === "local") flush(); }
 /* ---------- Literatur: Katalog (eigenes Dokument), Zuweisungen pro SuS (s.lit), Notenviewer ---------- */
 let books = [], litRef = null, booksDirty = false, lastBooksJson = "", assetsNs = null;
 let litF = {q:"", kat:"Alle", instr:"", stufe:"", sort:"titel", group:true}, editBook = null;
-const KATS = ["Lehrmittel","Stücke","Unterrichtsblätter","Play-Along"];
+const KATS = ["Lehrmittel","Stücke","Unterrichtsblätter","Songs","Play-Along"];
 const STK = {"1":"1","2":"2","3":"3","4":"4","5":"5","6":"6","frühe Förderung":"fF","Unterstufe":"U","Mittelstufe":"M","Oberstufe":"O"};
 function lpBooks(stufe, bereich){ return books.filter(b => (b.stufen||[]).includes(stufe) && (bereich ? (b.instr||[]).includes(bereich) : !(b.instr||[]).length)).sort((a,b) => a.titel.localeCompare(b.titel, "de")); }
 function lpBookLinks(stufe, bereich){ const bs = lpBooks(stufe, bereich); return bs.length ? `<div style="margin-top:8px"><span class="badge b-ac">Im Klassenbuch</span><div class="lit-marks">${bs.map(b => `<button class="chip" data-a="bkOpen" data-v="${b.id}">${esc(b.titel)}</button>`).join("")}</div></div>` : ""; }
@@ -2882,15 +2902,23 @@ function vLiteratur(){
   const kats = ["Alle", ...KATS.filter(k => books.some(b => b.kat === k)), ...new Set(books.map(b => b.kat).filter(k => !KATS.includes(k)))];
   const cnt = k => k === "Alle" ? books.length : k === "♫" ? books.filter(b => (b.links||[]).length).length : books.filter(b => b.kat === k).length;
   if (feat("audio") && books.some(b => (b.links||[]).length)) kats.push("♫");
+  const songForm = !songF ? "" : `<div class="card song-f"><b>Song hinzufügen</b>
+    <div class="f" style="margin-top:8px">
+      <div><label for="sf-t">Titel</label><input id="sf-t" placeholder="z. B. Autumn Leaves" autocomplete="off" value="${esc(songF.t || "")}"></div>
+      <div><label for="sf-a">Interpret / Komponist (optional)</label><input id="sf-a" autocomplete="off" value="${esc(songF.a || "")}"></div>
+      <div style="grid-column:1/-1"><label for="sf-u">Link (Spotify, YouTube …)</label><input id="sf-u" type="url" inputmode="url" placeholder="https://…" value="${esc(songF.u || "")}"></div>
+      <div style="grid-column:1/-1"><label for="sf-b">Gehört zu</label><select id="sf-b"><option value="">Ohne Noten (eigener Eintrag)</option>${books.filter(x => (x.teile || []).length).slice().sort((x, y) => cmp(x.titel, y.titel)).map(x => `<option value="${x.id}" ${x.id === songF.bid ? "selected" : ""}>${esc(x.titel)}</option>`).join("")}</select></div></div>
+    <div class="row" style="margin-top:12px"><button class="pri" data-a="songGo">Hinzufügen</button><button class="ghost" data-a="songX">Abbrechen</button></div></div>`;
   const th = (k, t, cls) => `<th class="${cls||""}"><button class="ghost th-s ${key===k?"on":""}" data-a="litSort" data-v="${k}">${t}${key===k?" ↓":""}</button></th>`;
   let html = `<div class="row" style="margin-bottom:12px"><h2 style="margin:0">Literatur</h2><span class="sp"></span>
-    ${feat("audio") ? `<button data-a="bkNew">Play-Along ohne Noten</button>` : ""}${assetsNs ? `<button data-a="litUp">PDF hinzufügen</button>` : ""}${typeof audPut === "function" ? `<button data-a="audUp" title="ZIP-Datei oder MP3s, z. B. Playbacks zu einem Liederbuch">Lieder importieren</button>` : ""}</div>
+    ${feat("audio") ? `<button data-a="songNew" title="Song mit Link, mit oder ohne Noten">♫ Song hinzufügen</button>` : ""}${assetsNs ? `<button data-a="litUp">PDF hinzufügen</button>` : ""}${typeof audPut === "function" ? `<button data-a="audUp" title="ZIP-Datei oder MP3s, z. B. Playbacks zu einem Liederbuch">Lieder importieren</button>` : ""}</div>
   ${audMissing().length ? `<div class="banner">${audMissing().length === 1 ? "Die Lieder von «" + esc(audMissing()[0].titel) + "» sind" : audMissing().length + " Liederbücher sind"} nicht auf diesem Gerät gespeichert. Tippe auf «Lieder importieren» und wähle dieselbe ZIP-Datei wie auf dem anderen Gerät.</div>` : ""}
   <div class="row" style="margin-bottom:8px"><div class="seg">${kats.map(k => `<button class="${litF.kat===k?"on":""}" data-a="litKat" data-v="${esc(k)}">${k === "♫" ? "♫ Aufnahmen" : esc(k)} <span class="tiny num">${cnt(k)}</span></button>`).join("")}</div></div>
   <div class="row" style="margin-bottom:12px"><input id="litQ" type="search" placeholder="Suchen: Titel, Autor, Lesezeichen …" value="${esc(litF.q)}" style="flex:1 1 220px;width:auto" aria-label="Literatur suchen">
     <div class="seg"><button class="${litF.group?"on":""}" data-a="litGrp" data-v="1">Nach Ordnern</button><button class="${litF.group?"":"on"}" data-a="litGrp" data-v="">Liste</button></div>
     <select id="litI" style="width:auto" aria-label="Bereich"><option value="">Alle Bereiche</option>${instrL().map(k => `<option ${litF.instr===k?"selected":""}>${k}</option>`).join("")}</select>
     <select id="litSt" style="width:auto" aria-label="Stufe"><option value="">Alle Stufen</option>${stufenL().map(k => `<option ${litF.stufe===k?"selected":""}>${k}</option>`).join("")}<option value="-" ${litF.stufe==="-"?"selected":""}>Ohne Stufe</option></select></div>`;
+  html += songForm;
   if (typeof pdfMissingBanner === "function") html += pdfMissingBanner();
   if (!books.length) html += `<div class="card empty"><h2>Noch keine Literatur</h2><p class="muted">Tippe auf «PDF hinzufügen» und wähle deine Noten aus.</p></div>`;
   else if (!list.length) html += `<p class="muted">Nichts gefunden.</p>`;
@@ -2910,7 +2938,7 @@ function vLiteratur(){
       return `<tr class="lit-v ${open ? "open" : ""}">
         <td class="c-t"><button class="lit-open" data-a="litVg" data-v="${esc(x.key)}" aria-expanded="${open}">${esc(x.base)}</button><div class="tiny">${it.length} ${it.every(b => b.kat === "Stücke") || it.some(b => /partitur/i.test(b.titel)) ? "Stimmen" : "Teile"}: ${esc(names.join(", "))}</div></td>
         <td class="c-a small muted">${esc((a => a.length > 1 ? "Verschiedene" : a[0] || "")([...new Set(it.map(b => b.autor).filter(Boolean))]))}</td>
-        ${litF.kat==="Alle"||litF.kat==="♫" ? `<td class="c-k"><span class="badge ${{Lehrmittel:"b-ac","Stücke":"b-pu","Unterrichtsblätter":"b-te","Play-Along":"b-wa"}[kat]||"b-gr"}">${esc(kat)}</span></td>` : ""}
+        ${litF.kat==="Alle"||litF.kat==="♫" ? `<td class="c-k"><span class="badge ${{Lehrmittel:"b-ac","Stücke":"b-pu","Unterrichtsblätter":"b-te","Play-Along":"b-wa",Songs:"b-ac"}[kat]||"b-gr"}">${esc(kat)}</span></td>` : ""}
         <td class="c-b tiny">${esc(instr.join(", "))}</td>
         <td class="c-st"><span class="stk">${st.map(s => `<abbr title="${s}">${STK[s]}</abbr>`).join("")}</span></td>
         <td class="c-s small num muted">${it.length} ×</td>
@@ -2925,7 +2953,7 @@ function vLiteratur(){
         <div><label for="be-ordner">Ordner</label><input id="be-ordner" value="${esc(b.ordner)}"></div>
         <div><label for="be-kat">Kategorie</label><select id="be-kat">${[...new Set([...KATS, b.kat])].map(k => `<option ${b.kat===k?"selected":""}>${esc(k)}</option>`).join("")}</select></div>
         <div><label for="be-off">Heftseite 1 = PDF-Seite</label><input id="be-off" type="number" inputmode="numeric" value="${(b.off||0)+1}"></div>
-        <div style="grid-column:1/-1" ${feat("audio") ? "" : "hidden"}><label for="be-links">Aufnahmen: ein Link pro Zeile (Spotify, YouTube, Apple Music …), optional mit Namen davor</label><textarea id="be-links" rows="2" placeholder="Original https://open.spotify.com/track/…&#10;Play-Along https://youtu.be/…">${esc((b.links||[]).map(l => (l.t ? l.t + " " : "") + l.u).join("\n"))}</textarea></div></div>
+        <div style="grid-column:1/-1" ${feat("audio") ? "" : "hidden"}><label for="be-links">Songs und Aufnahmen: ein Link pro Zeile (Spotify, YouTube, Apple Music …), mit dem Songtitel davor</label><textarea id="be-links" rows="2" placeholder="Original https://open.spotify.com/track/…&#10;Play-Along https://youtu.be/…">${esc((b.links||[]).map(l => (l.t ? l.t + " " : "") + l.u).join("\n"))}</textarea></div></div>
         <label style="margin-top:8px">Stufen</label><div class="row" id="be-stufen">${stufenL().map(k => `<button class="chip ${(b.stufen||[]).includes(k)?"on":""}" data-a="evs" data-v="${k}">${k}</button>`).join("")}</div>
         <label style="margin-top:8px">Bereiche</label><div class="row" id="be-instr">${instrL().map(k => `<button class="chip ${(b.instr||[]).includes(k)?"on":""}" data-a="evs" data-v="${k}">${k}</button>`).join("")}</div>
         <div class="row" style="margin-top:10px"><button class="pri" data-a="bkSave" data-v="${b.id}">Speichern</button><button data-a="bkCancel">Abbrechen</button><span class="sp"></span>${typeof storePdf === "function" && (b.teile||[]).length ? `<button data-a="bkRepl" data-v="${b.id}" title="Zum Beispiel eine korrigierte Fassung mit gedrehten Seiten">PDF ersetzen</button>` : ""}<button class="del" data-a="bkDel" data-v="${b.id}">Aus Katalog entfernen</button></div></div></td></tr>`;
@@ -2933,12 +2961,12 @@ function vLiteratur(){
         <td class="c-t"><button class="lit-open" data-a="bkOpen" data-v="${b.id}">${esc(voice || b.titel)}</button>${playBtns(b, "lit-play")}<div class="tiny m-only">${esc(meta)}</div>
           ${(b.marks||[]).length ? `<div class="lit-marks">${b.marks.slice().sort((x,y) => x.p - y.p).map(m => `<button class="chip" data-a="bkOpen" data-v="${b.id}" data-p="${m.p}">${esc(m.t)} · S. ${m.p - (b.off||0)}</button>`).join("")}</div>` : ""}</td>
         <td class="c-a small muted">${esc(b.autor)}</td>
-        ${litF.kat==="Alle"||litF.kat==="♫" ? `<td class="c-k"><span class="badge ${{Lehrmittel:"b-ac","Stücke":"b-pu","Unterrichtsblätter":"b-te","Play-Along":"b-wa"}[b.kat]||"b-gr"}">${esc(b.kat)}</span></td>` : ""}
+        ${litF.kat==="Alle"||litF.kat==="♫" ? `<td class="c-k"><span class="badge ${{Lehrmittel:"b-ac","Stücke":"b-pu","Unterrichtsblätter":"b-te","Play-Along":"b-wa",Songs:"b-ac"}[b.kat]||"b-gr"}">${esc(b.kat)}</span></td>` : ""}
         <td class="c-b tiny">${esc((b.instr||[]).join(", "))}</td>
         <td class="c-st"><span class="stk">${(b.stufen||[]).map(s => `<abbr title="${s}">${STK[s]}</abbr>`).join("")}</span>${b.lp ? ` <span class="tiny" title="Steht im Lehrplan">LP</span>` : ""}</td>
         <td class="c-s small num muted">${b.seiten || "–"}</td>
         <td>${us.map(s => `<a class="badge b-ac" href="#s-${s.id}" style="text-decoration:none">${esc(s.name.split(" ")[0])}</a>`).join(" ")}</td>
-        <td style="text-align:right"><button class="ghost small" data-a="bkEdit" data-v="${b.id}" aria-label="${esc(b.titel)} bearbeiten">Bearbeiten</button></td></tr>`;
+        <td style="text-align:right;white-space:nowrap">${feat("audio") && (b.teile || []).length ? `<button class="ghost small" data-a="songNew" data-v="${b.id}" title="Song zu diesem PDF hinzufügen" aria-label="Song zu ${esc(b.titel)} hinzufügen">♫+</button> ` : ""}<button class="ghost small" data-a="bkEdit" data-v="${b.id}" aria-label="${esc(b.titel)} bearbeiten">Bearbeiten</button></td></tr>`;
   }
   app.innerHTML = html;
   const qi = document.getElementById("litQ"); qi.oninput = () => { litF.q = qi.value; const pos = qi.selectionStart; vLiteratur(); const n = document.getElementById("litQ"); n.focus(); n.setSelectionRange(pos, pos); };
@@ -3135,7 +3163,7 @@ $("pv").addEventListener("click", ev => {
     case "cropOk": cropEnd(true); break;
     case "cropFull": cropEnd(true, true); break;
     case "out": pv.zoom = Math.max(.5, pv.zoom / 1.25); pvShow(); break;
-    case "assign": case "mark": if (pv.crop) cropEnd(false); pv.pop = pv.pop === t.dataset.pv ? null : t.dataset.pv; pvPopRender(); break;
+    case "assign": case "mark": if (pv.crop) cropEnd(false); if (ink_.on){ ink_.on = false; inkBar(); inkDraw(); } pv.pop = pv.pop === t.dataset.pv ? null : t.dataset.pv; pvPopRender(); break;
     case "ink": ink_.on = !ink_.on; if (ink_.on && pv.pop){ pv.pop = null; pvPopRender(); } inkBar(); inkDraw(); break;
     case "popx": if (pv.crop){ cropEnd(false); break; } pv.pop = null; pvPopRender(); break;
     case "assignOk": {
