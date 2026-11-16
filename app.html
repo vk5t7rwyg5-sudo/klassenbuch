@@ -149,7 +149,7 @@ button:disabled{opacity:.4;cursor:default}
 .song-f{margin-bottom:12px}.ed-lit{margin-top:8px}.ed-lit summary{cursor:pointer;color:var(--ac);padding:4px 0}.ld-d{display:block;width:auto;margin-top:4px;padding:3px 6px;font-size:13px}
 main{padding-bottom:calc(60px + var(--mph,0px))}
 #toast{bottom:calc(16px + env(safe-area-inset-bottom,0px) + var(--mph,0px))}
-.fr-z{margin-top:6px;gap:8px}.fr-z input{width:auto}.pk-add{margin-top:8px;align-self:flex-start}.fr-f{margin-bottom:12px}
+.fr-z{margin-top:10px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}.fr-z>div{flex:1 1 140px;max-width:200px;min-width:0}.fr-z label{margin-top:0}.fr-z .del{flex:none}.pk-add{margin-top:8px;align-self:flex-start}.fr-f{margin-bottom:12px}
 .set-g{grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))}.set-t{display:flex;gap:14px;align-items:center;text-decoration:none;color:inherit;min-height:92px}
 .set-i{flex:none;width:44px;height:44px;border-radius:50%;background:var(--card);display:grid;place-items:center}.set-i svg{width:22px;height:22px}
 .set-x{flex:1;min-width:0;display:grid;gap:3px;justify-items:start}.set-x .small{color:var(--tx2)}.set-c{font-size:22px;color:var(--tx2)}
@@ -832,7 +832,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.16-1903 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.16-1908 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -2125,7 +2125,7 @@ function vWoche(){
   const editor = `<div class="card ed" data-sid="${s.id}" data-d="${d}">
     <div class="row"><div style="min-width:0"><a href="#s-${s.id}" class="ed-name">${esc(s.name)}</a>
       <div class="small muted num">${[fr ? "" : s.tag ? TAGE[s.tag]+" "+fmt(d,1) : fmt(d,1), fr ? "" : esc(s.zeit || ""), s.dauer ? s.dauer+" Min." : "", esc(alterTxt(s) || ""), esc(sStufeL(s))].filter(Boolean).join(" · ")}</div>${s.typ==="Gruppe" ? gList(s) : ""}
-      ${fr ? `<div class="row fr-z"><label for="fd-${s.id}" class="small" style="margin:0">Datum</label><input id="fd-${s.id}" type="date" data-fd value="${l.id ? d : ""}"><label for="fz-${s.id}" class="small" style="margin:0">Zeit</label><input id="fz-${s.id}" type="time" data-f="zeit" value="${esc(l.zeit || s.zeit || "")}">${l.id ? `<button class="ghost del small" data-a="freiDel">Termin löschen</button>` : ""}</div>
+      ${fr ? `<div class="fr-z"><div><label for="fd-${s.id}">Datum</label><input id="fd-${s.id}" type="date" data-fd value="${l.id ? d : ""}"></div><div><label for="fz-${s.id}">Zeit</label><input id="fz-${s.id}" type="time" data-f="zeit" value="${esc(l.zeit || s.zeit || "")}"></div>${l.id ? `<button class="ghost del small" data-a="freiDel">Termin löschen</button>` : ""}</div>
       ${l.id ? "" : `<div class="tiny" style="margin-top:4px">Wähle das Datum der Lektion. Ohne Datum gilt ${fmt(d, 1)}.</div>`}` : ""}</div>
       <span class="sp"></span>
       <div class="seg">${STATUS.map(([k,t]) => `<button class="${l.status===k?"on s-"+k:""}" data-a="att" data-st="${k}">${t}</button>`).join("")}</div></div>
