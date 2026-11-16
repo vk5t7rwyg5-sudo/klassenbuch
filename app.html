@@ -68,6 +68,8 @@ input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and
 input[type=date]::-webkit-datetime-edit,input[type=time]::-webkit-datetime-edit{padding:0;line-height:38px}
 input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-calendar-picker-indicator{margin:0}
 .f>*,.sb>*,.fr-z>*{min-width:0}
+.f>div,.sb>div,.fr-z>div{overflow:hidden;padding:2px;margin:-2px}
+input[type=date],input[type=time]{inline-size:100%;max-inline-size:100%;contain:inline-size}
 .f{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
 .badge{font-size:12px;padding:2px 8px;border-radius:6px;white-space:nowrap;display:inline-block}
 .b-ac{background:var(--acbg);color:var(--ac)}.b-ok{background:var(--okbg);color:var(--ok)}.b-wa{background:var(--wabg);color:var(--wa)}.b-da{background:var(--dabg);color:var(--da)}.b-pu{background:var(--pubg);color:var(--pu)}.b-te{background:var(--tebg);color:var(--te)}.b-gr{background:var(--soft);color:var(--tx2)}
@@ -837,7 +839,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.16-1914 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.16-1916 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
