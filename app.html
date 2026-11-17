@@ -46,6 +46,7 @@ header,main,dialog,#toast,#mp{zoom:var(--z,1)}
 nav{display:flex;flex-wrap:wrap;gap:2px}
 nav a{color:var(--tx2);text-decoration:none;padding:7px 12px;border-radius:var(--r);font-size:14px}
 nav a.on{background:var(--acbg);color:var(--ac);font-weight:500}
+.subnav{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;margin:0 0 14px;background:var(--card);border:1px solid var(--bd2);border-radius:999px}.subnav a{color:var(--tx2);text-decoration:none;padding:5px 14px;border-radius:999px;font-size:13.5px}.subnav a.on{background:var(--acbg);color:var(--ac);font-weight:600}
 #sync{font-size:12px;color:var(--tx3);margin-left:auto}
 #tools{display:flex;gap:2px;margin-left:6px}#tools a{display:grid;place-items:center;width:38px;height:38px;border-radius:var(--r);color:var(--tx2)}#tools a:hover{color:var(--tx);background:var(--soft)}#tools a.on{background:var(--acbg);color:var(--ac)}#tools svg{width:21px;height:21px}
 main{max-width:1100px;margin:auto;padding-block:16px 60px}
@@ -269,7 +270,7 @@ function kbBuntCss(c){var ok=function(x){return /^#[0-9a-fA-F]{6}$/.test(x||"");
 function kbBuntApply(){var c=null;try{c=JSON.parse(localStorage.getItem("kb-bunt")||"null");}catch(e){}var el=document.getElementById("kbBunt");if(!el){el=document.createElement("style");el.id="kbBunt";document.head.appendChild(el);}el.textContent=kbBuntCss(c);}
 kbBuntApply();</script>
 
-<header class="gut"><div class="top"><a class="brand" href="#woche" aria-label="Klassenbuch, zu den Notizen"><svg xmlns="http://www.w3.org/2000/svg" viewBox="35 45 289 270" aria-hidden="true"> <defs><clipPath id="kbh0"><rect x="0" y="105" width="28" height="28"/></clipPath><clipPath id="kbh1"><rect x="84" y="105" width="28" height="28"/></clipPath><clipPath id="kbh2"><rect x="168" y="105" width="28" height="28"/></clipPath><clipPath id="kbh3"><rect x="252" y="105" width="28" height="28"/></clipPath></defs> <g transform="translate(39.2 49.21)" fill="currentColor"> <rect x="20" y="0" width="260" height="18"/> <polygon points="20,0 28,0 28,105 20,113"/><polygon points="104,0 112,0 112,105 104,113"/><polygon points="188,0 196,0 196,105 188,113"/><polygon points="272,0 280,0 280,105 272,113"/> <g fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="butt"><path clip-path="url(#kbh0)" d="M-4 101 L32 137 M32 101 L-4 137"/><path clip-path="url(#kbh1)" d="M80 101 L116 137 M116 101 L80 137"/><path clip-path="url(#kbh2)" d="M164 101 L200 137 M200 101 L164 137"/><path clip-path="url(#kbh3)" d="M248 101 L284 137 M284 101 L248 137"/></g> <path d="M0.0 259.989501953125H25.89111328125V236.149169921875L37.68310546875 222.6268310546875L60.0494384765625 259.989501953125H90.5548095703125L55.37109375 205.5797119140625L88.7603759765625 164.5H58.062744140625L39.093017578125 189.0452880859375C32.7484130859375 197.3125 28.7750244140625 203.1444091796875 25.4425048828125 209.2967529296875L25.89111328125 185.0078125V164.5H0.0ZM94.4051513671875 259.989501953125H139.3941650390625C160.09423828125 259.989501953125 172.8475341796875 248.6461181640625 172.8475341796875 232.94482421875C172.8475341796875 219.486572265625 162.9781494140625 210.7066650390625 150.6734619140625 210.258056640625V209.232666015625C161.760498046875 207.1177978515625 169.1304931640625 198.9146728515625 169.1304931640625 188.34033203125C169.1304931640625 173.856689453125 157.5948486328125 164.5 135.8052978515625 164.5H94.4051513671875ZM120.2962646484375 239.353515625V219.10205078125H132.8572998046875C140.6759033203125 219.10205078125 145.5465087890625 222.8831787109375 145.5465087890625 229.6123046875C145.5465087890625 235.9569091796875 141.12451171875 239.353515625 132.4727783203125 239.353515625ZM120.2962646484375 203.080322265625V184.879638671875H131.3192138671875C137.7279052734375 184.879638671875 142.4703369140625 188.1480712890625 142.4703369140625 193.97998046875C142.4703369140625 199.8759765625 137.7279052734375 203.080322265625 130.9346923828125 203.080322265625Z"/> </g></svg><span>Klassenbuch</span></a><nav id="nav"></nav><span id="sync"></span><div id="tools"></div></div></header>
+<header class="gut"><div class="top"><a class="brand" href="#woche" aria-label="Klassenbuch, zur Woche"><svg xmlns="http://www.w3.org/2000/svg" viewBox="35 45 289 270" aria-hidden="true"> <defs><clipPath id="kbh0"><rect x="0" y="105" width="28" height="28"/></clipPath><clipPath id="kbh1"><rect x="84" y="105" width="28" height="28"/></clipPath><clipPath id="kbh2"><rect x="168" y="105" width="28" height="28"/></clipPath><clipPath id="kbh3"><rect x="252" y="105" width="28" height="28"/></clipPath></defs> <g transform="translate(39.2 49.21)" fill="currentColor"> <rect x="20" y="0" width="260" height="18"/> <polygon points="20,0 28,0 28,105 20,113"/><polygon points="104,0 112,0 112,105 104,113"/><polygon points="188,0 196,0 196,105 188,113"/><polygon points="272,0 280,0 280,105 272,113"/> <g fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="butt"><path clip-path="url(#kbh0)" d="M-4 101 L32 137 M32 101 L-4 137"/><path clip-path="url(#kbh1)" d="M80 101 L116 137 M116 101 L80 137"/><path clip-path="url(#kbh2)" d="M164 101 L200 137 M200 101 L164 137"/><path clip-path="url(#kbh3)" d="M248 101 L284 137 M284 101 L248 137"/></g> <path d="M0.0 259.989501953125H25.89111328125V236.149169921875L37.68310546875 222.6268310546875L60.0494384765625 259.989501953125H90.5548095703125L55.37109375 205.5797119140625L88.7603759765625 164.5H58.062744140625L39.093017578125 189.0452880859375C32.7484130859375 197.3125 28.7750244140625 203.1444091796875 25.4425048828125 209.2967529296875L25.89111328125 185.0078125V164.5H0.0ZM94.4051513671875 259.989501953125H139.3941650390625C160.09423828125 259.989501953125 172.8475341796875 248.6461181640625 172.8475341796875 232.94482421875C172.8475341796875 219.486572265625 162.9781494140625 210.7066650390625 150.6734619140625 210.258056640625V209.232666015625C161.760498046875 207.1177978515625 169.1304931640625 198.9146728515625 169.1304931640625 188.34033203125C169.1304931640625 173.856689453125 157.5948486328125 164.5 135.8052978515625 164.5H94.4051513671875ZM120.2962646484375 239.353515625V219.10205078125H132.8572998046875C140.6759033203125 219.10205078125 145.5465087890625 222.8831787109375 145.5465087890625 229.6123046875C145.5465087890625 235.9569091796875 141.12451171875 239.353515625 132.4727783203125 239.353515625ZM120.2962646484375 203.080322265625V184.879638671875H131.3192138671875C137.7279052734375 184.879638671875 142.4703369140625 188.1480712890625 142.4703369140625 193.97998046875C142.4703369140625 199.8759765625 137.7279052734375 203.080322265625 130.9346923828125 203.080322265625Z"/> </g></svg><span>Klassenbuch</span></a><nav id="nav"></nav><span id="sync"></span><div id="tools"></div></div></header>
 <main id="app" class="gut"><div class="empty"><h2>Klassenbuch wird geladen</h2><p class="muted">Deine Daten werden geholt.</p></div></main>
 <input type="file" id="fileIn" accept=".json,application/json" hidden>
 <dialog id="dlg"><p id="dlgText" style="margin-top:0"></p><div class="row" style="justify-content:flex-end"><button id="dlgNo">Abbrechen</button><button id="dlgYes" class="pri">OK</button></div></dialog>
@@ -854,22 +855,19 @@ function vDatenApp(){
   // Einstellungen als Kacheln (#daten), jede Gruppe auf einer eigenen Seite (#daten-<gruppe>)
   const rc = rgCfg(), days = db.lastBackup ? Math.floor((Date.now() - db.lastBackup) / 864e5) : null;
   const groups = [
+    ["unterricht", "Unterricht", '<path d="M4 19V5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h6M8 11h6"/>',
+      `${schulen().length} ${schulen().length === 1 ? "Schule" : "Schulen"} · ${msInstrs().length} ${msInstrs().length === 1 ? "Instrument" : "Instrumente"} · Hausaufgabenexport`, imp ? "Import offen" : "",
+      () => schulenCard() + slCard() + slPreview() + planCard() + hwCard()],
+    ["funktionen", "Funktionen", '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
+      `${FEATS.filter(x => feat(x[0])).length} von ${FEATS.length} eingeschaltet${feat("rg") ? " · " + (rc.name ? `Rechnungen CHF ${chf(rc.tarif)} pro 30 Min.` : "Rechnungsangaben fehlen") : ""}`, feat("rg") && !rc.name ? "Rechnung einrichten" : "",
+      () => noH(featCard(), "Funktionen") + rgCard()],
     ["darstellung", "Darstellung", '<circle cx="12" cy="12" r="9"/><path d="M12 3v18M12 3a9 9 0 0 1 0 18"/>',
       `${lbl(THEMES, pref("kb-theme", "dark"))} · ${lbl(PALETTES, pref("kb-palette", "bunt"))} · Schrift ${lbl(ZOOMS, pref("kb-zoom", "1")).toLowerCase()}`, "",
       () => noH(appearanceCard(), "Darstellung")],
-    ["unterricht", "Unterricht", '<path d="M4 19V5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M8 7h6M8 11h6"/>',
-      `${msInstrs().length} ${msInstrs().length === 1 ? "Instrument" : "Instrumente"} · ${schulen().length} ${schulen().length === 1 ? "Schule" : "Schulen"} · Elterntext`, imp ? "Import offen" : "",
-      () => slPreview() + planCard() + hwCard() + schulenCard() + slCard()],
-    ["funktionen", "Funktionen", '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
-      `${FEATS.filter(x => feat(x[0])).length} von ${FEATS.length} eingeschaltet`, "",
-      () => noH(featCard(), "Funktionen")],
-    ...(feat("rg") ? [["rechnungen", "Rechnungen", '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
-      rc.name ? `CHF ${chf(rc.tarif)} pro 30 Min. · ${(db.invoices || []).length} ${(db.invoices || []).length === 1 ? "Rechnung" : "Rechnungen"}` : "Name und Adresse fehlen noch", rc.name ? "" : "Einrichten",
-      () => noH(rgCard(), "Rechnungen")]] : []),
-    ["konto", "Konto, Sync und Backup", '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    ["konto", "Konto und Daten", '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
       `${acc ? `${acc.email} · Abgleich ${ls}` : "Nicht angemeldet: Einträge nur auf diesem Gerät"} · Backup ${days === null ? "noch nie" : days === 0 ? "heute" : "vor " + days + (days === 1 ? " Tag" : " Tagen")}`,
       syncErr ? "Sync-Fehler" : rkShow ? "Schlüssel sichern" : !acc && db.lessons.length && (days === null || days >= 7) ? "Backup fällig" : "",
-      () => rkCard() + `<h3>Konto und Sync</h3>` + card + pdfCard() + `<h3>Backup</h3>` + backup]];
+      () => rkCard() + `<h3>Konto und Sync</h3>` + card + pdfCard() + `<h3>Sicherung</h3>` + backup]];
   const svg = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
   const g = groups.find(x => x[0] === page);
   if (g){
@@ -877,7 +875,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1616 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1633 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1528,7 +1526,7 @@ async function slLoad(files){
   if (imp){ location.hash = "daten-unterricht"; render(); window.scrollTo(0, 0); }
 }
 function slCard(){
-  return `<h3>Schülerlisten</h3><div class="card"><p style="margin-top:0;max-width:65ch">Lade eine oder mehrere Schülerlisten, zum Beispiel den Export aus Escada (CSV, Excel oder PDF). Neue Schüler:innen werden angelegt, bestehende anhand des Namens erkannt und ihre Kontakte und Geburtsdaten ergänzt. Vor dem Übernehmen siehst du alles in einer Vorschau.</p>
+  return `<h3>Schülerlisten</h3><div class="card"><p class="small muted" style="margin-top:0;max-width:65ch">Lade eine oder mehrere Schülerlisten, zum Beispiel den Export aus Escada (CSV, Excel oder PDF). Neue Schüler:innen werden angelegt, bestehende anhand des Namens erkannt und ihre Kontakte und Geburtsdaten ergänzt. Vor dem Übernehmen siehst du alles in einer Vorschau.</p>
     <button class="pri" data-a="slLoad">Schülerliste laden</button></div>`;
 }
 function slOpts(r, groups){
@@ -1631,15 +1629,19 @@ function route(){ const h = location.hash.slice(1) || "woche"; const i = h.index
 function render(){
   if (!(loaded.meta && loaded.lessons)) return;
   const {v, id} = route();
-  const tabs = [["woche","Notizen"],["sus","SuS"],...(feat("lp") ? [["lehrplan","Lehrplan"]] : []),["literatur","Literatur"],["kalender","Kalender"]];
-  const cur = v === "s" || v === "bericht" ? "sus" : v === "stv" ? "woche" : v;
+  const tabs = [["woche","Woche"],["sus","SuS"],["literatur","Material"],["kalender","Jahr"]];
+  const cur = v === "s" || v === "bericht" || v === "rechnung" ? "sus" : v === "stv" ? "woche" : v === "lehrplan" ? "literatur" : v === "planung" ? "kalender" : v;
+  const subs = {sus:[["sus","Schüler:innen"],...(feat("rg") && sorted().some(isPriv) ? [["rechnung","Rechnungen"]] : [])],
+    literatur:[["literatur","Literatur"],...(feat("lp") ? [["lehrplan","Lehrplan"]] : [])],
+    kalender:[["kalender","Kalender"],...(feat("pl") ? [["planung","Stundenplanung"]] : [])]}[cur] || [];
+  const subNav = subs.length > 1 ? `<div class="subnav">${subs.map(([k,n]) => `<a href="#${k}" class="${v===k?"on":""}">${n}</a>`).join("")}</div>` : "";
   document.getElementById("nav").innerHTML = tabs.map(([k,t]) => `<a href="#${k}" class="${cur===k?"on":""}">${t}</a>`).join("");
   const svgI = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
-  const tools = [...(feat("rg") && sorted().some(isPriv) ? [["rechnung", "Rechnungen", '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>']] : []),
-    ...(feat("pl") ? [["planung", "Stundenplanung", '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/>']] : []),
+  const tools = [
     ["daten", "Einstellungen", '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.9 2.9l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.9l.1-.1a1.7 1.7 0 0 0-1.2-2.8H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.9-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.8 1.2l.1-.1a2 2 0 1 1 2.9 2.9l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>']];
   document.getElementById("tools").innerHTML = tools.map(([k, t, d]) => `<a href="#${k}" class="${cur === k ? "on" : ""}" title="${t}" aria-label="${t}" ${cur === k ? 'aria-current="page"' : ""}>${svgI(d)}</a>`).join("");
   ({woche:vWoche, sus:vSus, s:()=>vDetail(id), kalender:vKalender, lehrplan:vLehrplan, literatur:vLiteratur, daten:vDatenApp, stv:vStv, rechnung:vRechnung, planung:vPlanung, bericht:()=>vBericht(id)}[v] || vWoche)();
+  if (subNav) app.insertAdjacentHTML("afterbegin", subNav);
   app.querySelectorAll("textarea").forEach(autosize);
 }
 function autosize(el){ el.style.height = "auto"; el.style.height = (el.scrollHeight + 2) + "px"; }
@@ -1905,7 +1907,7 @@ function vRechnung(){
   const row = x => `<label class="rg-r"><input type="checkbox" data-rgc="${rgK(x)}" ${rgIsOn(x) ? "checked" : ""}><span class="num">${x.abo ? "ab " + fmt(x.von, 1) : rgDay(x.d)}</span><span class="tiny">${esc(x.st)}</span><span class="sp"></span><span class="tiny num">${x.abo ? x.n + " × " : ""}${x.min} Min.</span><span class="num">${chf(x.chf)}</span></label>`;
   app.innerHTML = `<h2>Rechnungen</h2>
   <div class="row" style="margin-bottom:12px">${list.map(p => { const o = rgItems(p).main.filter(x => x.def).length; return `<button class="chip ${p.id === s.id ? "on" : ""}" data-a="rgPick" data-v="${p.id}">${esc(p.name)}${o ? ` <span class="num">· ${o}</span>` : ""}</button>`; }).join("")}</div>
-  ${cfg.name ? "" : `<div class="banner">Trage zuerst unter <a href="#daten-rechnungen">Einstellungen → Rechnungen</a> deinen Namen und deine Adresse ein.</div>`}
+  ${cfg.name ? "" : `<div class="banner">Trage zuerst unter <a href="#daten-funktionen">Einstellungen → Funktionen</a> deinen Namen und deine Adresse ein.</div>`}
   <div class="card"><div class="row"><b>Noch nicht verrechnet</b><span class="sp"></span><label class="small" for="rg-bis" style="margin:0">Termine bis</label><input type="date" id="rg-bis" data-rgf="bis" value="${esc(rg.bis || today())}" style="width:auto"></div>
     <div class="rg-l">${main.map(row).join("") || `<p class="muted small">${isAbo(s) ? `Alle Abos sind verrechnet. Ein neues Abo legst du bei <a href="#s-${s.id}">${esc(s.name)}</a> an.` : "Keine offenen Termine mit Eintrag."}</p>`}</div>
     ${more.length ? `<details style="margin-top:8px"><summary class="small">${more.length} weitere Termine laut Stundenplan, ohne Eintrag</summary><div class="rg-l">${more.map(row).join("")}</div></details>` : ""}
@@ -2127,7 +2129,7 @@ function hwText(s, d, auf, tpl){
 }
 function hwPreview(){ const s = {name: "Lea Muster", eltern: "Familie Muster", typ: "Einzel", msInstr: ""}; return hwText({...s, stufe: "Unterstufe"}, today(), "Groove Seite 12 langsam üben\nRudiment Paradiddle", $("hwT") ? $("hwT").value : undefined); }
 function hwCard(){
-  return `<h3>Text für Eltern</h3><div class="card"><p class="small muted" style="margin-top:0;max-width:65ch">Diesen Text kopiert der Knopf «Für Eltern kopieren» in der Lektion. Tippe auf einen Platzhalter, um ihn an der Stelle des Cursors einzufügen.</p>
+  return `<h3>Hausaufgabenexport</h3><div class="card"><p class="small muted" style="margin-top:0;max-width:65ch">Diesen Text kopiert der Knopf «Für Eltern kopieren» in der Lektion. Tippe auf einen Platzhalter, um ihn an der Stelle des Cursors einzufügen.</p>
     <div class="row">${HW_VARS.map(([k, t]) => `<button class="chip" data-a="hwVar" data-v="${k}" title="${esc(t)}">{${k}}</button>`).join("")}</div>
     <textarea id="hwT" data-hw rows="6" style="margin-top:10px" aria-label="Vorlage für den Elterntext">${esc(db.hwText || HW_DEF)}</textarea>
     <label style="margin-top:10px">Vorschau</label><div class="hw-pv small" id="hwPv">${esc(hwPreview())}</div>
