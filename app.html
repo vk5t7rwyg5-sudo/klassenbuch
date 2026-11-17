@@ -277,7 +277,7 @@ kbBuntApply();</script>
 <dialog id="dlg"><p id="dlgText" style="margin-top:0"></p><div class="row" style="justify-content:flex-end"><button id="dlgNo">Abbrechen</button><button id="dlgYes" class="pri">OK</button></div></dialog>
 <div id="toast" hidden></div>
 <div id="mp" hidden role="region" aria-label="Aufnahme"><div class="mp-bar"><b id="mpT"></b><a id="mpOpen" target="_blank" rel="noopener"></a><button class="ghost" data-mp="x" aria-label="Player schliessen">✕</button></div><div id="mpL"></div><div id="mpF"></div></div>
-<input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple hidden><input type="file" id="replIn" accept="application/pdf,.pdf" multiple hidden><input type="file" id="audIn" accept=".zip,application/zip,audio/*,.mp3,.m4a,.wav" multiple hidden>
+<input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple hidden><input type="file" id="stvIn" accept=".xlsx" hidden><input type="file" id="replIn" accept="application/pdf,.pdf" multiple hidden><input type="file" id="audIn" accept=".zip,application/zip,audio/*,.mp3,.m4a,.wav" multiple hidden>
 <div id="pv" hidden role="dialog" aria-modal="true" aria-label="Notenviewer">
   <div class="pv-bar"><button data-pv="close" aria-label="Schliessen">✕</button><span class="pv-t" id="pvT"></span>
     <select id="pvMarks" aria-label="Lesezeichen" hidden></select>
@@ -876,7 +876,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1805 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1820 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1796,20 +1796,42 @@ const stvSel = all => all.filter(x => !stv.offTage.has(x.d) && !stv.offKids.has(
 function stvRow({s, d}){
   const grp = s.typ === "Gruppe", m = grp ? gMembers(s) : [];
   const per = f => { if (!grp) return f(s); const r = m.map(x => { const v = f(x); return v ? (x.name ? x.name.split(" ")[0] + ": " : "") + v : ""; }).filter(Boolean).join("\n"); return r || f(s); };
-  const last = lessonsOf(s.id).find(l => l.datum < d && (l.inhalt || l.aufgaben));
-  return {datum: fmt(d, 1), tag: TG(wdOf(d)), zeit: (isFrei(s) && (getLesson(s.id, d) || {}).zeit) || s.zeit || "", dauer: s.dauer ? s.dauer + " Min." : "", name: s.name,
-    kinder: grp ? m.map(x => x.name + (ageOf(x.geburt) !== null ? " (" + ageOf(x.geburt) + ")" : "")).join("\n") : (alter(s) !== null ? alter(s) + " J." : ""),
+  const last = lessonsOf(s.id).find(l => l.datum < d && (l.inhalt || l.aufgaben || l.warmup));
+  const zt = (isFrei(s) && (getLesson(s.id, d) || {}).zeit) || s.zeit || "";
+  return {key: s.id + "|" + d, datum: TG(wdOf(d)) + " " + fmt(d), zeit: [zt, s.dauer ? s.dauer + "'" : ""].filter(Boolean).join(" · "),
+    name: grp ? s.name + "\n" + m.map(x => x.name + (ageOf(x.geburt) !== null ? " (" + ageOf(x.geburt) + ")" : "")).join("\n") : s.name + (alter(s) !== null ? " (" + alter(s) + ")" : ""),
     schule: s.schule || "", stufe: sStufeL(s) || "", instr: sInstrList(s).join(", "),
-    eltern: per(x => x.eltern || ""), tel: per(x => kOf(x).tel), mail: per(x => kOf(x).mail),
+    kontakt: per(x => [x.eltern || "", kOf(x).tel, kOf(x).mail].filter(Boolean).join("\n")),
     lit: curLit(s).map(x => litLabel(x) + (x.seite ? ", S. " + x.seite : "")).join("\n"),
-    letzte: last ? fmt(last.datum, 1) : "", inhalt: last ? last.inhalt || "" : "", aufgaben: last ? last.aufgaben || "" : "", bem: s.bemerkung || "",
+    inhalt: last ? fmt(last.datum) + " " + [last.warmup, last.inhalt].filter(Boolean).join("; ") + (last.aufgaben ? "\nAufgaben: " + last.aufgaben : "") : "", bem: s.bemerkung || "", n1: "", n2: "", n3: "",
     sb: grp ? [((s.stammblatt || {}).gruppe || "").trim() ? "Gruppe: " + s.stammblatt.gruppe.trim() : "", ...m.filter(x => (x.info || "").trim()).map(x => (x.name || "Kind") + ": " + x.info.trim())].filter(Boolean).join("\n")
       : SB.filter(([k]) => ((s.stammblatt || {})[k] || "").trim()).map(([k, lab]) => lab + ": " + s.stammblatt[k].trim()).join("\n")};
 }
 // [Schlüssel, Überschrift, Breite, hervorgehoben, standardmässig aus]
-const STV_COLS = [["datum","Datum",11],["tag","Tag",5,0,1],["zeit","Zeit",7],["dauer","Dauer",8],["name","Schüler:in / Gruppe",22],["kinder","Kinder / Alter",22],["schule","Schule",10,0,1],["stufe","Stufe",11],["instr","Instrumente",16,0,1],
-  ["lit","Aktuelle Literatur",32],["letzte","Letzte Lektion",12,0,1],["inhalt","Zuletzt gearbeitet",48,1],["aufgaben","Aufgaben",34],["bem","Bemerkung",24,0,1],["eltern","Eltern",22],["tel","Telefon",20],["mail","E-Mail",28],["sb","Stammblatt",90]];
-const stvCols = () => STV_COLS.filter(c => db.stvCols ? db.stvCols.includes(c[0]) : !c[4]);
+const STV_COLS = [["datum","Tag",10],["zeit","Zeit",10],["name","Schüler:in / Gruppe",24],["schule","Schule",10,0,1],["stufe","Stufe",9],["instr","Instrumente",16,0,1],
+  ["lit","Aktuelle Literatur",30],["inhalt","Zuletzt gearbeitet",38],["bem","Bemerkung",24,0,1],["kontakt","Eltern / Kontakt",28],["sb","Stammblatt",40],
+  ["n1","Notizen Stv.: Warm-up",24,1],["n2","Notizen Stv.: Gearbeitet",28,1],["n3","Notizen Stv.: Hausaufgaben",24,1]];
+const STV_KEY = ["key", "Schlüssel (nicht ändern)", 12, 0, 0, 1];
+const stvCols = () => STV_COLS.filter(c => db.stvCols && db.stvCols.includes("v2") ? db.stvCols.includes(c[0]) : !c[4]);
+// Ausgefüllte Excel-Datei lesen: Notizen der Stellvertretung in die Lektionen eintragen (ergänzt, ersetzt nie)
+async function stvImport(file){
+  let rows; try { rows = await xlsxRows(await file.arrayBuffer()); } catch(e) { toast("Die Datei konnte nicht gelesen werden."); return; }
+  const hi = rows.findIndex(r => r.some(x => String(x).trim() === STV_KEY[1]));
+  if (hi < 0){ toast("Das ist keine Stellvertretungs-Datei aus dem Klassenbuch (Spalte «Schlüssel» fehlt)."); return; }
+  const H = rows[hi].map(x => String(x).trim()), ki = H.indexOf(STV_KEY[1]);
+  const F = [["n1", "warmup"], ["n2", "inhalt"], ["n3", "aufgaben"]].map(([k, f]) => [H.indexOf(STV_COLS.find(c => c[0] === k)[1]), f]).filter(x => x[0] >= 0);
+  let n = 0, skip = 0;
+  for (const r of rows.slice(hi + 1)){
+    const [sid, d] = String(r[ki] || "").split("|"); if (!sid || !d) continue;
+    if (!S(sid)){ skip++; continue; }
+    const add = F.map(([i, f]) => [f, String(r[i] ?? "").trim()]).filter(x => x[1]); if (!add.length) continue;
+    const l = getLesson(sid, d, true); let ch = false;
+    for (const [f, t] of add){ if ((l[f] || "").includes(t)) continue; l[f] = l[f] ? l[f] + "\n" + t : t; ch = true; }
+    if (ch) n++;
+  }
+  if (n) save(); render();
+  toast(n ? `${n} ${n === 1 ? "Lektion" : "Lektionen"} ergänzt.${skip ? ` ${skip} übersprungen (Schüler:in nicht mehr vorhanden).` : ""}` : "Keine neuen Notizen gefunden.");
+}
 function vStv(){
   if (!feat("stv")){ location.hash = "woche"; return; }
   if (stvLogo === undefined){ stvLogo = null; fetch("icons/logo-excel.png").then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) stvLogo = new Uint8Array(b); }).catch(() => {}); }
@@ -1826,8 +1848,8 @@ function vStv(){
     : `<p class="muted" style="margin-bottom:0">${stv.bis < stv.von ? "Das Enddatum liegt vor dem Startdatum." : "In diesem Zeitraum finden keine Lektionen statt."}</p>`}
     <label style="margin-top:12px">Spalten in der Excel-Datei</label><div class="row">${STV_COLS.map(c => `<button class="chip ${cols.includes(c) ? "on" : ""}" data-a="stvCol" data-v="${c[0]}" aria-pressed="${cols.includes(c)}">${esc(c[1])}</button>`).join("")}
       <button class="ghost small" data-a="stvColsDef">Standard</button></div>
-    <div class="row" style="margin-top:14px"><button class="pri" data-a="stvXlsx" ${sel.length && cols.length ? "" : "disabled"}>Als Excel exportieren</button><span class="small muted num">${sel.length} ${sel.length === 1 ? "Lektion" : "Lektionen"}</span></div>
-    <p class="tiny" style="margin-bottom:0">Die Excel-Datei hat eine Zeile pro Lektion mit den gewählten Spalten. Deine Auswahl bleibt gespeichert. Die internen Lektionsnotizen kommen nie mit.</p></div>
+    <div class="row" style="margin-top:14px"><button class="pri" data-a="stvXlsx" ${sel.length && cols.length ? "" : "disabled"}>Als Excel exportieren</button><button class="ghost" data-a="stvImp">Ausgefüllte Datei importieren</button><span class="small muted num">${sel.length} ${sel.length === 1 ? "Lektion" : "Lektionen"}</span></div>
+    <p class="tiny" style="margin-bottom:0">Die Excel-Datei hat eine Zeile pro Lektion mit den gewählten Spalten. Deine Auswahl bleibt gespeichert. Die internen Lektionsnotizen kommen nie mit. Die gelb markierten Spalten «Notizen Stv.» füllt die Stellvertretung aus. Mit «Ausgefüllte Datei importieren» landen sie als Warm-up, Inhalt und Aufgaben in den Lektionen (bestehende Einträge bleiben, neue werden ergänzt).</p></div>
   ${sel.length && cols.length ? `<h3>Vorschau</h3><div class="card" style="overflow-x:auto"><table class="stv-t"><tr>${cols.map(c => `<th>${esc(c[1])}</th>`).join("")}</tr>
     ${sel.map(x => { const r = stvRow(x); return `<tr>${cols.map(c => `<td class="w small${c[3] ? " hl" : ""}" style="min-width:${Math.min(c[2] * 6, 260)}px">${esc(r[c[0]])}</td>`).join("")}</tr>`; }).join("")}</table></div>` : ""}`;
 }
@@ -1862,7 +1884,7 @@ function xlsxBlob(sheetName, cols, rows, head){
   const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:${last}"/>
 <sheetViews><sheetView workbookViewId="0"><pane ySplit="2" topLeftCell="A3" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
-<cols>${cols.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${c[2]}" customWidth="1"/>`).join("")}</cols>
+<cols>${cols.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${c[2]}" customWidth="1"${c[5] ? ' hidden="1"' : ""}/>`).join("")}</cols>
 <sheetData>${titel}${all.map((r, ri) => `<row r="${ri + 2}">${r.map((v, i) => cell(ri + 2, i, v, (ri ? 2 : 1) + (cols[i][3] ? 2 : 0))).join("")}</row>`).join("")}</sheetData>
 <autoFilter ref="A2:${last}"/><pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>${head && head.logo ? `<drawing r:id="rId1"/>` : ""}</worksheet>`;
   const files = {
@@ -1884,8 +1906,8 @@ function xlsxBlob(sheetName, cols, rows, head){
 }
 async function stvExport(){
   const sel = stvSel(stvLessons()), cols = stvCols(); if (!sel.length || !cols.length) return;
-  const rows = sel.map(x => { const r = stvRow(x); return cols.map(c => r[c[0]]); });
-  const blob = xlsxBlob("Stellvertretung", cols, rows, {logo: stvLogo, title: `Stellvertretung ${fmt(stv.von, 1)}${stv.bis !== stv.von ? " – " + fmt(stv.bis, 1) : ""}`});
+  const rows = sel.map(x => { const r = stvRow(x); return [...cols, STV_KEY].map(c => r[c[0]]); });
+  const blob = xlsxBlob("Stellvertretung", [...cols, STV_KEY], rows, {logo: stvLogo, title: `Stellvertretung ${fmt(stv.von, 1)}${stv.bis !== stv.von ? " – " + fmt(stv.bis, 1) : ""}`});
   const name = `Stellvertretung ${stv.von}${stv.bis !== stv.von ? " bis " + stv.bis : ""}.xlsx`;
   if (await saveFile(name, blob, blob.type)) toast("Excel-Datei erstellt");
 }
@@ -2698,7 +2720,8 @@ document.addEventListener("click", ev => {
     case "stvAll": stv.offKids.clear(); stv.offTage.clear(); render(); break;
     case "stvNone": stvLessons().forEach(x => stv.offKids.add(x.s.id)); render(); break;
     case "stvXlsx": stvExport(); break;
-    case "stvCol": { const k = b.dataset.v, cur = stvCols().map(c => c[0]); db.stvCols = cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k]; save(); render(); break; }
+    case "stvImp": $("stvIn").click(); break;
+    case "stvCol": { const k = b.dataset.v, cur = stvCols().map(c => c[0]); db.stvCols = cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k]; db.stvCols.push("v2"); save(); render(); break; }
     case "stvColsDef": db.stvCols = null; save(); render(); break;
     case "slOk": slApply(); break;
     case "schulAdd": { const v = $("schulNeu").value.trim(); if (!v){ $("schulNeu").focus(); return; } const l = schulen(); if (!l.includes(v)) l.push(v); db.schulen = l; save(); render(); break; }
@@ -3600,6 +3623,7 @@ $("pvInk").addEventListener("click", e => {
 
 /* ---------- PDFs direkt im Klassenbuch hinzufügen ---------- */
 // PDF eines Hefts ersetzen: Dateien nach Namen den Teilen zuordnen, sonst in Reihenfolge (gleiche Anzahl)
+$("stvIn").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if (f) await stvImport(f); };
 $("replIn").onchange = async e => {
   const fs = [...e.target.files].sort((x, y) => x.name.localeCompare(y.name, "de", {numeric: true})), b = bookById(e.target.dataset.v); e.target.value = ""; if (!fs.length || !b) return;
   const teile = b.teile || [], nm = k => (typeof pdfMeta !== "undefined" && pdfMeta[teile[k].a] && pdfMeta[teile[k].a].name) || "";
