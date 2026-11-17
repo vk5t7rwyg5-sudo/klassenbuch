@@ -83,6 +83,7 @@ input[type=date],input[type=time]{inline-size:100%;max-inline-size:100%;contain:
 .hint{background:var(--soft);border-radius:var(--r);padding:6px 10px;font-size:13px;color:var(--tx2);margin-top:8px}
 .chip{font-size:13px;padding:4px 10px;border-radius:14px;border:1px solid var(--bd2);background:var(--card);cursor:pointer;min-height:30px;text-align:left}
 .chip.on{background:var(--okbg);color:var(--ok);border-color:transparent}
+.chipw{display:inline-flex;gap:1px}.chipw .chip:first-child{border-radius:14px 0 0 14px}.chipw .pen{border-radius:0 14px 14px 0;padding:4px 8px;display:inline-flex;align-items:center}
 .lp-item{display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px solid var(--bd)}
 .lp-item:last-child{border-bottom:0}
 .st{min-width:30px;min-height:30px;padding:0;border-radius:50%;font-size:14px;line-height:1;justify-content:center;flex:none}
@@ -875,7 +876,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1640 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1644 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -2422,7 +2423,7 @@ function lpReset(){ const st = lpStufe, neu = LP_AP.stufen[st], n = lpLost(st, n
   ask(`${st} wieder auf die Vorlage zurücksetzen? Deine Änderungen in dieser Stufe gehen verloren${n ? `, ebenso ${n} Markierung${n === 1 ? "" : "en"} bei deinen SuS` : ""}.`, "Zurücksetzen", () => { lpApply(st, neu, true); toast("Zurückgesetzt"); }); }
 function planCard(){
   const fam = {}; Object.entries(LP_MS).forEach(([k, v]) => (fam[v.f] ||= []).push(k));
-  return `<h3>Lehrplan</h3><div class="card" id="planC"><p class="small muted" style="margin:0 0 6px">Wähle die Instrumente, die du unterrichtest. Mit Doppelklick auf ein Instrument öffnest du dessen Lehrplan zum Ansehen und Bearbeiten.</p>${Object.entries(fam).map(([f, l]) => `<label style="margin-top:8px">${esc(f)}</label><div class="row">${l.map(k => `<button class="chip ${msInstrs().includes(k) ? "on" : ""}" data-a="planI" data-v="${esc(k)}">${esc(k)}</button>`).join("")}</div>`).join("")}
+  return `<h3>Lehrplan</h3><div class="card" id="planC"><p class="small muted" style="margin:0 0 6px">Wähle die Instrumente, die du unterrichtest. Mit dem Stift neben einem gewählten Instrument öffnest du dessen Lehrplan zum Ansehen und Bearbeiten.</p>${Object.entries(fam).map(([f, l]) => `<label style="margin-top:8px">${esc(f)}</label><div class="row">${l.map(k => { const on = msInstrs().includes(k), c = `<button class="chip ${on ? "on" : ""}" data-a="planI" data-v="${esc(k)}">${esc(k)}</button>`; return on && feat("lp") ? `<span class="chipw">${c}<button class="chip on pen" data-a="planOpen" data-v="${esc(k)}" title="Lehrplan ansehen und bearbeiten" aria-label="Lehrplan ${esc(k)} ansehen und bearbeiten"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l4-1 11-11a2.1 2.1 0 0 0-3-3L5 16z"/></svg></button></span>` : c; }).join("")}</div>`).join("")}
     ${msInstrs().includes(PK) ? `<label style="margin-top:12px">Bereiche von ${esc(PK)}</label><div class="row">${INSTR.map(k => `<button class="chip ${pkOff().includes(k) ? "" : "on"}" data-a="planB" data-v="${esc(k)}">${esc(k)}</button>`).join("")}</div>` : ""}
     <p class="tiny" style="margin-bottom:0">Gilt für dein Konto. Abgewählte Instrumente bleiben bei den SuS gespeichert.</p></div>`;
 }
@@ -2574,6 +2575,7 @@ document.addEventListener("click", ev => {
     case "slX": imp = null; render(); break;
     case "planI": { const v = b.dataset.v, l = msInstrs(); db.plan = {instr: l.includes(v) ? l.filter(x => x !== v) : [...l, v], pkOff: pkOff()}; detailStufe = null; save(); render(); break; }
     case "planB": { const v = b.dataset.v, o = pkOff(); db.plan = {instr: msInstrs(), pkOff: o.includes(v) ? o.filter(x => x !== v) : [...o, v]}; save(); render(); break; }
+    case "planOpen": msV.i = b.dataset.v; lpEdit = false; location.hash = "lehrplan"; break;
     case "msI": msV.i = b.dataset.v; render(); break;
     case "msS": msV.s = b.dataset.v; render(); break;
     case "lpEdit": if (!acc){ needAcc("Lehrpläne anpassen"); break; } lpEdit = true; render(); window.scrollTo(0, 0); break;
