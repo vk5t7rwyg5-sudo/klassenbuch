@@ -434,7 +434,7 @@ async function api(action, body){
 
 /* --- Lokale Datensätze: meta, books, lesson:<id>, pdf:<id> --- */
 function recOf(key){
-  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, plan: db.plan || null, msEdit: db.msEdit || null, lehrplan: db.lehrplan || null, rechnung: db.rechnung || null, invoices: db.invoices || [], stvCols: db.stvCols || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null, planung: db.planung || null, snapOff: !!db.snapOff, hwText: db.hwText || null};
+  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, plan: db.plan || null, msEdit: db.msEdit || null, lehrplan: db.lehrplan || null, rechnung: db.rechnung || null, invoices: db.invoices || [], stvCols: db.stvCols || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null, planung: db.planung || null, snapOff: !!db.snapOff, hwText: db.hwText || null, cal: db.cal || null};
   if (key === "books") return {books};
   if (key.startsWith("lesson:")) return db.lessons.find(l => l.id === key.slice(7)) || null;
   if (key.startsWith("ink:")){ const v = ink[key.slice(4)]; return v && Object.keys(v.p || {}).length ? v : null; }
@@ -464,7 +464,7 @@ function remoteRender(){ if (!(loaded.meta && loaded.lessons)) return; if (!docu
 document.addEventListener("focusout", () => setTimeout(() => { if (pendingRender && !busyTyping()){ pendingRender = false; render(); } }, 50));
 
 function applyRec(key, v){
-  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.plan = v ? v.plan || null : null; db.msEdit = v ? v.msEdit || null : null; db.lehrplan = v ? v.lehrplan || null : null; db.rechnung = v ? v.rechnung || null : null; db.planung = v ? v.planung || null : null; db.snapOff = !!(v && v.snapOff); db.hwText = v ? v.hwText || null : null; db.invoices = v ? v.invoices || [] : []; db.stvCols = v ? v.stvCols || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
+  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.plan = v ? v.plan || null : null; db.msEdit = v ? v.msEdit || null : null; db.lehrplan = v ? v.lehrplan || null : null; db.rechnung = v ? v.rechnung || null : null; db.planung = v ? v.planung || null : null; db.snapOff = !!(v && v.snapOff); db.hwText = v ? v.hwText || null : null; db.cal = v ? v.cal || null : null; db.invoices = v ? v.invoices || [] : []; db.stvCols = v ? v.stvCols || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
   else if (key === "books") books = v ? v.books || [] : [];
   else if (key.startsWith("ink:")){ const k = key.slice(4); if (v) ink[k] = v; else delete ink[k]; if (typeof pvInkRemote === "function") pvInkRemote(k); }
   else if (key.startsWith("lesson:")){ const id = key.slice(7), i = db.lessons.findIndex(l => l.id === id); if (v){ v.id = id; if (i < 0) db.lessons.push(v); else db.lessons[i] = v; } else if (i >= 0) db.lessons.splice(i, 1); }
@@ -861,7 +861,7 @@ function vDatenApp(){
       () => schulenCard() + slCard() + slPreview() + planCard() + hwCard()],
     ["funktionen", "Funktionen", '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
       `${FEATS.filter(x => feat(x[0])).length} von ${FEATS.length} eingeschaltet${feat("rg") ? " · " + (rc.name ? `Rechnungen CHF ${chf(rc.tarif)} pro 30 Min.` : "Rechnungsangaben fehlen") : ""}`, feat("rg") && !rc.name ? "Rechnung einrichten" : "",
-      () => noH(featCard(), "Funktionen") + rgCard()],
+      () => noH(featCard(), "Funktionen") + rgCard() + calCard()],
     ["darstellung", "Darstellung", '<circle cx="12" cy="12" r="9"/><path d="M12 3v18M12 3a9 9 0 0 1 0 18"/>',
       `${lbl(THEMES, pref("kb-theme", "dark"))} · ${lbl(PALETTES, pref("kb-palette", "bunt"))} · Schrift ${lbl(ZOOMS, pref("kb-zoom", "1")).toLowerCase()}`, "",
       () => noH(appearanceCard(), "Darstellung")],
@@ -876,7 +876,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1718 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1805 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1243,6 +1243,99 @@ document.addEventListener("input", ev => {
   const t = ev.target, r = plR(); if (!r) return;
   if (t.dataset.plf){ r[t.dataset.plf] = "num" in t.dataset ? +t.value || 0 : t.value; if (r.sent) r.dirty = true; save(); return; }
   if (t.dataset.plw){ const [i, k] = t.dataset.plw.split(":"); r.fenster[+i][k] = "num" in t.dataset ? +t.value : t.value; if (r.sent) r.dirty = true; save(); }
+});
+
+/* ---------- Kalender-Abo: Lektionen und Termine als Abo-Link (.ics) ----------
+   Bewusst NICHT verschlüsselt: Kalender-Programme können nicht entschlüsseln. Darum liegt auf dem Server
+   (calput/get cal/<Schlüssel>.ics) nur diese Terminliste, erreichbar über einen langen geheimen Link.
+   db.cal = {on, tok, names}: tok = 32 Hex-Zeichen, names = Namen im Kalender (Standard: aus).
+   Inhalt: feste Lektionen als Wochenserie (Ferien und «ausgefallen» als Ausnahmen), unregelmässige Lektionen einzeln,
+   Termine ausser Ferien. Gilt für das laufende Schuljahr (1. August bis 31. Juli). */
+let calLast = "", calBusy = false, calMsg = "";
+const calKey = () => [...crypto.getRandomValues(new Uint8Array(16))].map(x => x.toString(16).padStart(2, "0")).join("");
+const calUrl = () => SYNC + "cal/" + (db.cal && db.cal.tok) + ".ics";
+const calEsc = t => String(t == null ? "" : t).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+const calD = ds => ds.replace(/-/g, "");
+const calT = z => { const m = /^(\d{1,2}):(\d{2})/.exec(z || ""); return m ? m[1].padStart(2, "0") + m[2] : ""; };
+const calAdd = (z, min) => { const m = /^(\d{1,2}):(\d{2})/.exec(z), t = Math.min(23 * 60 + 59, (+m[1]) * 60 + (+m[2]) + (min || 30)); return String(Math.floor(t / 60)).padStart(2, "0") + String(t % 60).padStart(2, "0"); };
+function calFold(l){ const o = []; while (l.length > 70){ o.push(l.slice(0, 70)); l = " " + l.slice(70); } o.push(l); return o.join("\r\n"); }
+const CAL_TZ = ["BEGIN:VTIMEZONE", "TZID:Europe/Zurich", "BEGIN:STANDARD", "DTSTART:19701025T030000", "TZOFFSETFROM:+0200", "TZOFFSETTO:+0100", "TZNAME:CET", "RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU", "END:STANDARD",
+  "BEGIN:DAYLIGHT", "DTSTART:19700329T020000", "TZOFFSETFROM:+0100", "TZOFFSETTO:+0200", "TZNAME:CEST", "RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU", "END:DAYLIGHT", "END:VTIMEZONE"];
+function calIcs(){
+  const nm = !!(db.cal && db.cal.names), now = new Date(), sy = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+  const from = sy + "-08-01", to = (sy + 1) + "-07-31", Z = "TZID=Europe/Zurich", L = [], ev = a => { L.push("BEGIN:VEVENT", "DTSTAMP:20250101T000000Z", ...a, "END:VEVENT"); };
+  const sum = s => nm ? "Lektion: " + s.name : "Lektion";
+  for (const s of sorted()){
+    if (isFrei(s)) continue; if (!s.tag) continue;
+    const z = calT(s.zeit); let d0 = parse(from); while (((d0.getDay() + 6) % 7) + 1 !== s.tag) d0 = addDays(d0, 1);
+    const ex = []; for (let d = d0; iso(d) <= to; d = addDays(d, 7)){ const ds = iso(d), l = db.lessons.find(x => x.sid === s.id && x.datum === ds); if (ferienAm(ds, s) || (l && l.status === "ausgefallen")) ex.push(ds); }
+    const a = ["UID:kb-" + s.id + "@klassen-buch.ch", "SUMMARY:" + calEsc(sum(s))];
+    if (z){
+      a.push(`DTSTART;${Z}:${calD(iso(d0))}T${z}00`, `DTEND;${Z}:${calD(iso(d0))}T${calAdd(s.zeit, s.dauer)}00`, "RRULE:FREQ=WEEKLY;UNTIL=" + calD(to) + "T215959Z");
+      if (ex.length) a.push(`EXDATE;${Z}:` + ex.map(d => calD(d) + "T" + z + "00").join(","));
+    } else {
+      a.push("DTSTART;VALUE=DATE:" + calD(iso(d0)), "DTEND;VALUE=DATE:" + calD(iso(addDays(d0, 1))), "RRULE:FREQ=WEEKLY;UNTIL=" + calD(to));
+      if (ex.length) a.push("EXDATE;VALUE=DATE:" + ex.map(calD).join(","));
+    }
+    if (s.schule) a.push("LOCATION:" + calEsc(s.schule));
+    ev(a);
+  }
+  for (const l of db.lessons.slice().sort((x, y) => x.datum.localeCompare(y.datum))){
+    const s = S(l.sid); if (!s || s.aktiv === false || !isFrei(s) || l.datum < from || l.datum > to || l.status === "ausgefallen") continue;
+    const zs = l.zeit || s.zeit || "", z = calT(zs), a = ["UID:kb-l-" + l.id + "@klassen-buch.ch", "SUMMARY:" + calEsc(sum(s))];
+    if (z) a.push(`DTSTART;${Z}:${calD(l.datum)}T${z}00`, `DTEND;${Z}:${calD(l.datum)}T${calAdd(zs, s.dauer)}00`);
+    else a.push("DTSTART;VALUE=DATE:" + calD(l.datum), "DTEND;VALUE=DATE:" + calD(iso(addDays(parse(l.datum), 1))));
+    if (s.schule) a.push("LOCATION:" + calEsc(s.schule));
+    ev(a);
+  }
+  for (const e of db.events){
+    if (e.typ === "Ferien" || !e.datum || (e.bis || e.datum) < from) continue;
+    const bis = e.bis && e.bis > e.datum ? e.bis : "", tm = !bis && /(\d{1,2})[:.](\d{2})/.exec(e.ort || ""), z = tm ? tm[1].padStart(2, "0") + ":" + tm[2] : "";
+    const a = ["UID:kb-e-" + e.id + "@klassen-buch.ch", "SUMMARY:" + calEsc(e.titel || e.typ), "CATEGORIES:" + calEsc(e.typ || "")];
+    if (z) a.push(`DTSTART;${Z}:${calD(e.datum)}T${z.replace(":", "")}00`, `DTEND;${Z}:${calD(e.datum)}T${calAdd(z, 60)}00`);
+    else a.push("DTSTART;VALUE=DATE:" + calD(e.datum), "DTEND;VALUE=DATE:" + calD(iso(addDays(parse(bis || e.datum), 1))));
+    const ort = (e.ort || "").replace(/\s*[,;]?\s*\d{1,2}[:.]\d{2}\s*(Uhr)?/, "").trim(); if (ort) a.push("LOCATION:" + calEsc(ort));
+    const who = nm ? (e.sids || []).map(i => (S(i) || {}).name).filter(Boolean).join(", ") : "", desc = [e.notiz, who].filter(Boolean).join("\n"); if (desc) a.push("DESCRIPTION:" + calEsc(desc));
+    ev(a);
+  }
+  return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Klassenbuch//DE", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-CALNAME:Klassenbuch", "X-WR-TIMEZONE:Europe/Zurich", "X-PUBLISHED-TTL:PT1H", "REFRESH-INTERVAL;VALUE=DURATION:PT1H", ...CAL_TZ, ...L, "END:VCALENDAR"].map(calFold).join("\r\n") + "\r\n";
+}
+async function calTick(){
+  const c = db.cal; if (!c || !c.on || !c.tok || !acc || mode !== "app" || !(loaded.meta && loaded.lessons) || calBusy) return;
+  const ics = calIcs(); if (ics === calLast) return;
+  calBusy = true;
+  try { await api("calput", {tok: c.tok, ics}); calLast = ics; calMsg = "Zuletzt aktualisiert um " + new Date().toLocaleTimeString("de-CH", {hour: "2-digit", minute: "2-digit"}); }
+  catch(e) { calMsg = e && e.code === 400 ? "Der Server kennt die Funktion noch nicht (Wix-Code Version 9 fehlt)." : "Noch nicht aktualisiert. Prüfe die Verbindung."; }
+  calBusy = false; if (location.hash.startsWith("#daten-funktionen")) render();
+}
+setInterval(calTick, 15000);
+function calCard(){
+  const c = db.cal || {}, on = !!(c.on && c.tok);
+  if (!acc) return `<h3>Kalender-Abo</h3><div class="card"><p class="small muted" style="margin:0">Das Kalender-Abo braucht ein Konto mit Sync (Einstellungen → Konto).</p></div>`;
+  const web = on ? calUrl().replace(/^https:/, "webcal:") : "";
+  return `<h3>Kalender-Abo</h3><div class="card"><div class="row" style="flex-wrap:nowrap"><div style="flex:1;min-width:0"><b class="small">Lektionen und Termine im Kalender</b><div class="tiny">Link für Outlook, Apple oder Google Kalender. Ferien erscheinen nicht; sie sind frei, weil die Serie dort ausgesetzt ist.</div></div>
+    <button class="chip ${on ? "on" : ""}" data-a="calOn" aria-pressed="${on}" aria-label="Kalender-Abo">${on ? "Ein" : "Aus"}</button></div>
+  ${on ? `<div style="margin-top:12px"><label for="cal-url">Abo-Link</label><input id="cal-url" readonly value="${esc(web)}" onfocus="this.select()">
+    <div class="row" style="margin-top:8px"><button class="small" data-a="calCopy">Link kopieren</button><button class="ghost small" data-a="calNew">Neuer Link</button><span class="sp"></span><span class="tiny">${esc(calMsg || "Wird gleich hochgeladen …")}</span></div>
+    <div class="row" style="flex-wrap:nowrap;margin-top:12px"><div style="flex:1;min-width:0"><b class="small">Namen im Kalender</b><div class="tiny">Aus: nur «Lektion» und die Schule. Ein: «Lektion: Vorname Name», bei Terminen auch die Mitwirkenden.</div></div>
+    <button class="chip ${c.names ? "on" : ""}" data-a="calNames" aria-pressed="${!!c.names}" aria-label="Namen im Kalender">${c.names ? "Ein" : "Aus"}</button></div>` : ""}
+  <p class="tiny" style="margin:12px 0 0">Wichtig: Diese Terminliste liegt <b>nicht verschlüsselt</b> auf dem Server, sonst könnte dein Kalender sie nicht lesen. Wer den Link kennt, sieht sie. Gib ihn nicht weiter; «Neuer Link» macht den alten ungültig.
+  ${on ? `<br>Einrichten: Outlook «Kalender hinzufügen → Aus dem Internet abonnieren», Apple «Ablage → Neues Kalenderabonnement», Google Kalender «Weitere Kalender → Per URL» (dort den https-Link nehmen: ersetze «webcal:» durch «https:»). Kalender aktualisieren sich je nach Programm nach 1 bis 24 Stunden.` : ""}</p></div>`;
+}
+document.addEventListener("click", ev => {
+  const b = ev.target.closest("[data-a]"); if (!b || !/^cal/.test(b.dataset.a)) return;
+  switch (b.dataset.a){
+    case "calOn":
+      if (db.cal && db.cal.on){
+        ask("Kalender-Abo ausschalten? Der Link wird auf dem Server gelöscht, abonnierte Kalender werden leer.", "Ausschalten", async () => {
+          try { await api("calput", {tok: db.cal.tok, ics: ""}); } catch(e) { toast("Server nicht erreichbar, bitte nochmals versuchen."); return; }
+          db.cal = {...db.cal, on: false, tok: ""}; calLast = ""; calMsg = ""; save(); render(); toast("Kalender-Abo ausgeschaltet"); });
+      } else { db.cal = {...(db.cal || {}), on: true, tok: calKey()}; calLast = ""; calMsg = ""; save(); render(); calTick(); }
+      break;
+    case "calNames": db.cal = {...db.cal, names: !(db.cal && db.cal.names)}; save(); render(); calTick(); break;
+    case "calNew": ask("Neuen Link erzeugen? Der alte Link funktioniert danach nicht mehr, du musst den Kalender neu abonnieren.", "Neuer Link", () => { db.cal = {...db.cal, tok: calKey()}; calLast = ""; calMsg = ""; save(); render(); calTick(); }); break;
+    case "calCopy": navigator.clipboard.writeText(calUrl().replace(/^https:/, "webcal:")).then(() => toast("Link kopiert"), () => { const i = document.getElementById("cal-url"); if (i){ i.select(); toast("Markiert – jetzt kopieren"); } }); break;
+  }
 });
 
 /* ---------- data helpers ---------- */
