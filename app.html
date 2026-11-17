@@ -875,7 +875,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1633 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1640 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -2422,7 +2422,7 @@ function lpReset(){ const st = lpStufe, neu = LP_AP.stufen[st], n = lpLost(st, n
   ask(`${st} wieder auf die Vorlage zurücksetzen? Deine Änderungen in dieser Stufe gehen verloren${n ? `, ebenso ${n} Markierung${n === 1 ? "" : "en"} bei deinen SuS` : ""}.`, "Zurücksetzen", () => { lpApply(st, neu, true); toast("Zurückgesetzt"); }); }
 function planCard(){
   const fam = {}; Object.entries(LP_MS).forEach(([k, v]) => (fam[v.f] ||= []).push(k));
-  return `<h3>Lehrplan</h3><div class="card" id="planC"><p class="small muted" style="margin:0 0 6px">Wähle die Instrumente, die du unterrichtest.</p>${Object.entries(fam).map(([f, l]) => `<label style="margin-top:8px">${esc(f)}</label><div class="row">${l.map(k => `<button class="chip ${msInstrs().includes(k) ? "on" : ""}" data-a="planI" data-v="${esc(k)}">${esc(k)}</button>`).join("")}</div>`).join("")}
+  return `<h3>Lehrplan</h3><div class="card" id="planC"><p class="small muted" style="margin:0 0 6px">Wähle die Instrumente, die du unterrichtest. Mit Doppelklick auf ein Instrument öffnest du dessen Lehrplan zum Ansehen und Bearbeiten.</p>${Object.entries(fam).map(([f, l]) => `<label style="margin-top:8px">${esc(f)}</label><div class="row">${l.map(k => `<button class="chip ${msInstrs().includes(k) ? "on" : ""}" data-a="planI" data-v="${esc(k)}">${esc(k)}</button>`).join("")}</div>`).join("")}
     ${msInstrs().includes(PK) ? `<label style="margin-top:12px">Bereiche von ${esc(PK)}</label><div class="row">${INSTR.map(k => `<button class="chip ${pkOff().includes(k) ? "" : "on"}" data-a="planB" data-v="${esc(k)}">${esc(k)}</button>`).join("")}</div>` : ""}
     <p class="tiny" style="margin-bottom:0">Gilt für dein Konto. Abgewählte Instrumente bleiben bei den SuS gespeichert.</p></div>`;
 }
@@ -2533,6 +2533,13 @@ function replaceAll(d){
   save(); render();
 }
 
+document.addEventListener("dblclick", ev => {
+  const b = ev.target.closest('#planC [data-a="planI"]'); if (!b) return;
+  ev.preventDefault(); const v = b.dataset.v;
+  if (!feat("lp")){ toast("Schalte unter Funktionen den Lehrplan ein"); return; }
+  const l = msInstrs(); if (!l.includes(v)){ db.plan = {instr: [...l, v], pkOff: pkOff()}; save(); }
+  msV.i = v; lpEdit = false; location.hash = "lehrplan";
+});
 document.addEventListener("click", ev => {
   const b = ev.target.closest("[data-a]"); if (!b) return;
   const a = b.dataset.a, card = b.closest("[data-sid]"), sid = card?.dataset.sid;
