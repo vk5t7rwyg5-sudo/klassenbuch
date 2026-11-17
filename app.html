@@ -652,7 +652,7 @@ async function startApp(){
   const a = await idbGet("cfg", "account"); if (a) await useAcc(a);
   const all = await idbAll("rec");
   for (const [k, r] of Object.entries(all)) if (!k.startsWith("pdf:")) applyRec(k, r.v); else pdfNote(k.slice(4), r.v);
-  await pdfScanLocal(); await audScan();
+  await pdfScanLocal(); await audScan(); await abInit();
   mode = "app"; assetsNs = true; loaded = {meta:true, lessons:true};
   setSync(acc ? "Bereit" : "Nur auf diesem Gerät");
   render();
@@ -780,6 +780,44 @@ async function snapRestore(key){
     snapSay(e.code === "rate" ? "Server kurz ausgelastet. Versuche es in einer Minute nochmals." : "Wiederherstellen hat nicht geklappt. Deine Einträge sind unverändert.");
   }
 }
+/* --- Automatisches Backup (freiwillig, pro Gerät; Einstellung und Ordner in cfg «autobak») --- */
+let ab = {on:false, days:7, dir:null, keep:8}, abBusy = false, abAsked = false;
+async function abInit(){
+  try { Object.assign(ab, await idbGet("cfg", "autobak") || {}); } catch(e) {}
+  setTimeout(() => { if (abDue() && ab.dir) abWrite(false); }, 3000);
+}
+const abSave = () => idbPut("cfg", "autobak", ab).catch(() => {});
+const abDue = () => !!(ab.on && db.students.length && (!db.lastBackup || Date.now() - db.lastBackup >= ab.days * 864e5 - 36e5));
+async function abWrite(gesture){
+  if (abBusy || !ab.dir) return false;
+  abBusy = true;
+  try {
+    let p = await ab.dir.queryPermission({mode: "readwrite"});
+    if (p !== "granted" && gesture) p = await ab.dir.requestPermission({mode: "readwrite"});
+    if (p !== "granted") return false;
+    const fh = await ab.dir.getFileHandle("klassenbuch-backup-" + today() + ".json", {create: true}), w = await fh.createWritable();
+    await w.write(JSON.stringify({...db, books, ink}, null, 1)); await w.close();
+    const names = []; for await (const [n] of ab.dir.entries()) if (/^klassenbuch-backup-\d{4}-\d\d-\d\d\.json$/.test(n)) names.push(n);
+    for (const n of names.sort().reverse().slice(ab.keep)) await ab.dir.removeEntry(n).catch(() => {});
+    db.lastBackup = Date.now(); save();
+    if (!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement && document.activeElement.tagName)) render();
+    toast("Automatisches Backup gesichert"); return true;
+  } catch(e) { return false; } finally { abBusy = false; }
+}
+document.addEventListener("pointerdown", () => { if (!abAsked && ab.dir && abDue()){ abAsked = true; abWrite(true); } }, true);
+function abBanner(){
+  if (!abDue()) return "";
+  const days = db.lastBackup ? Math.floor((Date.now() - db.lastBackup) / 864e5) : null;
+  return `<div class="banner">${days === null ? "Noch kein Backup gespeichert." : "Letztes Backup vor " + days + " Tagen."} <button class="small" data-a="${ab.dir ? "abNow" : "export"}">Jetzt sichern</button></div>`;
+}
+function abCard(){
+  const can = typeof window.showDirectoryPicker === "function", seg = (a, cur, items) => `<div class="seg">${items.map(([v, t]) => `<button class="${String(cur) === String(v) ? "on" : ""}" data-a="${a}" data-v="${v}">${t}</button>`).join("")}</div>`;
+  return `<h3>Automatisches Backup</h3><div class="card"><div class="opt" style="margin-bottom:10px"><div><label>Regelmässig sichern (nur auf diesem Gerät)</label>${seg("abOn", ab.on ? 1 : 0, [[1, "Ein"], [0, "Aus"]])}</div>
+    ${ab.on ? `<div><label>Wie oft</label>${seg("abDays", ab.days, [[1, "Täglich"], [7, "Wöchentlich"], [30, "Monatlich"]])}</div>` : ""}</div>
+    ${ab.on ? (can ? `<div class="row"><button data-a="abPick">${ab.dir ? "Anderen Ordner wählen" : "Ordner wählen"}</button>${ab.dir ? `<span class="small">Ordner: <b>${esc(ab.dir.name)}</b></span><span class="sp"></span><button class="small" data-a="abNow">Jetzt sichern</button><button class="ghost small" data-a="abClear">Ordner vergessen</button>` : ""}</div>
+      <p class="tiny" style="max-width:65ch">${ab.dir ? `Beim Öffnen der App legt sie eine Datei in diesen Ordner, sobald das letzte Backup älter ist als eingestellt. Es bleiben die letzten ${ab.keep} Dateien. Wählst du einen OneDrive- oder iCloud-Ordner, liegt das Backup auch ausserhalb dieses Geräts. Fragt der Browser nach, ob die App in den Ordner schreiben darf, bestätige das.` : "Wähle einen Ordner, in den die App die Backup-Dateien legt (z. B. in OneDrive). Ohne Ordner erinnert sie dich nur."}</p>`
+      : `<p class="tiny" style="max-width:65ch;margin-top:0">Dieser Browser kann nicht selbst in einen Ordner speichern. Die App erinnert dich beim Öffnen, sobald ein Backup fällig ist. Ein Tipp auf «Jetzt sichern» lädt die Datei herunter.</p>`) : `<p class="tiny" style="max-width:65ch;margin-top:0">Ausgeschaltet. Mit «Ein» legt die App in einem Ordner deiner Wahl regelmässig eine Backup-Datei an, oder sie erinnert dich daran.</p>`}</div>`;
+}
 function vDatenApp(){
   const lb = db.lastBackup ? new Date(db.lastBackup).toLocaleString("de-CH") : "noch nie";
   const ls = lastSync ? new Date(lastSync).toLocaleTimeString("de-CH", {hour:"2-digit", minute:"2-digit"}) : "–";
@@ -811,7 +849,7 @@ function vDatenApp(){
   const backup = `<div class="card"><p class="small muted num" style="margin-top:0">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine · ${books.length} Hefte</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
-  ${snapCard()}
+  ${abCard()}${snapCard()}
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>`;
   // Einstellungen als Kacheln (#daten), jede Gruppe auf einer eigenen Seite (#daten-<gruppe>)
   const rc = rgCfg(), days = db.lastBackup ? Math.floor((Date.now() - db.lastBackup) / 864e5) : null;
@@ -839,7 +877,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.16-1916 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1616 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -898,6 +936,11 @@ document.addEventListener("click", ev => {
     case "recover": accountAction("forgot"); break;
     case "pwEye": { const i = b.previousElementSibling, show = i.type === "password"; i.type = show ? "text" : "password"; b.innerHTML = EYE[show ? 1 : 0]; b.setAttribute("aria-pressed", show); b.setAttribute("aria-label", show ? "Passwort verbergen" : "Passwort anzeigen"); b.title = b.getAttribute("aria-label"); break; }
     case "syncNow": sync().then(() => render()); break;
+    case "abOn": ab.on = b.dataset.v === "1"; abAsked = false; abSave(); render(); break;
+    case "abDays": ab.days = +b.dataset.v || 7; abSave(); render(); break;
+    case "abPick": showDirectoryPicker({mode: "readwrite", id: "klassenbuch-backup"}).then(async h => { ab.dir = h; abAsked = true; await abSave(); render(); if (!(await abWrite(true))) toast("In diesen Ordner kann nicht geschrieben werden."); }).catch(() => {}); break;
+    case "abNow": ev.preventDefault(); abAsked = true; abWrite(true).then(ok => { if (!ok) toast("Der Ordner ist nicht zugänglich. Wähle ihn neu."); }); break;
+    case "abClear": ab.dir = null; abSave(); render(); break;
     case "snapList": snapLoad(); break;
     case "snapOn": { const off = !b.dataset.v; if (off === !!db.snapOff) break; db.snapOff = off; save(); render(); toast(off ? "Tägliche Sicherung ausgeschaltet" : "Tägliche Sicherung eingeschaltet"); break; }
     case "snapDel": ask("Alle früheren Stände auf dem Server löschen? Das lässt sich nicht rückgängig machen. Deine jetzigen Einträge bleiben unverändert.", "Löschen", async () => {
@@ -1604,6 +1647,7 @@ window.addEventListener("resize", () => app.querySelectorAll("textarea").forEach
 window.addEventListener("hashchange", () => { detailStufe = null; editBook = null; render(); window.scrollTo(0,0); });
 
 function backupBanner(){
+  if (mode === "app" && typeof abBanner === "function") return abBanner();
   if (syncOn()) return "";
   const lb = db.lastBackup, days = lb ? Math.floor((Date.now()-lb)/864e5) : null;
   if (db.lessons.length && (days === null || days >= 7)) return `<div class="banner">${days===null?"Noch kein Backup gespeichert.":"Letztes Backup vor "+days+" Tagen."} <a href="#daten-konto">Jetzt sichern</a></div>`;
