@@ -876,7 +876,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1649 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1718 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1020,7 +1020,7 @@ async function plPublish(r){
 }
 async function plLoad(r){
   pl.busy = true; pl.err = "";
-  const out = {};
+  const out = {...(r.demo || {})}; // r.demo: Beispielantworten (Vorführkonto), Antworten vom Server haben Vorrang
   try {
     const all = Object.values(r.links || {}).flat(), byT = {};
     for (const l of all) byT[await plTok(l.k)] = l.k;
@@ -1352,7 +1352,8 @@ let filt = {schule:"Alle", q:""};
 const FEATS = [["lp","Lehrplan","Reiter, Ziele bei den SuS und im Elternbericht"],["gn","Allgemeine Notizen","Notizfeld für alle in der Wochenansicht"],["stv","Stellvertretung","Excel-Export für Stellvertretungen"],["bd","Geburtstage","Im Kalender und in der Wochenansicht"],["ink","Stiftnotizen","Zeichnen und markieren im Notenviewer"],["audio","Aufnahmen und Player","Links zu Songs, Play-Alongs ohne Noten"],["voices","Stimmen als Ordner","Stimmen eines Stücks in der Literatur zusammenfassen"],["rg","Rechnungen","Privatlektionen abrechnen"],["pl","Stundenplanung","Verfügbarkeiten per Link einholen, Stundenplan vorschlagen"]];
 const feat = k => !(db.features && db.features[k] === false);
 function featCard(){
-  return `<h3>Funktionen</h3><div class="card"><div class="fl">${FEATS.map(([k, n, d]) => `<div class="row" style="flex-wrap:nowrap"><div style="flex:1;min-width:0"><b class="small">${n}</b><div class="tiny">${d}</div></div><button class="chip ${feat(k) ? "on" : ""}" data-a="feat" data-v="${k}" aria-pressed="${feat(k)}" aria-label="${n}">${feat(k) ? "Ein" : "Aus"}</button></div>`).join("")}</div><p class="tiny" style="margin-bottom:0">Gilt für alle deine Geräte. Ausgeschaltete Funktionen werden nur ausgeblendet, deine Einträge bleiben erhalten.</p></div>`;
+  return `<h3>Funktionen</h3><div class="card"><div class="fl">${FEATS.map(([k, n, d]) => `<div class="row" style="flex-wrap:nowrap"><div style="flex:1;min-width:0"><b class="small">${n}</b><div class="tiny">${d}</div></div><button class="chip ${feat(k) ? "on" : ""}" data-a="feat" data-v="${k}" aria-pressed="${feat(k)}" aria-label="${n}">${feat(k) ? "Ein" : "Aus"}</button></div>`).join("")}</div><p class="tiny" style="margin-bottom:0">Gilt für alle deine Geräte. Ausgeschaltete Funktionen werden nur ausgeblendet, deine Einträge bleiben erhalten.</p>
+    ${feat("audio") ? `<div style="margin-top:12px"><label>Spotify-Links öffnen in</label><div class="seg">${[["app","Spotify-App"],["player","Player im Klassenbuch"]].map(([k, l]) => `<button class="${spPref()===k?"on":""}" data-a="spot" data-v="${k}">${l}</button>`).join("")}</div><p class="tiny" style="margin-bottom:0">Gilt nur für dieses Gerät. Für Vorführungen: «Player im Klassenbuch», dann bleibt deine Spotify-App zu.</p></div>` : ""}</div>`;
 }
 function schulen(){ return db.schulen && db.schulen.length ? db.schulen.slice() : [...new Set(db.students.map(s => s.schule).filter(Boolean))]; }
 function schulOpts(cur){ const l = schulen(); if (cur && !l.includes(cur)) l.push(cur); return (l.length ? "" : `<option value="">–</option>`) + l.map(k => `<option ${cur===k?"selected":""}>${esc(k)}</option>`).join(""); }
@@ -2503,7 +2504,6 @@ function appearanceCard(){
     ${buntOpen && pref("kb-palette","bunt") === "bunt" ? `<div class="bunt-p"><label>Eigene Farben für «Bunt»</label><div class="row bunt-r">${[["t1","Fläche 1"],["t2","Fläche 2"],["t3","Fläche 3"],["ac","Akzent"]].map(([k, l]) => `<label class="bunt-c"><input type="color" data-bunt="${k}" value="${esc(buntCfg()[k])}" aria-label="${l}"><span>${l}</span></label>`).join("")}<span class="sp"></span><button class="ghost small" data-a="buntReset">Zurücksetzen</button><button class="small" data-a="buntClose">Fertig</button></div></div>` : ""}
     <div><label>Schrift und Symbole</label><div class="seg">${ZOOMS.map(([k, l]) => `<button class="${z===k?"on":""}" data-a="zoom" data-v="${k}" style="font-size:${Math.round(13 * +k)}px">${l}</button>`).join("")}</div></div>
     <div><label>PDFs öffnen in</label><div class="seg">${[["viewer","Viewer im Klassenbuch"],["extern","Externe App"]].map(([k, l]) => `<button class="${pref("kb-pdfopen","viewer")===k?"on":""}" data-a="pdfo" data-v="${k}">${l}</button>`).join("")}</div></div>
-    ${feat("audio") ? `<div><label>Spotify-Links öffnen in</label><div class="seg">${[["app","Spotify-App"],["player","Player im Klassenbuch"]].map(([k, l]) => `<button class="${spPref()===k?"on":""}" data-a="spot" data-v="${k}">${l}</button>`).join("")}</div></div>` : ""}
   </div><p class="tiny" style="margin-bottom:0">Gilt für dieses Gerät.</p></div>`;
 }
 function vDaten(){
