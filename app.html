@@ -876,7 +876,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1644 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1649 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -2453,6 +2453,7 @@ function vLehrplanMS(){
   app.innerHTML = `<div class="row" style="margin-bottom:12px"><h2 style="margin:0">${own ? "Mein Lehrplan" : esc(msV.i)}</h2>${own ? `<span class="badge b-wa">angepasst</span>` : ""}<span class="sp"></span><button class="ghost" data-a="lpEdit">Bearbeiten</button></div>
   ${L.length > 1 ? `<div class="row" style="margin-bottom:8px">${L.map(k => `<button class="chip ${k === msV.i ? "on" : ""}" data-a="msI" data-v="${esc(k)}">${esc(k)}</button>`).join("")}</div>` : ""}
   <div class="row" style="margin-bottom:12px"><div class="seg">${MS_ST.map(k => `<button class="${msV.s === k ? "on" : ""}" data-a="msS" data-v="${k}">Stufe ${k}</button>`).join("")}</div><span class="small muted">${MS_NIV[msV.s]} · ${MS_RW[msV.s]}</span></div>
+  <p class="tiny muted" style="max-width:70ch;margin:0 0 12px">Entwurf, orientiert an gängiger Praxis (z. B. VdM-Lehrpläne), keine offizielle Vorgabe. Bitte prüfen und mit «Bearbeiten» anpassen.</p>
   <div class="cols">${bs.map(b => `<div class="card"><b>${esc(b)}</b><ul class="plain small">${list.filter(x => x[1] === b).map(x => `<li><b style="font-weight:500">${esc(x[2])}</b>${x[3] ? `<div class="tiny">${esc(x[3])}</div>` : ""}${x[4] ? `<div class="tiny muted">Material: ${esc(x[4])}</div>` : ""}</li>`).join("")}</ul></div>`).join("")}</div>`;
 }
 function vLehrplan(){
