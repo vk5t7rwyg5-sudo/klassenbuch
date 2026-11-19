@@ -213,6 +213,7 @@ main{padding-bottom:calc(60px + var(--mph,0px))}
 .lit-row input.num{width:70px;padding:5px 6px}
 .lit-add{display:grid;gap:8px;margin-top:12px;grid-template-columns:minmax(0,2fr) minmax(0,2fr) 80px auto;align-items:end}
 @media (max-width:640px){.lit-add{grid-template-columns:minmax(0,1fr) 80px}.lit-add>div:first-child,.lit-add>div:nth-child(2){grid-column:1/-1}}
+.lit-add>.lit-pick{grid-column:1/-1}
 .lit-add.song-add{grid-template-columns:minmax(0,2fr) minmax(0,2fr) auto}
 @media (max-width:640px){.lit-add.song-add{grid-template-columns:minmax(0,1fr)}.lit-add.song-add>div{grid-column:auto}}
 .bk{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--bd)}
@@ -878,7 +879,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.19-1803 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.19-2132 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -2303,7 +2304,7 @@ function vWoche(){
       <div class="seg">${STATUS.map(([k,t]) => `<button class="${l.status===k?"on s-"+k:""}" data-a="att" data-st="${k}">${t}</button>`).join("")}</div></div>
     ${litChips(s)}${songChips(s)}
     ${books.length ? `<details class="ed-lit"><summary class="small">+ Literatur zu ${esc(s.name.split(" ")[0])} hinzufügen</summary>
-      <div class="lit-add"><div><label for="nl-b">Heft</label><select id="nl-b">${bookOptions(s)}</select></div>
+      <div class="lit-add">${litPick(s)}
       <div><label for="nl-st">Stück / Übung</label><input id="nl-st" placeholder="z. B. Etüde Nr. 12"></div>
       <div><label for="nl-se">Seite</label><input id="nl-se" type="number" inputmode="numeric" value="1"></div>
       <div><button class="pri" data-a="litAdd">Hinzufügen</button></div></div></details>` : ""}
@@ -2883,9 +2884,26 @@ const curLit = s => (s.lit || []).filter(x => x.status !== "fertig");
 const litLabel = x => { const b = bookById(x.b); return x.stueck || (b ? b.titel : "Unbekanntes Heft"); };
 function bookUsers(id){ return db.students.filter(s => s.aktiv !== false && curLit(s).some(x => x.b === id)); }
 
-function bookOptions(s, sel){
-  const mine = books.filter(b => (b.stufen || []).includes(sStufe(s)) && ((b.instr || []).some(i => sInstrList(s).includes(i)) || !(b.instr || []).length));
-  const groups = {}; books.forEach(b => (groups[b.ordner || b.kat] ||= []).push(b));
+function litPick(s){
+  const ks = [...new Set(books.map(b => b.kat).filter(Boolean))];
+  return `<div class="lit-pick" data-sid="${s.id}" ><label for="nl-q">Literatur suchen</label>
+    <div class="row" style="gap:6px"><input id="nl-q" type="search" placeholder="Titel, Autor oder Ordner …" autocomplete="off" style="flex:1 1 180px">
+    <select id="nl-k" aria-label="Kategorie" style="flex:0 0 auto"><option value="">Alle Kategorien</option>${ks.map(k => `<option>${esc(k)}</option>`).join("")}</select></div>
+    <select id="nl-b" size="7" aria-label="Literatur" style="margin-top:6px;width:100%">${bookOptions(s, null, "", "").replace("<option ", "<option selected ")}</select></div>`;
+}
+function litPickUpd(el){
+  const w = el.closest(".lit-pick"); if (!w) return;
+  const s = db.students.find(x => x.id === w.dataset.sid); if (!s) return;
+  w.querySelector("#nl-b").innerHTML = bookOptions(s, null, w.querySelector("#nl-q").value, w.querySelector("#nl-k").value) || `<option value="" disabled>Nichts gefunden</option>`;
+  const sl = w.querySelector("#nl-b"); if (!sl.value && sl.options.length) sl.selectedIndex = [...sl.options].findIndex(o => !o.disabled);
+}
+document.addEventListener("input", e => { if (e.target.id === "nl-q") litPickUpd(e.target); });
+document.addEventListener("change", e => { if (e.target.id === "nl-k") litPickUpd(e.target); });
+function bookOptions(s, sel, q, kat){
+  q = (q || "").toLowerCase().trim();
+  const books_ = books.filter(b => (!kat || b.kat === kat) && (!q || q.split(/\s+/).every(w => [b.titel, b.autor, b.ordner, b.kat].join(" ").toLowerCase().includes(w))));
+  const mine = books_.filter(b => (b.stufen || []).includes(sStufe(s)) && ((b.instr || []).some(i => sInstrList(s).includes(i)) || !(b.instr || []).length));
+  const groups = {}; books_.forEach(b => (groups[b.ordner || b.kat] ||= []).push(b));
   const opt = b => `<option value="${b.id}" ${b.id===sel?"selected":""}>${esc(b.titel)}${b.autor?" – "+esc(b.autor):""}</option>`;
   return (mine.length ? `<optgroup label="Passend: ${esc(sStufeL(s))}">${mine.map(opt).join("")}</optgroup>` : "")
     + Object.keys(groups).sort((a,b) => a.localeCompare(b)).map(g => `<optgroup label="${esc(g)}">${groups[g].map(opt).join("")}</optgroup>`).join("");
@@ -2904,7 +2922,7 @@ function litSection(s){
   return `<h3>Literatur</h3><div class="card">
     ${cur.length ? cur.map(x => litRow(x, false)).join("") : `<span class="small muted">Noch keine aktuelle Literatur. Wähle unten ein Heft, oder tippe im Notenviewer auf „Für SuS“.</span>`}
     ${books.length ? `<div class="lit-add">
-      <div><label for="nl-b">Heft</label><select id="nl-b">${bookOptions(s)}</select></div>
+      ${litPick(s)}
       <div><label for="nl-st">Stück / Übung</label><input id="nl-st" placeholder="z. B. Etüde Nr. 12"></div>
       <div><label for="nl-se">Seite</label><input id="nl-se" type="number" inputmode="numeric" value="1"></div>
       <div><button class="pri" data-a="litAdd">Hinzufügen</button></div></div>` : `<p class="tiny">Der Literaturkatalog ist noch leer.</p>`}
