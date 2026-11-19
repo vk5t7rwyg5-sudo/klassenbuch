@@ -459,6 +459,7 @@ async function flush(){
   flushing = false;
   if (metaDirty || booksDirty || dirtyL.size || delL.size || dirtyInk.size) schedule();
 }
+function localDirty(k){ return k === "meta" ? metaDirty : k === "books" ? booksDirty : k.startsWith("lesson:") ? dirtyL.has(k.slice(7)) || delL.has(k.slice(7)) : k.startsWith("ink:") ? dirtyInk.has(k.slice(4)) : false; }
 function busyTyping(){ const a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName); }
 function remoteRender(){ if (!(loaded.meta && loaded.lessons)) return; if (!document.getElementById("pv").hidden) return; if (busyTyping()) pendingRender = true; else render(); }
 document.addEventListener("focusout", () => setTimeout(() => { if (pendingRender && !busyTyping()){ pendingRender = false; render(); } }, 50));
@@ -519,15 +520,16 @@ async function sync(){
       if (!r.more) break;
     }
     for (const [key, g] of Object.entries(acc2)){
-      if (cfg.outbox.includes(key)) continue;
+      if (cfg.outbox.includes(key) || localDirty(key)) continue; // ungesicherte lokale Eingaben nie mit älterem Serverstand überschreiben
       const cur = local[key];
       if (cur && cur.rev >= g.rev) continue;
       if (g.del){ if (cur){ await idbDel("rec", key); if (!key.startsWith("pdf:")) applyRec(key, null); else { const id = key.slice(4); pdfNote(id, null); try { await idbDel("pdf", id); } catch(e) {} pdfLocal.delete(id); } changed = true; } continue; }
       if (Object.keys(g.p).length !== g.parts) continue;
       let v; try { v = await decObj(Array.from({length: g.parts}, (_, i) => g.p[i]).join("")); } catch(e) { continue; }
+      if (cfg.outbox.includes(key) || localDirty(key)) continue;
       await idbPut("rec", key, {v, rev: g.rev});
       if (key.startsWith("pdf:")){ pdfNote(key.slice(4), v); changed = true; }
-      if (!key.startsWith("pdf:")){ applyRec(key, v); changed = true; }
+      if (!key.startsWith("pdf:")){ if (localDirty(key)) continue; applyRec(key, v); changed = true; }
     }
     cfg.since = maxRev; await saveCfg();
     lastSync = Date.now(); setSync("Synchronisiert");
@@ -876,7 +878,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.19-1446 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.19-1803 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
