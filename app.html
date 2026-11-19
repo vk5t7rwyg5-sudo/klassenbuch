@@ -369,6 +369,29 @@ function saveInk(k){ if (k){ dirtyInk.add(k); schedule(); } }
 let flushT, flushing = false, loaded = {meta:false, lessons:false}, pendingRender = false;
 let idb = null, acc = null, cfg = {since:0, outbox:[], uploads:[]}, syncing = false, syncAgain = false, syncT, lastSync = 0, syncErr = "";
 
+// Abo: cfg.bis = letzter bezahlter Tag (vom Server). Nach Ablauf plus Schonfrist sperrt der Server den Sync (Fehler «abo»).
+const ABO_GRACE = 30; let aboStop = 0;
+function aboState(){
+  const b = cfg && cfg.bis; if (!acc || !b) return "";
+  const end = Date.parse(b + "T23:59:59Z"), now = Date.now();
+  return now > end + ABO_GRACE * 864e5 ? "aus" : now > end ? "frist" : now > end - 30 * 864e5 ? "bald" : "ok";
+}
+const aboDate = () => cfg.bis ? new Date(cfg.bis + "T12:00:00Z").toLocaleDateString("de-CH") : "";
+function aboText(){
+  const s = aboState(), d = aboDate(), mail = `<a href="mailto:adi.popp@hotmail.com">adi.popp@hotmail.com</a>`;
+  if (s === "aus") return `Dein Abo ist am ${d} abgelaufen. Der Abgleich mit dem Server ist pausiert. Deine Einträge bleiben auf diesem Gerät und gehen nicht verloren. Verlängern: ${mail}`;
+  if (s === "frist") return `Dein Abo ist am ${d} abgelaufen. Der Sync läuft noch bis zum ${new Date(Date.parse(cfg.bis) + ABO_GRACE * 864e5).toLocaleDateString("de-CH")}. Verlängern: ${mail}`;
+  if (s === "bald") return `Dein Abo läuft am ${d} ab. Verlängern: ${mail}`;
+  return "";
+}
+// Hinweis als Meldung: in der Schonfrist täglich, in den 30 Tagen davor wöchentlich
+function aboNag(){
+  const s = aboState(); if (s !== "frist" && s !== "bald") return;
+  let last = 0; try { last = Number(localStorage.getItem("kb-abo-nag")) || 0; } catch(e) {}
+  if (Date.now() - last < (s === "frist" ? 1 : 7) * 864e5) return;
+  try { localStorage.setItem("kb-abo-nag", String(Date.now())); } catch(e) {}
+  toast(s === "frist" ? "Dein Abo ist abgelaufen. Mehr unter Einstellungen → Konto und Daten." : "Dein Abo läuft bald ab. Mehr unter Einstellungen → Konto und Daten.");
+}
 function setSync(t){ document.getElementById("sync").textContent = t; }
 function save(){ metaDirty = true; schedule(); }
 function saveL(id){ dirtyL.add(id); schedule(); }
@@ -429,7 +452,7 @@ const decObj = async s => JSON.parse(td.decode(await decBytes(unb64(s))));
 async function api(action, body){
   const r = await fetch(SYNC + action, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({...body, acct: acc?.acct, auth: acc?.auth, ...(body.acct ? {acct: body.acct, auth: body.auth} : {})})});
   let j = {}; try { j = await r.json(); } catch(e) {}
-  if (!r.ok){ const e = new Error(j.error || ("http " + r.status)); e.code = j.error || r.status; throw e; }
+  if (!r.ok){ const e = new Error(j.error || ("http " + r.status)); e.code = j.error || r.status; e.bis = j.bis; throw e; }
   return j;
 }
 
@@ -493,8 +516,9 @@ async function pushOutbox(){
     }
 }
 function syncSoon(ms){ clearTimeout(syncT); syncT = setTimeout(sync, ms || 0); }
-async function sync(){
+async function sync(force){
   if (!acc || !navigator.onLine) { if (acc) setSync("Offline – wird später synchronisiert"); return; }
+  if (aboStop > Date.now() && force !== true){ setSync("Abo abgelaufen – Sync pausiert"); return; }
   if (syncing){ syncAgain = true; return; }
   syncing = true; syncErr = "";
   try {
@@ -511,6 +535,8 @@ async function sync(){
     const local = await idbAll("rec"), acc2 = {};
     for (;;){
       const r = await api("pull", {since, snap: db.snapOff ? 0 : 1});
+      if (r.bis !== undefined && r.bis !== (cfg.bis || "")){ cfg.bis = r.bis; await saveCfg(); }
+      aboStop = 0;
       if (r.profile === false || (r.consent !== undefined && r.consent !== CONSENT)) askProfile(r.profile === false);
       for (const it of r.items){
         since = Math.max(since, it.rev); maxRev = Math.max(maxRev, it.rev);
@@ -534,8 +560,10 @@ async function sync(){
     }
     cfg.since = maxRev; await saveCfg();
     lastSync = Date.now(); setSync("Synchronisiert");
+    aboNag();
     if (changed) remoteRender();
   } catch(e) {
+    if (e.code === "abo"){ cfg.bis = e.bis || cfg.bis; await saveCfg(); aboStop = Date.now() + 3600000; syncErr = "Abo abgelaufen, der Sync ist pausiert."; setSync("Abo abgelaufen – Sync pausiert"); syncing = false; render(); return; }
     if (e.code === "rate"){ syncErr = ""; setSync("Server kurz ausgelastet – geht in einer Minute weiter"); syncing = false; syncSoon(65000); return; }
     syncErr = e.code === "auth" ? "Anmeldung abgelaufen oder Passwort geändert." : /fetch|network|load failed/i.test(e.message || "") ? "Server nicht erreichbar oder Zeitüberschreitung." : (e.message || "Fehler");
     setSync(e.code === "auth" ? "Sync: bitte neu anmelden" : "Sync fehlgeschlagen – neuer Versuch folgt");
@@ -719,7 +747,7 @@ async function newRecoveryKey(pw){
   rkShow = rk;
 }
 async function signOut(wipe){
-  acc = null; await idbDel("cfg", "account"); cfg = {since:0, outbox:[], uploads:[]}; await saveCfg();
+  acc = null; aboStop = 0; await idbDel("cfg", "account"); cfg = {since:0, outbox:[], uploads:[]}; await saveCfg();
   if (wipe){ await tx("rec", "readwrite", s => s.clear()); await tx("pdf", "readwrite", s => s.clear()); pdfLocal = new Set(); db = {students:[], lessons:[], events:[], lastBackup:null}; books = []; ink = {}; }
   setSync("Nur auf diesem Gerät"); render();
 }
@@ -853,6 +881,7 @@ function vDatenApp(){
   if (acc){
     card = `<div class="card"><div class="row"><b>Sync ist eingerichtet</b><span class="badge b-ok">${esc(acc.email)}</span><span class="sp"></span><button class="pri" data-a="syncNow">Jetzt synchronisieren</button></div>
       <p class="small muted" style="margin-bottom:0">Letzter Abgleich: ${ls}${cfg.outbox.length ? ` · ${cfg.outbox.length} Änderung(en) warten` : ""}${cfg.uploads.length ? ` · ${cfg.uploads.length} PDF(s) warten auf Upload` : ""}${syncErr ? ` · <span style="color:var(--da)">${esc(syncErr)}</span>` : ""}</p>
+      ${aboText() ? `<div class="banner" style="margin:8px 0">${aboText()}</div>` : cfg.bis ? `<p class="small muted" style="margin:4px 0 0">Abo bezahlt bis ${aboDate()}</p>` : ""}
       <p class="tiny" style="max-width:65ch">Deine Einträge werden auf dem Gerät verschlüsselt, bevor sie auf den Server gehen. Niemand ausser dir kann sie lesen. Name und E-Mail sind zu deinem Konto gespeichert.</p>
       ${acctView === "pw" ? `<div class="f" style="max-width:640px;margin-top:8px">${f("ac-old","Aktuelles Passwort","password","current-password")}${f("ac-new","Neues Passwort (mind. 10 Zeichen)","password","new-password")}</div>
         <div class="row" style="margin-top:8px"><button class="pri" data-a="pwSave">Passwort ändern</button><button data-a="acView" data-v="">Abbrechen</button><span class="small" id="ac-err" style="color:var(--da)"></span></div>`
@@ -891,7 +920,7 @@ function vDatenApp(){
       () => noH(appearanceCard(), "Darstellung")],
     ["konto", "Konto und Daten", '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
       `${acc ? `${acc.email} · Abgleich ${ls}` : "Nicht angemeldet: Einträge nur auf diesem Gerät"} · Backup ${days === null ? "noch nie" : days === 0 ? "heute" : "vor " + days + (days === 1 ? " Tag" : " Tagen")}`,
-      syncErr ? "Sync-Fehler" : rkShow ? "Schlüssel sichern" : !acc && db.lessons.length && (days === null || days >= 7) ? "Backup fällig" : "",
+      aboState() === "aus" ? "Abo abgelaufen" : aboState() === "frist" || aboState() === "bald" ? "Abo verlängern" : syncErr ? "Sync-Fehler" : rkShow ? "Schlüssel sichern" : !acc && db.lessons.length && (days === null || days >= 7) ? "Backup fällig" : "",
       () => rkCard() + `<h3>Konto und Sync</h3>` + card + pdfCard() + `<h3>Sicherung</h3>` + backup]];
   const svg = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
   const g = groups.find(x => x[0] === page);
@@ -900,7 +929,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.19-2146 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.19-2205 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -958,7 +987,7 @@ document.addEventListener("click", ev => {
     case "signUp": accountAction("up"); break;
     case "recover": accountAction("forgot"); break;
     case "pwEye": { const i = b.previousElementSibling, show = i.type === "password"; i.type = show ? "text" : "password"; b.innerHTML = EYE[show ? 1 : 0]; b.setAttribute("aria-pressed", show); b.setAttribute("aria-label", show ? "Passwort verbergen" : "Passwort anzeigen"); b.title = b.getAttribute("aria-label"); break; }
-    case "syncNow": sync().then(() => render()); break;
+    case "syncNow": sync(true).then(() => render()); break;
     case "csvExp": { const k = b.dataset.v, t = (CSV_KINDS.find(x => x[0] === k) || [, k])[1]; saveFile("klassenbuch-" + t.toLowerCase().replace(":", "") + "-" + today() + ".csv", csvText(expRows(k)), "text/csv").then(ok => ok && toast(t + " exportiert")); break; }
     case "abOn": ab.on = b.dataset.v === "1"; abAsked = false; abSave(); render(); break;
     case "abDays": ab.days = +b.dataset.v || 7; abSave(); render(); break;
@@ -1326,7 +1355,7 @@ function calIcs(){
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Klassenbuch//DE", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-CALNAME:Klassenbuch", "X-WR-TIMEZONE:Europe/Zurich", "X-PUBLISHED-TTL:PT1H", "REFRESH-INTERVAL;VALUE=DURATION:PT1H", ...CAL_TZ, ...L, "END:VCALENDAR"].map(calFold).join("\r\n") + "\r\n";
 }
 async function calTick(){
-  const c = db.cal; if (!c || !c.on || !c.tok || !acc || mode !== "app" || !(loaded.meta && loaded.lessons) || calBusy) return;
+  const c = db.cal; if (!c || !c.on || !c.tok || !acc || mode !== "app" || !(loaded.meta && loaded.lessons) || calBusy || aboStop > Date.now()) return;
   const ics = calIcs(); if (ics === calLast) return;
   calBusy = true;
   try { await api("calput", {tok: c.tok, ics}); calLast = ics; calMsg = "Zuletzt aktualisiert um " + new Date().toLocaleTimeString("de-CH", {hour: "2-digit", minute: "2-digit"}); }
