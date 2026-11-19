@@ -823,6 +823,27 @@ function abCard(){
       <p class="tiny" style="max-width:65ch">${ab.dir ? `Beim Öffnen der App legt sie eine Datei in diesen Ordner, sobald das letzte Backup älter ist als eingestellt. Es bleiben die letzten ${ab.keep} Dateien. Wählst du einen OneDrive- oder iCloud-Ordner, liegt das Backup auch ausserhalb dieses Geräts. Fragt der Browser nach, ob die App in den Ordner schreiben darf, bestätige das.` : "Wähle einen Ordner, in den die App die Backup-Dateien legt (z. B. in OneDrive). Ohne Ordner erinnert sie dich nur."}</p>`
       : `<p class="tiny" style="max-width:65ch;margin-top:0">Dieser Browser kann nicht selbst in einen Ordner speichern. Die App erinnert dich beim Öffnen, sobald ein Backup fällig ist. Ein Tipp auf «Jetzt sichern» lädt die Datei herunter.</p>`) : `<p class="tiny" style="max-width:65ch;margin-top:0">Ausgeschaltet. Mit «Ein» legt die App in einem Ordner deiner Wahl regelmässig eine Backup-Datei an, oder sie erinnert dich daran.</p>`}</div>`;
 }
+/* --- Datenexport als CSV (Semikolon, UTF-8 mit BOM: öffnet direkt in Excel/Numbers) --- */
+function expRows(kind){
+  const nm = id => (S(id) || {}).name || "", sn = (a, b) => a.localeCompare(b, "de");
+  if (kind === "sus") return [["Name","Typ","Mitglieder","Schule","Verrechnung","Aktiv","Wochentag","Zeit","Dauer (Min.)","Rhythmus","Instrument / Stufe","Bereiche","Seit","Geburtsdatum","Eltern","Telefon","E-Mail","Adresse","Bemerkung"],
+    ...db.students.slice().sort((a, b) => sn(a.name, b.name)).map(s => { const k = kOf(s); return [s.name, s.typ, s.typ === "Gruppe" ? gMembers(s).map(x => x.name).join(", ") : "", s.schule, s.verr || "", s.aktiv === false ? "nein" : "ja",
+      isFrei(s) ? "" : TAGE[s.tag] || "", s.zeit, s.dauer, isFrei(s) ? "unregelmässig" : "wöchentlich", sStufeL(s), sAP(s) ? (s.instrumente || []).join(", ") : "", s.seit, (s.stammblatt || {}).geburt || "", s.eltern, k.tel, k.mail, k.adresse, s.bemerkung]; })];
+  if (kind === "lek") return [["Datum","Zeit","Schüler:in","Schule","Status","Einstieg","Inhalt","Aufgaben","Notiz"],
+    ...db.lessons.slice().sort((a, b) => a.datum.localeCompare(b.datum) || sn(nm(a.sid), nm(b.sid))).map(l => [l.datum, l.zeit || (S(l.sid) || {}).zeit || "", nm(l.sid), (S(l.sid) || {}).schule || "", l.status, l.warmup, l.inhalt, l.aufgaben, l.notiz])];
+  if (kind === "ter") return [["Datum","Bis","Typ","Titel","Ort / Zeit","Teilnehmende","Notiz"],
+    ...db.events.slice().sort((a, b) => (a.datum || "").localeCompare(b.datum || "")).map(e => [e.datum, e.bis, e.typ, e.titel, e.ort, (e.sids || []).map(nm).filter(Boolean).join(", "), e.notiz])];
+  if (kind === "rg") return [["Nummer","Datum","Name","Betrag (CHF)","Bezahlt","Posten"],
+    ...(db.invoices || []).map(i => [i.nr, i.datum, i.name, (i.total || 0).toFixed(2), i.paid ? "ja" : "nein", i.items.map(x => x.abo ? `Abo ab ${x.von} (${x.n} Lektionen)` : `${x.d} (${x.min} Min.)`).join(", ")])];
+  return [];
+}
+const csvText = rows => "\ufeff" + rows.map(r => r.map(v => { v = v == null ? "" : String(v); return /[";\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(";")).join("\r\n") + "\r\n";
+const CSV_KINDS = [["sus","Schüler:innen"],["lek","Lektionen"],["ter","Termine"],["rg","Rechnungen"]];
+function csvCard(){
+  const ks = CSV_KINDS.filter(([k]) => k !== "rg" || (db.invoices || []).length);
+  return `<h3>Datenexport</h3><div class="card"><div class="row">${ks.map(([k, t]) => `<button data-a="csvExp" data-v="${k}">${t}</button>`).join("")}</div>
+  <p class="tiny" style="max-width:65ch">Lädt deine Einträge als CSV-Tabelle herunter. Sie lässt sich in Excel, Numbers oder LibreOffice öffnen und bleibt lesbar, auch ohne Klassenbuch. Für die Wiederherstellung in der App brauchst du das Backup oben.</p></div>`;
+}
 function vDatenApp(){
   const lb = db.lastBackup ? new Date(db.lastBackup).toLocaleString("de-CH") : "noch nie";
   const ls = lastSync ? new Date(lastSync).toLocaleTimeString("de-CH", {hour:"2-digit", minute:"2-digit"}) : "–";
@@ -854,7 +875,7 @@ function vDatenApp(){
   const backup = `<div class="card"><p class="small muted num" style="margin-top:0">Letztes Backup: ${lb} · ${db.students.length} SuS · ${db.lessons.length} Lektionen · ${db.events.length} Termine · ${books.length} Hefte</p>
   <div class="row"><button class="pri" data-a="export">Backup herunterladen</button><button data-a="import">Backup laden</button></div>
   <p class="tiny">Das Backup enthält alle Einträge, aber keine PDFs. „Laden“ ersetzt alle Einträge durch die gewählte Datei.</p></div>
-  ${abCard()}${snapCard()}
+  ${csvCard()}${abCard()}${snapCard()}
   <h3>Neu anfangen</h3><div class="card"><button class="del" data-a="reset">Alle Einträge löschen</button> <span class="tiny">Lade vorher ein Backup herunter.</span></div>`;
   // Einstellungen als Kacheln (#daten), jede Gruppe auf einer eigenen Seite (#daten-<gruppe>)
   const rc = rgCfg(), days = db.lastBackup ? Math.floor((Date.now() - db.lastBackup) / 864e5) : null;
@@ -879,7 +900,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.19-2132 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.19-2146 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -938,6 +959,7 @@ document.addEventListener("click", ev => {
     case "recover": accountAction("forgot"); break;
     case "pwEye": { const i = b.previousElementSibling, show = i.type === "password"; i.type = show ? "text" : "password"; b.innerHTML = EYE[show ? 1 : 0]; b.setAttribute("aria-pressed", show); b.setAttribute("aria-label", show ? "Passwort verbergen" : "Passwort anzeigen"); b.title = b.getAttribute("aria-label"); break; }
     case "syncNow": sync().then(() => render()); break;
+    case "csvExp": { const k = b.dataset.v, t = (CSV_KINDS.find(x => x[0] === k) || [, k])[1]; saveFile("klassenbuch-" + t.toLowerCase().replace(":", "") + "-" + today() + ".csv", csvText(expRows(k)), "text/csv").then(ok => ok && toast(t + " exportiert")); break; }
     case "abOn": ab.on = b.dataset.v === "1"; abAsked = false; abSave(); render(); break;
     case "abDays": ab.days = +b.dataset.v || 7; abSave(); render(); break;
     case "abPick": showDirectoryPicker({mode: "readwrite", id: "klassenbuch-backup"}).then(async h => { ab.dir = h; abAsked = true; await abSave(); render(); if (!(await abWrite(true))) toast("In diesen Ordner kann nicht geschrieben werden."); }).catch(() => {}); break;
