@@ -876,7 +876,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.17-1820 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.19-1446 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -2312,7 +2312,7 @@ function vWoche(){
       ${prev.inhalt?`<p><b>Gearbeitet</b><br>${esc(prev.inhalt)}</p>`:""}${prev.aufgaben?`<p><b>Aufgaben</b><br>${esc(prev.aufgaben)}</p>`:""}${prev.notiz?`<p class="muted"><b>Notiz</b><br>${esc(prev.notiz)}</p>`:""}</details>` : ""}
     <div class="ed-f">
       <div><label for="w-${s.id}">WarmUp</label><textarea id="w-${s.id}" data-f="warmup" rows="2" placeholder="Einspielen, Technik, Rhythmus …">${esc(l.warmup)}</textarea></div>
-      <div><label for="i-${s.id}">Gearbeitet</label><textarea id="i-${s.id}" data-f="inhalt" rows="6" placeholder="Was habt ihr gemacht? Eine Zeile pro Teil.">${esc(l.inhalt)}</textarea></div>
+      <div><label for="i-${s.id}">Gearbeitet</label>${sInstrList(s).length > 1 ? `<div class="row" style="margin:2px 0 6px"><span class="tiny">Bereich einfügen:</span>${sInstrList(s).map(k => `<button type="button" class="chip" data-a="inhB" data-v="${esc(k)}">${esc(k)}</button>`).join("")}</div>` : ""}<textarea id="i-${s.id}" data-f="inhalt" rows="6" placeholder="Was habt ihr gemacht? Eine Zeile pro Teil.">${esc(l.inhalt)}</textarea></div>
       <div class="ed-2">
         <div><label for="a-${s.id}">Aufgaben bis nächstes Mal</label><textarea id="a-${s.id}" data-f="aufgaben" rows="3">${esc(l.aufgaben)}</textarea><button class="ghost small hw-copy" data-a="hwCopy" title="Kurzer Text für WhatsApp oder SMS">Für Eltern kopieren</button></div>
         <div><label for="n-${s.id}">Notiz (intern, nicht im Elternbericht)</label><textarea id="n-${s.id}" data-f="notiz" rows="3">${esc(l.notiz)}</textarea></div>
@@ -2808,6 +2808,11 @@ document.addEventListener("click", ev => {
     case "hwVar": { const ta = $("hwT"); if (!ta) break; const p = ta.selectionStart ?? ta.value.length, e = ta.selectionEnd ?? p, ins = "{" + b.dataset.v + "}";
       ta.value = ta.value.slice(0, p) + ins + ta.value.slice(e); ta.focus(); ta.setSelectionRange(p + ins.length, p + ins.length); ta.dispatchEvent(new Event("input", {bubbles: true})); break; }
     case "hwReset": ask("Den Elterntext auf den Standard zurücksetzen?", "Zurücksetzen", () => { db.hwText = null; save(); render(); }); break;
+    case "inhB": { // Bereich als Überschrift ins Feld «Gearbeitet» einfügen, Text darunter eingerückt
+      const ta = card.querySelector('[data-f="inhalt"]'); if (!ta) break;
+      const v = ta.value.replace(/\s+$/, ""); ta.value = (v ? v + "\n" : "") + b.dataset.v + "\n\t";
+      const l = getLesson(sid, card.dataset.d, true); l.inhalt = ta.value; saveL(l.id);
+      ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); break; }
     case "hwCopy": { // Aufgaben als kurzer Text zum Einfügen in WhatsApp
       const ta = card.querySelector('[data-f="aufgaben"]'), auf = (ta ? ta.value : "").trim();
       if (!auf){ toast("Noch keine Aufgaben eingetragen."); break; }
@@ -2854,6 +2859,13 @@ document.addEventListener("input", ev => {
   if (t.dataset.sf){ if (/^(tel|mail|adresse)$/.test(t.dataset.sf)){ kOf(s); s[t.dataset.sf] = t.value; s.kontakt = kJoin(s); save(); return; } s[t.dataset.sf] = "num" in t.dataset ? +t.value : t.value; save(); if ("rr" in t.dataset){ detailStufe = null; render(); } }
 });
 document.addEventListener("change", ev => { if (ev.target.dataset && ev.target.dataset.abo) render(); });
+document.addEventListener("keydown", e => { // Tab im Feld «Gearbeitet» rückt ein (Shift+Tab nimmt zurück), statt zum nächsten Feld zu springen
+  const ta = e.target; if (e.key !== "Tab" || !ta.dataset || ta.dataset.f !== "inhalt") return; e.preventDefault();
+  const v = ta.value, a = ta.selectionStart, z = ta.selectionEnd, ls = v.lastIndexOf("\n", a - 1) + 1;
+  if (e.shiftKey){ if (v[ls] === "\t"){ ta.value = v.slice(0, ls) + v.slice(ls + 1); ta.setSelectionRange(Math.max(ls, a - 1), Math.max(ls, z - 1)); } }
+  else ta.setRangeText("\t", a, z, "end");
+  ta.dispatchEvent(new Event("input", {bubbles: true}));
+});
 window.addEventListener("beforeunload", () => { if (mode === "local") flush(); });
 /* ---------- Literatur: Katalog (eigenes Dokument), Zuweisungen pro SuS (s.lit), Notenviewer ---------- */
 let books = [], litRef = null, booksDirty = false, lastBooksJson = "", assetsNs = null;
