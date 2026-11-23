@@ -947,7 +947,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.23-1743 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.23-1748 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1431,7 +1431,9 @@ function ubLesson(sid, d){ const l = getLesson(sid, d, true); l.ub ||= {}; l.ub.
 /* --- Seite veröffentlichen (alle 15 s, nur bei Änderung) --- */
 let ubLast = {}, ubBusy = false, ubMsg = "";
 function ubDoc(s){
-  const t = today(), L = db.lessons.filter(l => l.sid === s.id && l.datum <= t).sort((a, b) => b.datum.localeCompare(a.datum)).map(l => {
+  const t = today(), hasUb = l => l.ub && ((l.ub.plan || []).length || (l.ub.rec || []).length);
+  // Künftige Lektionen nur mit Übungsplan oder Aufnahme (vorbereitete Notizen bleiben verborgen)
+  const L = db.lessons.filter(l => l.sid === s.id && (l.datum <= t || hasUb(l))).sort((a, b) => b.datum.localeCompare(a.datum)).map(l => {
     const u = l.ub || {}, r = (u.rec || []).filter(x => (x.files || []).length).map(x => ({id: x.id, t: x.t, mime: x.mime, dur: x.dur, f: x.files, k: x.k}));
     const p = (u.plan || []).filter(x => x.m > 0).map(x => ({m: x.m, t: x.t || ""}));
     return {d: l.datum, a: l.aufgaben || "", p, r};
