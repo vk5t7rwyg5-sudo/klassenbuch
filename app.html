@@ -460,7 +460,7 @@ async function api(action, body){
 
 /* --- Lokale Datensätze: meta, books, lesson:<id>, pdf:<id> --- */
 function recOf(key){
-  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, plan: db.plan || null, msEdit: db.msEdit || null, lehrplan: db.lehrplan || null, rechnung: db.rechnung || null, invoices: db.invoices || [], stvCols: db.stvCols || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null, planung: db.planung || null, snapOff: !!db.snapOff, hwText: db.hwText || null, cal: db.cal || null};
+  if (key === "meta") return {students: db.students, events: db.events, lastBackup: db.lastBackup, schulen: db.schulen || null, notiz: db.notiz || "", features: db.features || null, plan: db.plan || null, msEdit: db.msEdit || null, lehrplan: db.lehrplan || null, rechnung: db.rechnung || null, invoices: db.invoices || [], stvCols: db.stvCols || null, pdfSync: typeof db.pdfSync === "boolean" ? db.pdfSync : null, planung: db.planung || null, snapOff: !!db.snapOff, hwText: db.hwText || null, cal: db.cal || null, ubTpl: db.ubTpl || null};
   if (key === "books") return {books};
   if (key.startsWith("lesson:")) return db.lessons.find(l => l.id === key.slice(7)) || null;
   if (key.startsWith("ink:")){ const v = ink[key.slice(4)]; return v && Object.keys(v.p || {}).length ? v : null; }
@@ -491,7 +491,7 @@ function remoteRender(){ if (!(loaded.meta && loaded.lessons)) return; if (!docu
 document.addEventListener("focusout", () => setTimeout(() => { if (pendingRender && !busyTyping()){ pendingRender = false; render(); } }, 50));
 
 function applyRec(key, v){
-  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.plan = v ? v.plan || null : null; db.msEdit = v ? v.msEdit || null : null; db.lehrplan = v ? v.lehrplan || null : null; db.rechnung = v ? v.rechnung || null : null; db.planung = v ? v.planung || null : null; db.snapOff = !!(v && v.snapOff); db.hwText = v ? v.hwText || null : null; db.cal = v ? v.cal || null : null; db.invoices = v ? v.invoices || [] : []; db.stvCols = v ? v.stvCols || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
+  if (key === "meta"){ db.students = v ? v.students || [] : []; db.events = v ? v.events || [] : []; db.lastBackup = v ? v.lastBackup || null : null; db.schulen = v ? v.schulen || null : null; db.notiz = v ? v.notiz || "" : ""; db.features = v ? v.features || null : null; db.plan = v ? v.plan || null : null; db.msEdit = v ? v.msEdit || null : null; db.lehrplan = v ? v.lehrplan || null : null; db.rechnung = v ? v.rechnung || null : null; db.planung = v ? v.planung || null : null; db.snapOff = !!(v && v.snapOff); db.hwText = v ? v.hwText || null : null; db.cal = v ? v.cal || null : null; db.ubTpl = v ? v.ubTpl || null : null; db.invoices = v ? v.invoices || [] : []; db.stvCols = v ? v.stvCols || null : null; db.pdfSync = v && typeof v.pdfSync === "boolean" ? v.pdfSync : undefined; }
   else if (key === "books") books = v ? v.books || [] : [];
   else if (key.startsWith("ink:")){ const k = key.slice(4); if (v) ink[k] = v; else delete ink[k]; if (typeof pvInkRemote === "function") pvInkRemote(k); }
   else if (key.startsWith("lesson:")){ const id = key.slice(7), i = db.lessons.findIndex(l => l.id === id); if (v){ v.id = id; if (i < 0) db.lessons.push(v); else db.lessons[i] = v; } else if (i >= 0) db.lessons.splice(i, 1); }
@@ -947,7 +947,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.23-1418 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.23-1743 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1410,6 +1410,267 @@ document.addEventListener("click", ev => {
   }
 });
 
+/* ---------- Übungsseite für Kinder (Funktion «ub», Standard aus) ----------
+   Pro Kind ein geheimer Link uebe.html#<k> (k = 16 Byte, base64url). Die Seite liegt verschlüsselt mit k auf dem Server
+   (uput/uget, KbItems «ub:<t>», t = sha256(«klassenbuch-uebe-v1:<k>»), erste 32 Hex). Kein Login für die Kinder.
+   s.ub = {k}; pro Lektion l.ub = {plan: [{m, t}], rec: [{id, t, mime, dur, size, k, files, pend}]}.
+   Aufnahmen: im Unterricht mit dem Mikrofon, je mit eigenem Schlüssel k (im verschlüsselten Seiteninhalt), als Stücke
+   über upload/f/ wie die PDFs. Lokal im IndexedDB-Store «audio» unter «ub:<id>». Vorlagen für Übungspläne: db.ubTpl. */
+const ubOn = () => feat("ub") && !!acc;
+const ub64 = u => b64(u).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const ubUn64 = s => unb64(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4));
+const ubVn = s => s.typ === "Gruppe" ? s.name : s.name.split(" ")[0];
+const ubUrl = s => location.origin + location.pathname.replace(/[^/]*$/, "") + "uebe.html#" + s.ub.k;
+const ubDur = n => { n = Math.floor(n || 0); return Math.floor(n / 60) + ":" + String(n % 60).padStart(2, "0"); };
+async function ubTok(k){ return hex(await crypto.subtle.digest("SHA-256", te.encode("klassenbuch-uebe-v1:" + k))).slice(0, 32); }
+async function ubEnc(keyRaw, u8){ const key = await crypto.subtle.importKey("raw", keyRaw, "AES-GCM", false, ["encrypt"]), iv = crypto.getRandomValues(new Uint8Array(12)), c = new Uint8Array(await crypto.subtle.encrypt({name: "AES-GCM", iv}, key, u8)), o = new Uint8Array(12 + c.length); o.set(iv); o.set(c, 12); return o; }
+async function ubDec(keyRaw, u8){ const key = await crypto.subtle.importKey("raw", keyRaw, "AES-GCM", false, ["decrypt"]); return new Uint8Array(await crypto.subtle.decrypt({name: "AES-GCM", iv: u8.subarray(0, 12)}, key, u8.subarray(12))); }
+function ubEnsure(s){ if (!s.ub || !s.ub.k){ s.ub = {k: ub64(crypto.getRandomValues(new Uint8Array(16)))}; save(); } return s.ub; }
+function ubLesson(sid, d){ const l = getLesson(sid, d, true); l.ub ||= {}; l.ub.plan ||= []; l.ub.rec ||= []; return l; }
+
+/* --- Seite veröffentlichen (alle 15 s, nur bei Änderung) --- */
+let ubLast = {}, ubBusy = false, ubMsg = "";
+function ubDoc(s){
+  const t = today(), L = db.lessons.filter(l => l.sid === s.id && l.datum <= t).sort((a, b) => b.datum.localeCompare(a.datum)).map(l => {
+    const u = l.ub || {}, r = (u.rec || []).filter(x => (x.files || []).length).map(x => ({id: x.id, t: x.t, mime: x.mime, dur: x.dur, f: x.files, k: x.k}));
+    const p = (u.plan || []).filter(x => x.m > 0).map(x => ({m: x.m, t: x.t || ""}));
+    return {d: l.datum, a: l.aufgaben || "", p, r};
+  }).filter(x => x.p.length || x.r.length || x.a.trim()).slice(0, 12);
+  L.forEach((x, i) => { if (i) x.a = ""; });   // Aufgaben nur aus der letzten Lektion
+  return {v: 1, n: ubVn(s), l: L};
+}
+async function ubTick(){
+  if (!ubOn() || mode !== "app" || !(loaded.meta && loaded.lessons) || ubBusy || aboStop > Date.now()) return;
+  ubBusy = true;
+  try {
+    await ubUploads();
+    const pages = [];
+    for (const s of db.students){
+      if (!s.ub || !s.ub.k || s.aktiv === false) continue;
+      const j = JSON.stringify(ubDoc(s)), key = s.id + ":" + s.ub.k; if (ubLast[key] === j) continue;
+      pages.push({key, j, t: await ubTok(s.ub.k), data: b64(await ubEnc(ubUn64(s.ub.k), te.encode(j)))});
+    }
+    if (pages.length){
+      await api("uput", {pages: pages.map(p => ({t: p.t, data: p.data}))});
+      pages.forEach(p => ubLast[p.key] = p.j);
+      ubMsg = "Aktualisiert um " + new Date().toLocaleTimeString("de-CH", {hour: "2-digit", minute: "2-digit"});
+    }
+  } catch(e) { ubMsg = e && e.code === "not_found" ? "Der Server kennt die Übungsseite noch nicht (Server-Version 12 fehlt)." : "Noch nicht aktualisiert. Prüfe die Verbindung."; }
+  ubBusy = false;
+}
+setInterval(ubTick, 15000);
+async function ubUploads(){
+  for (const l of db.lessons){
+    for (const x of (l.ub && l.ub.rec) || []){
+      if (!x.pend) continue;
+      const v = await idbGet("audio", "ub:" + x.id); if (!v) continue;   // auf einem anderen Gerät aufgenommen
+      const enc = await ubEnc(ubUn64(x.k), v.u8), files = [];
+      for (let o = 0; o < enc.length; o += CHUNK){
+        const {uploadUrl, uploadToken} = await api("uploadurl", {});
+        const fd = new FormData(); fd.append("upload_token", uploadToken || ""); fd.append("file", new Blob([enc.subarray(o, o + CHUNK)], {type: "application/octet-stream"}), "kb.bin");
+        const j = await postFile(uploadUrl, fd, () => {});
+        files.push((Array.isArray(j) ? j[0] : j).file_name);
+      }
+      x.files = files; x.pend = false; saveL(l.id);
+      if (location.hash.startsWith("#woche") || !location.hash) ubRefresh();
+    }
+  }
+}
+
+/* --- Aufnahme im Unterricht --- */
+let ubRec = null, ubRecT = null;
+async function ubRecStart(sid, d){
+  if (ubRec) return;
+  if (!navigator.mediaDevices || !window.MediaRecorder){ toast("Dieses Gerät kann im Browser nicht aufnehmen."); return; }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({audio: {echoCancellation: false, noiseSuppression: false, autoGainControl: false}}); }
+  catch(e) { toast("Kein Zugriff aufs Mikrofon. Erlaube es in den Einstellungen des Browsers."); return; }
+  const mime = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm"].find(m => MediaRecorder.isTypeSupported(m)) || "";
+  const mr = new MediaRecorder(stream, mime ? {mimeType: mime, audioBitsPerSecond: 128000} : {}), chunks = [];
+  mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  mr.onstop = () => ubRecDone(chunks, mr.mimeType || mime || "audio/webm");
+  ubRec = {sid, d, mr, stream, t0: Date.now()};
+  mr.start(1000);
+  ubRecT = setInterval(() => { const el = document.getElementById("ubT"); if (el && ubRec) el.textContent = ubDur((Date.now() - ubRec.t0) / 1000); }, 250);
+  render();
+}
+function ubRecStop(){ if (!ubRec) return; ubRec.dur = (Date.now() - ubRec.t0) / 1000; try { ubRec.mr.stop(); } catch(e) {} ubRec.stream.getTracks().forEach(t => t.stop()); clearInterval(ubRecT); }
+async function ubRecDone(chunks, mime){
+  const r = ubRec; ubRec = null;
+  const blob = new Blob(chunks, {type: mime}), u8 = new Uint8Array(await blob.arrayBuffer());
+  if (!u8.length || r.dur < 1){ render(); toast("Die Aufnahme ist leer."); return; }
+  const s = S(r.sid); if (!s){ render(); return; }
+  ubEnsure(s);
+  const l = ubLesson(r.sid, r.d), id = uid() + uid();
+  await idbPut("audio", "ub:" + id, {u8, mime: mime.split(";")[0]});
+  l.ub.rec.push({id, t: "Aufnahme " + (l.ub.rec.length + 1), mime: mime.split(";")[0], dur: Math.round(r.dur), size: u8.length, k: ub64(crypto.getRandomValues(new Uint8Array(32))), files: [], pend: true});
+  saveL(l.id); render(); toast("Aufnahme gespeichert. Gib ihr einen Namen.");
+  setTimeout(ubTick, 300);
+}
+
+/* --- Abspielen für die Lehrperson --- */
+let ubAud = null, ubPlay = "", ubUrls = {};
+async function ubBytes(x){
+  const v = await idbGet("audio", "ub:" + x.id); if (v) return v.u8;
+  if (!(x.files || []).length) throw new Error("local");
+  const parts = []; for (const f of x.files){ const r = await fetch(FILES + f); if (!r.ok) throw new Error("http"); parts.push(new Uint8Array(await r.arrayBuffer())); }
+  const all = new Uint8Array(parts.reduce((a, p) => a + p.length, 0)); let o = 0; parts.forEach(p => { all.set(p, o); o += p.length; });
+  const u8 = await ubDec(ubUn64(x.k), all);
+  try { await idbPut("audio", "ub:" + x.id, {u8, mime: x.mime}); } catch(e) {}
+  return u8;
+}
+async function ubToggle(x){
+  if (!ubAud){ ubAud = new Audio(); ubAud.onended = () => { ubPlay = ""; ubRefresh(); }; }
+  if (ubPlay === x.id){ ubAud.pause(); ubPlay = ""; ubRefresh(); return; }
+  try {
+    if (!ubUrls[x.id]) ubUrls[x.id] = URL.createObjectURL(new Blob([await ubBytes(x)], {type: x.mime || "audio/mp4"}));
+    ubAud.src = ubUrls[x.id]; await ubAud.play(); ubPlay = x.id; ubRefresh();
+  } catch(e) { toast(e && e.message === "local" ? "Diese Aufnahme ist noch nicht hochgeladen. Öffne die App auf dem Gerät, mit dem du aufgenommen hast." : "Die Aufnahme lässt sich nicht abspielen."); }
+}
+function ubRefresh(){ if (!busyTyping()) render(); }
+
+/* --- Abschnitt im Lektions-Editor --- */
+let ubLink = "";
+function ubEd(s, d, l){
+  if (!ubOn()) return "";
+  const u = l.ub || {}, recs = u.rec || [], plan = u.plan || [], vn = esc(ubVn(s)), live = ubRec && ubRec.sid === s.id && ubRec.d === d;
+  const tot = plan.reduce((a, x) => a + (+x.m || 0), 0), prevL = db.lessons.filter(x => x.sid === s.id && x.datum < d && x.ub && (x.ub.plan || []).length).sort((a, b) => b.datum.localeCompare(a.datum))[0];
+  const tpls = db.ubTpl || [], opts = m => Array.from({length: 15}, (_, i) => `<option value="${i + 1}" ${+m === i + 1 ? "selected" : ""}>${i + 1} Min.</option>`).join("");
+  const sum = [recs.length ? recs.length + " Aufnahme" + (recs.length > 1 ? "n" : "") : "", plan.length ? tot + " Min. Übungsplan" : ""].filter(Boolean).join(" · ");
+  return `<details class="ub" ${recs.length || plan.length || live || ubLink === s.id ? "open" : ""}><summary class="small">Übungsseite für ${vn}${sum ? ` <span class="tiny">· ${sum}</span>` : ""}</summary>
+  <div class="ub-b">
+    <div class="ub-h small">Aufnahmen zum Mitspielen</div>
+    ${recs.map(x => `<div class="ub-r"><button class="chip play ub-pl" data-ub="play" data-v="${x.id}" aria-label="${ubPlay === x.id ? "Anhalten" : "Abspielen"}">${ubPlay === x.id ? "❚❚" : "▶"}</button>
+      <input data-ubr="${x.id}" value="${esc(x.t)}" aria-label="Name der Aufnahme"><span class="tiny num">${ubDur(x.dur || 0)}</span>
+      ${x.pend ? `<span class="tiny" title="Wird hochgeladen, sobald eine Verbindung besteht">⏳</span>` : ""}<button class="ghost small" data-ub="recDel" data-v="${x.id}" aria-label="Aufnahme löschen">×</button></div>`).join("")}
+    ${live ? `<div class="ub-live"><span class="ub-dot" aria-hidden="true"></span><b class="num" id="ubT">${ubDur((Date.now() - ubRec.t0) / 1000)}</b><span class="small muted">Aufnahme läuft …</span><button class="pri" data-ub="recStop">■ Stopp</button></div>`
+      : `<div class="row"><button data-ub="rec" ${ubRec ? "disabled" : ""}>🎙 Aufnahme starten</button></div>`}
+    <div class="ub-h small">Übungsplan mit Timer${plan.length ? ` <span class="tiny num">· total ${tot} Min.</span>` : ""}</div>
+    ${plan.map((x, i) => `<div class="ub-p"><select data-ubm="${i}" aria-label="Dauer Block ${i + 1}">${opts(x.m)}</select><input data-ubt="${i}" value="${esc(x.t)}" placeholder="z. B. Töne finden" aria-label="Aufgabe Block ${i + 1}">
+      <button class="ghost small" data-ub="pDel" data-v="${i}" aria-label="Block löschen">×</button></div>`).join("")}
+    <div class="row"><button class="small" data-ub="pAdd">+ Block</button>
+      ${prevL && !plan.length ? `<button class="ghost small" data-ub="pPrev">Wie am ${fmt(prevL.datum, 1)}</button>` : ""}
+      ${tpls.map(x => `<span class="chipw"><button class="chip" data-ub="tpl" data-v="${x.id}" title="Vorlage einfügen">${esc(x.n)}</button><button class="chip pen" data-ub="tplDel" data-v="${x.id}" aria-label="Vorlage ${esc(x.n)} löschen">×</button></span>`).join("")}
+      ${plan.length ? `<button class="ghost small" data-ub="tplSave">Als Vorlage speichern</button>` : ""}</div>
+    <div class="ub-h small">Link für ${vn}</div>
+    ${ubLink === s.id && s.ub ? `<div class="ub-link"><div class="ub-qr">${ubQr(ubUrl(s))}</div><div style="min-width:0;flex:1">
+        <input readonly value="${esc(ubUrl(s))}" onfocus="this.select()" aria-label="Link zur Übungsseite">
+        <div class="row" style="margin-top:8px"><button class="small" data-ub="copy">Kopieren</button>${navigator.share ? `<button class="small" data-ub="share">Teilen</button>` : ""}<a class="btn small ghost" href="${esc(ubUrl(s))}" target="_blank" rel="noopener">Ansehen</a><button class="ghost small" data-ub="new">Neuer Link</button><button class="ghost small del" data-ub="off">Seite löschen</button></div>
+        <p class="tiny" style="margin:8px 0 0">Ohne Login: Wer den Link kennt, sieht die Seite. Der Inhalt ist verschlüsselt, der Schlüssel steckt nur im Link. Die Seite zeigt den Vornamen, die Aufgaben, Übungspläne und Aufnahmen der letzten 12 Lektionen. ${esc(ubMsg)}</p></div></div>`
+      : `<div class="row"><button class="small" data-ub="link">${s.ub ? "Link und QR-Code zeigen" : "Link erstellen"}</button>${s.ub ? "" : `<span class="tiny">Der Link entsteht auch mit der ersten Aufnahme oder dem ersten Block.</span>`}</div>`}
+  </div></details>`;
+}
+document.addEventListener("click", ev => {
+  const b = ev.target.closest("[data-ub]"); if (!b) return;
+  const card = b.closest("[data-sid]"), s = card && S(card.dataset.sid), d = card && card.dataset.d; if (!s) return;
+  const a = b.dataset.ub, find = () => { const l = getLesson(s.id, d); return l && l.ub && (l.ub.rec || []).find(x => x.id === b.dataset.v); };
+  switch (a){
+    case "rec": ubRecStart(s.id, d); break;
+    case "recStop": ubRecStop(); break;
+    case "play": { const x = find(); if (x) ubToggle(x); break; }
+    case "recDel": { const x = find(); if (!x) break;
+      ask(`Aufnahme «${x.t}» löschen? Sie verschwindet auch auf der Übungsseite.`, "Löschen", async () => {
+        const l = ubLesson(s.id, d); l.ub.rec = l.ub.rec.filter(y => y.id !== x.id); saveL(l.id);
+        if (ubPlay === x.id && ubAud){ ubAud.pause(); ubPlay = ""; }
+        try { await idbDel("audio", "ub:" + x.id); } catch(e) {}
+        if ((x.files || []).length) api("delfiles", {files: x.files}).catch(() => {});
+        render(); setTimeout(ubTick, 300); });
+      break; }
+    case "pAdd": { ubEnsure(s); const l = ubLesson(s.id, d); l.ub.plan.push({m: l.ub.plan.length ? 5 : 1, t: ""}); saveL(l.id); render();
+      const ins = document.querySelectorAll(`[data-sid="${s.id}"] [data-ubt]`); if (ins.length) ins[ins.length - 1].focus(); break; }
+    case "pDel": { const l = ubLesson(s.id, d); l.ub.plan.splice(+b.dataset.v, 1); saveL(l.id); render(); break; }
+    case "pPrev": { const p = db.lessons.filter(x => x.sid === s.id && x.datum < d && x.ub && (x.ub.plan || []).length).sort((x, y) => y.datum.localeCompare(x.datum))[0];
+      if (!p) break; ubEnsure(s); const l = ubLesson(s.id, d); l.ub.plan = p.ub.plan.map(x => ({...x})); saveL(l.id); render(); break; }
+    case "tpl": { const x = (db.ubTpl || []).find(y => y.id === b.dataset.v); if (!x) break; ubEnsure(s); const l = ubLesson(s.id, d); l.ub.plan.push(...x.plan.map(y => ({...y}))); saveL(l.id); render(); break; }
+    case "tplDel": { const x = (db.ubTpl || []).find(y => y.id === b.dataset.v); if (!x) break; ask(`Vorlage «${x.n}» löschen?`, "Löschen", () => { db.ubTpl = db.ubTpl.filter(y => y.id !== x.id); save(); render(); }); break; }
+    case "tplSave": { const l = ubLesson(s.id, d), n = (prompt("Name der Vorlage (z. B. «Neues Stück»):") || "").trim(); if (!n) break;
+      (db.ubTpl ||= []).push({id: uid(), n: n.slice(0, 40), plan: l.ub.plan.map(x => ({m: x.m, t: x.t}))}); save(); render(); toast("Vorlage gespeichert"); break; }
+    case "link": ubEnsure(s); ubLink = s.id; render(); setTimeout(ubTick, 300); break;
+    case "copy": navigator.clipboard.writeText(ubUrl(s)).then(() => toast("Link kopiert"), () => toast("Kopieren nicht möglich. Markiere den Link von Hand.")); break;
+    case "share": navigator.share({title: "Übungsseite " + ubVn(s), text: "Hier ist die Übungsseite von " + ubVn(s) + " mit den Aufnahmen und dem Übungsplan:", url: ubUrl(s)}).catch(() => {}); break;
+    case "new": ask(`Neuen Link für ${ubVn(s)} erzeugen? Der alte Link funktioniert danach nicht mehr.`, "Neuer Link", async () => {
+        const old = s.ub.k; s.ub = {k: ub64(crypto.getRandomValues(new Uint8Array(16)))}; save(); render();
+        try { await api("udel", {ts: [await ubTok(old)]}); } catch(e) {} setTimeout(ubTick, 300); toast("Neuer Link erstellt"); });
+      break;
+    case "off": ask(`Übungsseite von ${ubVn(s)} löschen? Der Link funktioniert danach nicht mehr. Aufnahmen und Übungspläne bleiben in den Lektionen.`, "Löschen", async () => {
+        try { await api("udel", {ts: [await ubTok(s.ub.k)]}); } catch(e) { toast("Server nicht erreichbar, bitte nochmals versuchen."); return; }
+        delete s.ub; ubLink = ""; save(); render(); toast("Übungsseite gelöscht"); });
+      break;
+  }
+});
+document.addEventListener("input", ev => {
+  const t = ev.target; if (!t.dataset || !("ubr" in t.dataset || "ubt" in t.dataset)) return;
+  const card = t.closest("[data-sid]"), s = card && S(card.dataset.sid); if (!s) return;
+  ubEnsure(s); const l = ubLesson(s.id, card.dataset.d);
+  if ("ubr" in t.dataset){ const x = l.ub.rec.find(y => y.id === t.dataset.ubr); if (x) x.t = t.value.slice(0, 80); }
+  else { const x = l.ub.plan[+t.dataset.ubt]; if (x) x.t = t.value.slice(0, 200); }
+  saveL(l.id);
+});
+document.addEventListener("change", ev => {
+  const t = ev.target; if (!t.dataset || !("ubm" in t.dataset)) return;
+  const card = t.closest("[data-sid]"), s = card && S(card.dataset.sid); if (!s) return;
+  const l = ubLesson(s.id, card.dataset.d), x = l.ub.plan[+t.dataset.ubm]; if (x){ x.m = Math.max(1, Math.min(15, +t.value || 1)); saveL(l.id); render(); }
+});
+(() => { const st = document.createElement("style"); st.textContent = `
+.ub{margin-top:14px;border-top:1px solid var(--bd);padding-top:10px}.ub>summary{cursor:pointer;color:var(--ac);padding:4px 0}
+.ub-b{display:grid;gap:8px;margin-top:6px}.ub-h{font-weight:600;margin-top:8px}
+.ub-r,.ub-p{display:flex;gap:8px;align-items:center}.ub-r input,.ub-p input{flex:1;min-width:0}.ub-p select{width:auto;flex:none}
+.ub-pl{min-width:40px;text-align:center}
+.ub-live{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-radius:14px;background:var(--soft,var(--bg))}
+.ub-dot{width:12px;height:12px;border-radius:50%;background:var(--da);animation:ubb 1s infinite}@keyframes ubb{50%{opacity:.25}}
+.ub-link{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}.ub-qr{width:150px;flex:none;background:#fff;border-radius:10px;padding:6px}.ub-qr svg{display:block;width:100%;height:auto}
+@media (prefers-reduced-motion:reduce){.ub-dot{animation:none}}`; document.head.appendChild(st); })();
+
+/* --- QR-Code (Byte-Modus, Fehlerkorrektur M, Version 1–10), als SVG --- */
+function ubQr(text){
+  const data = [...te.encode(text)], ECC = [0, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26], BLK = [0, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5];
+  const raw = v => { let r = (16 * v + 128) * v + 64; if (v >= 2){ const n = Math.floor(v / 7) + 2; r -= (25 * n - 10) * n - 55; if (v >= 7) r -= 36; } return r; };
+  const dcw = v => Math.floor(raw(v) / 8) - ECC[v] * BLK[v];
+  let ver = 1; while (ver <= 10 && 4 + (ver < 10 ? 8 : 16) + data.length * 8 > dcw(ver) * 8) ver++;
+  if (ver > 10) return "";
+  const bits = [], put = (v, n) => { for (let i = n - 1; i >= 0; i--) bits.push((v >>> i) & 1); };
+  put(4, 4); put(data.length, ver < 10 ? 8 : 16); data.forEach(b => put(b, 8));
+  const cap = dcw(ver) * 8; put(0, Math.min(4, cap - bits.length)); put(0, (8 - bits.length % 8) % 8);
+  for (let p = 0xEC; bits.length < cap; p ^= 0xEC ^ 0x11) put(p, 8);
+  const cw = []; for (let i = 0; i < bits.length; i += 8){ let v = 0; for (let j = 0; j < 8; j++) v = (v << 1) | bits[i + j]; cw.push(v); }
+  const mul = (x, y) => { let z = 0; for (let i = 7; i >= 0; i--){ z = (z << 1) ^ ((z >>> 7) * 0x11D); z ^= ((y >>> i) & 1) * x; } return z; };
+  const el = ECC[ver], div = Array(el).fill(0); div[el - 1] = 1;
+  let root = 1; for (let i = 0; i < el; i++){ for (let j = 0; j < el; j++){ div[j] = mul(div[j], root); if (j + 1 < el) div[j] ^= div[j + 1]; } root = mul(root, 2); }
+  const rem = d => { const r = Array(el).fill(0); for (const b of d){ const f = b ^ r.shift(); r.push(0); div.forEach((c, i) => r[i] ^= mul(c, f)); } return r; };
+  const nb = BLK[ver], rawCw = Math.floor(raw(ver) / 8), nShort = nb - rawCw % nb, shortLen = Math.floor(rawCw / nb), blocks = [];
+  for (let i = 0, k = 0; i < nb; i++){ const dat = cw.slice(k, k + shortLen - el + (i < nShort ? 0 : 1)); k += dat.length; const e = rem(dat); if (i < nShort) dat.push(0); blocks.push(dat.concat(e)); }
+  const all = []; for (let i = 0; i < blocks[0].length; i++) blocks.forEach((b, j) => { if (i !== shortLen - el || j >= nShort) all.push(b[i]); });
+  const N = ver * 4 + 17, M = Array.from({length: N}, () => Array(N).fill(false)), F = Array.from({length: N}, () => Array(N).fill(false));
+  const set = (x, y, v) => { M[y][x] = v; F[y][x] = true; };
+  for (let i = 0; i < N; i++){ set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+  for (const [cx, cy] of [[3, 3], [N - 4, 3], [3, N - 4]]) for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++){ const x = cx + dx, y = cy + dy, dd = Math.max(Math.abs(dx), Math.abs(dy)); if (x >= 0 && x < N && y >= 0 && y < N) set(x, y, dd !== 2 && dd !== 4); }
+  if (ver > 1){
+    const na = Math.floor(ver / 7) + 2, step = Math.floor((ver * 8 + na * 3 + 5) / (na * 4 - 4)) * 2, pos = [6];
+    for (let p = N - 7; pos.length < na; p -= step) pos.splice(1, 0, p);
+    pos.forEach((x, i) => pos.forEach((y, j) => { if ((i === 0 && j === 0) || (i === 0 && j === na - 1) || (i === na - 1 && j === 0)) return; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(x + dx, y + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1); }));
+  }
+  const fmtBits = mask => { const dd = mask; let r = dd; for (let i = 0; i < 10; i++) r = (r << 1) ^ ((r >>> 9) * 0x537); const b = ((dd << 10) | r) ^ 0x5412, g = i => ((b >>> i) & 1) === 1;
+    for (let i = 0; i <= 5; i++) set(8, i, g(i)); set(8, 7, g(6)); set(8, 8, g(7)); set(7, 8, g(8)); for (let i = 9; i < 15; i++) set(14 - i, 8, g(i));
+    for (let i = 0; i < 8; i++) set(N - 1 - i, 8, g(i)); for (let i = 8; i < 15; i++) set(8, N - 15 + i, g(i)); set(8, N - 8, true); };
+  fmtBits(0);
+  if (ver >= 7){ let r = ver; for (let i = 0; i < 12; i++) r = (r << 1) ^ ((r >>> 11) * 0x1F25); const b = (ver << 12) | r; for (let i = 0; i < 18; i++){ const v = ((b >>> i) & 1) === 1, a = N - 11 + i % 3, c = Math.floor(i / 3); set(a, c, v); set(c, a, v); } }
+  let i = 0;
+  for (let right = N - 1; right >= 1; right -= 2){ if (right === 6) right = 5;
+    for (let vert = 0; vert < N; vert++) for (let j = 0; j < 2; j++){ const x = right - j, up = ((right + 1) & 2) === 0, y = up ? N - 1 - vert : vert;
+      if (!F[y][x] && i < all.length * 8){ M[y][x] = ((all[i >>> 3] >>> (7 - (i & 7))) & 1) === 1; i++; } } }
+  const MASK = [(x, y) => (x + y) % 2 === 0, (x, y) => y % 2 === 0, x => x % 3 === 0, (x, y) => (x + y) % 3 === 0, (x, y) => (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0, (x, y) => x * y % 2 + x * y % 3 === 0, (x, y) => (x * y % 2 + x * y % 3) % 2 === 0, (x, y) => ((x + y) % 2 + x * y % 3) % 2 === 0];
+  const apply = m => { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (!F[y][x] && MASK[m](x, y)) M[y][x] = !M[y][x]; };
+  const penalty = () => { let p = 0, dark = 0;
+    for (let a = 0; a < 2; a++) for (let u = 0; u < N; u++){ let run = 1; for (let v = 1; v < N; v++){ const c = a ? M[v][u] : M[u][v], q = a ? M[v - 1][u] : M[u][v - 1]; if (c === q){ run++; if (run === 5) p += 3; else if (run > 5) p++; } else run = 1; } }
+    for (let y = 0; y < N - 1; y++) for (let x = 0; x < N - 1; x++){ const c = M[y][x]; if (c === M[y][x + 1] && c === M[y + 1][x] && c === M[y + 1][x + 1]) p += 3; }
+    M.forEach(r => r.forEach(c => dark += c)); return p + Math.floor(Math.abs(dark * 20 - N * N * 10) / (N * N)) * 10; };
+  let best = 0, bp = Infinity;
+  for (let m = 0; m < 8; m++){ apply(m); fmtBits(m); const p = penalty(); if (p < bp){ bp = p; best = m; } apply(m); }
+  apply(best); fmtBits(best);
+  let path = ""; for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (M[y][x]) path += `M${x + 4},${y + 4}h1v1h-1z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${N + 8} ${N + 8}" role="img" aria-label="QR-Code zum Link" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="${path}" fill="#000"/></svg>`;
+}
+
 /* ---------- data helpers ---------- */
 const S = id => db.students.find(x => x.id === id);
 const sorted = () => db.students.filter(s => s.aktiv !== false).slice().sort((a,b) => (isFrei(a)?9:a.tag||9)-(isFrei(b)?9:b.tag||9) || (a.zeit||"99").localeCompare(b.zeit||"99") || a.name.localeCompare(b.name));
@@ -1514,8 +1775,8 @@ function alterTxt(s){ const a = alter(s); if (a !== null) return a + " J.";
 let weekStart = monday(new Date());
 let filt = {schule:"Alle", q:""};
 /* Funktionen, die jede Person unter Einstellungen selbst ein- und ausschaltet (Standard: ein; gilt fürs ganze Konto) */
-const FEATS = [["lp","Lehrplan","Reiter, Ziele bei den SuS und im Elternbericht"],["gn","Allgemeine Notizen","Notizfeld für alle in der Wochenansicht"],["stv","Stellvertretung","Excel-Export für Stellvertretungen"],["bd","Geburtstage","Im Kalender und in der Wochenansicht"],["ink","Stiftnotizen","Zeichnen und markieren im Notenviewer"],["audio","Aufnahmen und Player","Links zu Songs, Play-Alongs ohne Noten"],["voices","Stimmen als Ordner","Stimmen eines Stücks in der Literatur zusammenfassen"],["rg","Rechnungen","Privatlektionen abrechnen"],["pl","Stundenplanung","Verfügbarkeiten per Link einholen, Stundenplan vorschlagen"]];
-const feat = k => !(db.features && db.features[k] === false);
+const FEATS = [["lp","Lehrplan","Reiter, Ziele bei den SuS und im Elternbericht"],["gn","Allgemeine Notizen","Notizfeld für alle in der Wochenansicht"],["stv","Stellvertretung","Excel-Export für Stellvertretungen"],["bd","Geburtstage","Im Kalender und in der Wochenansicht"],["ink","Stiftnotizen","Zeichnen und markieren im Notenviewer"],["audio","Aufnahmen und Player","Links zu Songs, Play-Alongs ohne Noten"],["voices","Stimmen als Ordner","Stimmen eines Stücks in der Literatur zusammenfassen"],["rg","Rechnungen","Privatlektionen abrechnen"],["ub","Übungsseite","Aufnahmen zum Mitspielen und Übungsplan mit Timer, für die Kinder per Link ohne Login"],["pl","Stundenplanung","Verfügbarkeiten per Link einholen, Stundenplan vorschlagen"]];
+const feat = k => k === "ub" ? !!(db.features && db.features.ub === true) : !(db.features && db.features[k] === false);
 function featCard(){
   return `<h3>Funktionen</h3><div class="card"><div class="fl">${FEATS.map(([k, n, d]) => `<div class="row" style="flex-wrap:nowrap"><div style="flex:1;min-width:0"><b class="small">${n}</b><div class="tiny">${d}</div></div><button class="chip ${feat(k) ? "on" : ""}" data-a="feat" data-v="${k}" aria-pressed="${feat(k)}" aria-label="${n}">${feat(k) ? "Ein" : "Aus"}</button></div>`).join("")}</div><p class="tiny" style="margin-bottom:0">Gilt für alle deine Geräte. Ausgeschaltete Funktionen werden nur ausgeblendet, deine Einträge bleiben erhalten.</p>
     ${feat("audio") ? `<div style="margin-top:12px"><label>Spotify-Links öffnen in</label><div class="seg">${[["app","Spotify-App"],["player","Player im Klassenbuch"]].map(([k, l]) => `<button class="${spPref()===k?"on":""}" data-a="spot" data-v="${k}">${l}</button>`).join("")}</div><p class="tiny" style="margin-bottom:0">Gilt nur für dieses Gerät. Für Vorführungen: «Player im Klassenbuch», dann bleibt deine Spotify-App zu.</p></div>` : ""}</div>`;
@@ -2390,6 +2651,7 @@ function vWoche(){
         <div><label for="n-${s.id}">Notiz (intern, nicht im Elternbericht)</label><textarea id="n-${s.id}" data-f="notiz" rows="3">${esc(l.notiz)}</textarea></div>
       </div>
     </div>
+    ${typeof ubEd === "function" ? ubEd(s, d, l) : ""}
     ${open.length ? `<div style="margin-top:12px"><label>Lehrplanziele in Arbeit: antippen, wenn erreicht</label><div class="row">${open.map(it => `<button class="chip" data-a="lpdone" data-i="${esc(it.id)}" title="${esc(it.bereich)}">${esc(it.text)}</button>`).join("")}</div></div>` : ""}
     ${feat("lp") && (l.lpDone||[]).length ? `<div class="row small" style="margin-top:6px">${l.lpDone.map(id => `<span class="chip on">✓ ${esc(lpBer(id))}: ${esc(lpText(id))}</span>`).join("")}</div>` : ""}
     <div class="row ed-nav"><button ${pS?`data-a="pick" data-v="${pS.s.id}" data-d="${pS.d}"`:"disabled"}>‹ ${pS?esc(pS.s.name):""}</button><span class="sp tiny" style="text-align:center">${i+1} von ${list.length} · wird automatisch gespeichert</span><button ${nS?`data-a="pick" data-v="${nS.s.id}" data-d="${nS.d}"`:"disabled"}>${nS?esc(nS.s.name):""} ›</button></div>
@@ -2715,7 +2977,7 @@ async function saveFile(filename, data, type){
 }
 function replaceAll(d){
   delL.clear(); db.lessons.forEach(l => delL.add(l.id)); dirtyL.clear();
-  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null, schulen:d.schulen||null, notiz:d.notiz||"", features:d.features||null, stvCols:d.stvCols||null, lehrplan:d.lehrplan||null, plan:d.plan||null, msEdit:d.msEdit||null, rechnung:d.rechnung||null, invoices:d.invoices||[], hwText:d.hwText||null, planung:d.planung||null};
+  db = {students:d.students||[], lessons:d.lessons||[], events:d.events||[], lastBackup:d.lastBackup||null, schulen:d.schulen||null, notiz:d.notiz||"", features:d.features||null, stvCols:d.stvCols||null, lehrplan:d.lehrplan||null, plan:d.plan||null, msEdit:d.msEdit||null, rechnung:d.rechnung||null, invoices:d.invoices||[], hwText:d.hwText||null, planung:d.planung||null, ubTpl:d.ubTpl||null};
   db.lessons.forEach(l => { delL.delete(l.id); dirtyL.add(l.id); });
   if (Array.isArray(d.books)){ books = d.books; saveBooks(); }
   if (d.ink && typeof d.ink === "object"){ Object.keys(ink).forEach(k => { if (!d.ink[k]){ delete ink[k]; saveInk(k); } }); Object.entries(d.ink).forEach(([k, v]) => { ink[k] = v; saveInk(k); }); }

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="de-CH"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Üben">
+<meta name="theme-color" content="#ffffff">
+<title>Üben</title>
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<style>
+/* Übungsseite für Kinder: kein Login. Der Schlüssel steht nur im Link (#…), der Server sieht nur verschlüsselte Daten. */
+:root{--bg:#ffffff;--soft:#f3f6f9;--card:#ffffff;--tx:#13212e;--tx2:#4c5b69;--bd:#e3e9ef;--bd2:#cfd8e1;
+--ac:#1d5a8f;--ac-ink:#ffffff;--t1:#d7ecdf;--t1x:#173d27;--t2:#fde3c8;--t2x:#5a2f08;--t3:#dbe7fb;--t3x:#13325f;--da:#b3261e;
+--font:Aptos,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#121212;--soft:#1d1d1d;--card:#1b1b1b;--tx:#f0f0f0;--tx2:#b8b8b8;--bd:#2c2c2c;--bd2:#3a3a3a;
+--ac:#8dbbe8;--ac-ink:#10202f;--t1:#1f3a2a;--t1x:#d4f0de;--t2:#45301b;--t2x:#fde3c8;--t3:#1d2c45;--t3x:#dbe7fb;--da:#f09a9a;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:17px/1.5 var(--font);-webkit-text-size-adjust:100%}
+.wrap{max-width:640px;margin:auto;padding:max(18px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 60px max(16px,env(safe-area-inset-left,0px))}
+h1{font-size:30px;line-height:1.15;margin:4px 0 2px;text-wrap:balance}
+h2{font-size:19px;margin:0 0 10px}
+.sub{color:var(--tx2);margin:0 0 18px}
+.card{border-radius:22px;padding:18px;margin:14px 0}
+.c1{background:var(--t1);color:var(--t1x)}.c2{background:var(--t2);color:var(--t2x)}.c3{background:var(--t3);color:var(--t3x)}.c0{background:var(--soft)}
+button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.big{display:inline-flex;align-items:center;justify-content:center;gap:10px;font-size:20px;font-weight:700;background:var(--ac);color:var(--ac-ink);border:0;border-radius:999px;padding:14px 28px;min-height:56px}
+.pill{background:var(--card);color:var(--tx);border:1px solid var(--bd2);border-radius:999px;padding:8px 16px;min-height:44px;font-size:16px}
+.pill[aria-pressed="true"]{background:var(--ac);color:var(--ac-ink);border-color:transparent}
+.steps{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:8px}
+.steps li{display:flex;gap:12px;align-items:baseline;background:rgba(255,255,255,.55);border-radius:14px;padding:10px 14px}
+@media (prefers-color-scheme:dark){.steps li{background:rgba(0,0,0,.22)}}
+.steps .m{font-weight:700;min-width:58px;font-variant-numeric:tabular-nums}
+.steps li.done{opacity:.5;text-decoration:line-through}.steps li.now{outline:3px solid currentColor}
+.timer{text-align:center}
+.timer .lbl{font-size:15px;opacity:.8;margin:0}
+.timer .task{font-size:26px;font-weight:700;line-height:1.2;margin:6px 0 10px;text-wrap:balance}
+.timer .clock{font-size:72px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;margin:6px 0 14px}
+.bar{height:12px;border-radius:999px;background:rgba(0,0,0,.1);overflow:hidden;margin:0 0 16px}
+@media (prefers-color-scheme:dark){.bar{background:rgba(255,255,255,.15)}}
+.bar i{display:block;height:100%;background:currentColor;border-radius:999px;transition:width .3s linear}
+.acts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.rec{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:center;background:rgba(255,255,255,.55);border-radius:18px;padding:12px 14px;margin:0 0 10px}
+@media (prefers-color-scheme:dark){.rec{background:rgba(0,0,0,.22)}}
+.play{width:58px;height:58px;border-radius:50%;border:0;background:var(--ac);color:var(--ac-ink);font-size:22px;grid-row:span 2;display:grid;place-items:center}
+.rec b{font-size:18px;min-width:0;overflow-wrap:anywhere}
+.rec .ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;grid-column:1/-1;margin-top:6px}
+.rec input[type=range]{grid-column:2;width:100%;accent-color:var(--ac)}
+.t{font-size:14px;opacity:.8;font-variant-numeric:tabular-nums}
+.hw{white-space:pre-wrap;margin:0}
+details{margin:14px 0}summary{cursor:pointer;font-weight:600;padding:6px 0}
+.done-c{text-align:center}.done-c .star{font-size:64px;line-height:1}
+.week{font-size:26px;letter-spacing:2px;margin:6px 0 0}
+.err{color:var(--da)}
+:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+.foot{font-size:13px;color:var(--tx2);margin-top:30px;text-align:center}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style></head><body><main class="wrap" id="p"><p class="sub">Lädt …</p></main>
+<script>
+const API = "https://api.klassen-buch.ch/kb/";   // setzt build.py
+const p = document.getElementById("p"), te = new TextEncoder(), td = new TextDecoder();
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const un64 = s => { s = s.replace(/-/g, "+").replace(/_/g, "/"); s += "===".slice((s.length + 3) % 4); const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
+const dat = s => { const [y, m, d] = String(s).split("-").map(Number); return `${d}.${m}.${y}`; };
+const mmss = n => { n = Math.max(0, Math.ceil(n)); return Math.floor(n / 60) + ":" + String(n % 60).padStart(2, "0"); };
+const store = { get(k){ try { return localStorage.getItem(k); } catch(e) { return null; } }, set(k, v){ try { localStorage.setItem(k, v); } catch(e) {} } };
+async function dec(keyRaw, u8){ const key = await crypto.subtle.importKey("raw", keyRaw, "AES-GCM", false, ["decrypt"]); return new Uint8Array(await crypto.subtle.decrypt({name: "AES-GCM", iv: u8.subarray(0, 12)}, key, u8.subarray(12))); }
+function msg(h, t){ p.innerHTML = `<h1>${esc(h)}</h1><p class="sub">${esc(t)}</p>`; }
+
+let doc = null, tok = "";
+async function load(){
+  const k = location.hash.slice(1);
+  if (!/^[A-Za-z0-9_-]{22}$/.test(k)){ msg("Link unvollständig", "Dieser Link ist nicht ganz. Öffne ihn nochmals so, wie du ihn bekommen hast."); return; }
+  tok = hex(await crypto.subtle.digest("SHA-256", te.encode("klassenbuch-uebe-v1:" + k))).slice(0, 32);
+  let data = null, gone = false;
+  try {
+    const r = await fetch(API + "uget", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({t: tok})});
+    if (r.status === 404) gone = true; else if (r.ok){ data = (await r.json()).data; store.set("kb-ub:" + tok, data); }
+  } catch(e) {}
+  if (gone){ msg("Diese Seite gibt es nicht mehr", "Frag deine Lehrperson nach dem neuen Link."); return; }
+  if (!data) data = store.get("kb-ub:" + tok);
+  if (!data){ msg("Keine Verbindung", "Die Seite lässt sich gerade nicht laden. Prüfe das Internet und versuche es nochmals."); return; }
+  try {
+    const b = atob(data), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+    doc = JSON.parse(td.decode(await dec(un64(k), u)));
+  } catch(e) { msg("Link passt nicht", "Diese Seite lässt sich mit dem Link nicht öffnen. Frag deine Lehrperson nach dem neuen Link."); return; }
+  view();
+}
+
+/* --- Ansicht --- */
+function view(){
+  const L = doc.l || [], cur = L[0];
+  document.title = "Üben – " + doc.n;
+  if (!cur){ p.innerHTML = `<h1>Hallo ${esc(doc.n)}! 👋</h1><p class="sub">Hier erscheinen bald deine Aufnahmen und dein Übungsplan.</p>`; return; }
+  const older = L.slice(1).filter(x => x.r.length);
+  p.innerHTML = `<h1>Hallo ${esc(doc.n)}! 👋</h1><p class="sub">Deine Übung aus der Lektion vom ${dat(cur.d)}</p>
+    ${cur.p.length ? `<section class="card c1" id="plan" aria-label="Übungsplan"></section>` : ""}
+    ${cur.r.length ? `<section class="card c3"><h2>🎧 Zum Mitspielen</h2>${cur.r.map(recHtml).join("")}</section>` : ""}
+    ${cur.a.trim() ? `<section class="card c2"><h2>📝 Deine Aufgaben</h2><p class="hw">${esc(cur.a)}</p></section>` : ""}
+    ${older.length ? `<details class="card c0"><summary>Ältere Aufnahmen</summary>${older.map(x => `<h2 style="margin-top:14px">${dat(x.d)}</h2>${x.r.map(recHtml).join("")}`).join("")}</details>` : ""}
+    <p class="foot">Lade diese Seite als Lesezeichen oder auf den Home-Bildschirm, dann findest du sie schnell wieder.</p>`;
+  if (cur.p.length) planView();
+}
+
+/* --- Aufnahmen --- */
+const recs = {};
+function recHtml(x){
+  recs[x.id] = x;
+  return `<div class="rec" data-r="${esc(x.id)}"><button class="play" data-a="play" aria-label="${esc(x.t)} abspielen">▶</button><b>${esc(x.t)}</b>
+    <input type="range" min="0" max="${x.dur || 1}" step="0.1" value="0" data-a="seek" aria-label="Stelle in der Aufnahme">
+    <div class="ctl"><span class="t" data-t>0:00 / ${mmss(x.dur || 0)}</span>
+      <button class="pill" data-a="loop" aria-pressed="false">🔁 Wiederholen</button>
+      <button class="pill" data-a="slow" aria-pressed="false">🐢 Langsamer</button></div></div>`;
+}
+const players = {};
+async function player(x){
+  if (players[x.id]) return players[x.id];
+  const parts = [];
+  for (const f of x.f){ const r = await fetch(API + "f/" + f); if (!r.ok) throw new Error("http"); parts.push(new Uint8Array(await r.arrayBuffer())); }
+  const all = new Uint8Array(parts.reduce((a, q) => a + q.length, 0)); let o = 0; parts.forEach(q => { all.set(q, o); o += q.length; });
+  const a = new Audio(URL.createObjectURL(new Blob([await dec(un64(x.k), all)], {type: x.mime || "audio/mp4"})));
+  a.preservesPitch = true; a.webkitPreservesPitch = true;
+  a.ontimeupdate = () => upd(x.id); a.onended = () => upd(x.id); a.onpause = () => upd(x.id); a.onplay = () => upd(x.id);
+  a.onloadedmetadata = () => { const el = row(x.id); if (el && isFinite(a.duration)) el.querySelector("[data-a=seek]").max = a.duration; };
+  return players[x.id] = a;
+}
+const row = id => document.querySelector(`[data-r="${CSS.escape(id)}"]`);
+function upd(id){
+  const a = players[id], el = row(id); if (!a || !el) return;
+  const d = isFinite(a.duration) ? a.duration : (recs[id].dur || 0);
+  el.querySelector(".play").textContent = a.paused ? "▶" : "❚❚";
+  el.querySelector(".play").setAttribute("aria-label", (a.paused ? "Abspielen: " : "Anhalten: ") + recs[id].t);
+  el.querySelector("[data-t]").textContent = mmss(Math.floor(a.currentTime)) + " / " + mmss(d);
+  const s = el.querySelector("[data-a=seek]"); if (document.activeElement !== s) s.value = a.currentTime;
+}
+p.addEventListener("click", async ev => {
+  const b = ev.target.closest("[data-a]"); if (!b) return;
+  const r = b.closest("[data-r]"), x = r && recs[r.dataset.r];
+  if (x){
+    if (b.dataset.a === "play"){
+      const was = b.textContent; b.textContent = "…";
+      try { const a = await player(x); if (a.paused){ Object.values(players).forEach(o => o !== a && o.pause()); await a.play(); } else a.pause(); }
+      catch(e) { b.textContent = was; alert("Die Aufnahme lässt sich gerade nicht laden. Prüfe das Internet."); }
+      return;
+    }
+    if (b.dataset.a === "loop" || b.dataset.a === "slow"){
+      const on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", on);
+      const a = await player(x).catch(() => null); if (!a) return;
+      if (b.dataset.a === "loop") a.loop = on; else a.playbackRate = on ? 0.75 : 1;
+      return;
+    }
+  }
+  if (b.dataset.a in T) T[b.dataset.a]();
+});
+p.addEventListener("input", ev => { const s = ev.target; if (s.dataset.a !== "seek") return; const r = s.closest("[data-r]"), a = r && players[r.dataset.r]; if (a) a.currentTime = +s.value; });
+
+/* --- Übungsplan mit Timer --- */
+let run = null, tick = null, lock = null, ac = null;
+function plan(){ return doc.l[0].p; }
+function planView(){
+  const el = document.getElementById("plan"), P = plan(), tot = P.reduce((a, x) => a + x.m, 0);
+  if (!run){
+    el.innerHTML = `<h2>⏱ Dein Übungsplan · ${tot} Min.</h2><ol class="steps">${P.map(x => `<li><span class="m">${x.m} Min.</span><span>${esc(x.t || "Üben")}</span></li>`).join("")}</ol>
+      <div class="acts"><button class="big" data-a="start">▶ Los geht's</button></div>${weekStars()}`;
+    return;
+  }
+  if (run.done){
+    el.innerHTML = `<div class="done-c"><div class="star" aria-hidden="true">⭐</div><h2 style="font-size:26px;margin:8px 0 4px">Geschafft!</h2><p style="margin:0 0 14px">Super geübt, ${esc(doc.n)}.</p>${weekStars()}
+      <div class="acts" style="margin-top:14px"><button class="pill" data-a="reset">Nochmals von vorne</button></div></div>`;
+    return;
+  }
+  const x = P[run.i];
+  el.innerHTML = `<div class="timer" role="timer"><p class="lbl">Teil ${run.i + 1} von ${P.length}</p><p class="task">${esc(x.t || "Üben")}</p>
+    <div class="clock" id="clk" aria-live="off">${mmss(left())}</div><div class="bar"><i id="bar" style="width:0%"></i></div>
+    <div class="acts"><button class="big" data-a="pause">${run.paused ? "▶ Weiter" : "❚❚ Pause"}</button><button class="pill" data-a="skip">Nächster Teil ⏭</button><button class="pill" data-a="stop">Beenden</button></div></div>
+    <ol class="steps" style="margin:16px 0 0">${P.map((y, i) => `<li class="${i < run.i ? "done" : i === run.i ? "now" : ""}"><span class="m">${y.m} Min.</span><span>${esc(y.t || "Üben")}</span></li>`).join("")}</ol>`;
+  paint();
+}
+const left = () => run.paused ? run.rest : (run.end - Date.now()) / 1000;
+function paint(){
+  const c = document.getElementById("clk"), b = document.getElementById("bar"); if (!c || !run || run.done) return;
+  const l = left(), m = plan()[run.i].m * 60; c.textContent = mmss(l); b.style.width = Math.min(100, (1 - l / m) * 100) + "%";
+  if (!run.paused && l <= 0) next(true);
+}
+function begin(i, from){ run = {i, end: (from || Date.now()) + plan()[i].m * 60000, paused: false, rest: 0}; planView(); }
+function next(sound){
+  if (sound) gong(run.i + 1 >= plan().length);
+  if (run.i + 1 >= plan().length){ finish(); return; }
+  begin(run.i + 1, sound ? run.end : 0);   // nach Ablauf ohne Lücke weiter, auch wenn die Seite im Hintergrund war
+}
+function finish(){
+  run = {done: true}; clearInterval(tick); tick = null; unlock();
+  const k = "kb-ub-days:" + tok, days = JSON.parse(store.get(k) || "[]"), d = new Date().toISOString().slice(0, 10);
+  if (!days.includes(d)){ days.push(d); store.set(k, JSON.stringify(days.slice(-60))); }
+  planView();
+}
+function weekStars(){
+  const days = JSON.parse(store.get("kb-ub-days:" + tok) || "[]"), now = new Date(), mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7);
+  const n = days.filter(d => new Date(d + "T12:00") >= mon).length;
+  return n ? `<p class="week" aria-label="Diese Woche ${n}-mal geübt">${"⭐".repeat(n)}</p><p style="margin:0;font-size:15px">Diese Woche schon ${n}-mal geübt</p>` : "";
+}
+const T = {
+  start(){ audio(); keepAwake(); begin(0); tick = setInterval(paint, 250); },
+  pause(){ if (run.paused){ run.end = Date.now() + run.rest * 1000; run.paused = false; keepAwake(); } else { run.rest = left(); run.paused = true; } planView(); },
+  skip(){ next(false); },
+  stop(){ if (confirm("Übung beenden?")){ run = null; clearInterval(tick); tick = null; unlock(); planView(); } },
+  reset(){ run = null; planView(); },
+};
+// Gong beim Wechsel (Web Audio, kein Ton-File nötig)
+function audio(){ try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); ac.resume(); } catch(e) {} }
+function gong(end){
+  if (!ac) return; const t0 = ac.currentTime;
+  (end ? [523.25, 659.25, 783.99] : [880]).forEach((f, i) => [1, 2.01, 3.2].forEach((h, j) => {
+    const o = ac.createOscillator(), g = ac.createGain(), t = t0 + i * 0.18;
+    o.frequency.value = f * h; o.type = "sine"; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.35 / (j + 1), t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2);
+    o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 2.3); }));
+  if (navigator.vibrate) navigator.vibrate(end ? [200, 100, 200] : 200);
+}
+async function keepAwake(){ try { if ("wakeLock" in navigator && !lock) { lock = await navigator.wakeLock.request("screen"); lock.onrelease = () => lock = null; } } catch(e) {} }
+function unlock(){ try { if (lock) lock.release(); } catch(e) {} lock = null; }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && run && !run.done && !run.paused){ keepAwake(); paint(); } });
+window.addEventListener("hashchange", () => location.reload());
+load();
+</script></body></html>
