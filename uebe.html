@@ -5,17 +5,40 @@
 <meta name="referrer" content="no-referrer">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Üben">
-<meta name="theme-color" content="#ffffff">
 <title>Üben</title>
+<script>
+// Darstellung wie im Klassenbuch: kb-theme (dark|light|system), kb-palette (bunt|warm|kuehl), kb-bunt (eigene Farben)
+(function(){ try { var r = document.documentElement, th = localStorage.getItem("kb-theme"), p = localStorage.getItem("kb-palette");
+  if (th === "dark" || th === "light") r.setAttribute("data-theme", th); if (p === "warm" || p === "kuehl") r.setAttribute("data-palette", p); } catch(e) {} })();
+function kbBuntCss(c){var ok=function(x){return /^#[0-9a-fA-F]{6}$/.test(x||"");};if(!c||!["t1","t2","t3","ac"].every(function(k){return ok(c[k]);}))return "";var L=function(x,p){return "color-mix(in srgb, "+x+" "+p+"%, #fff)";},D=function(x,p){return "color-mix(in srgb, "+x+" "+p+"%, #141414)";};var li="--ac:"+c.ac+";--acbg:"+L(c.ac,14)+";--ac-soft:"+L(c.ac,14)+";--t1:"+L(c.t1,22)+";--t2:"+L(c.t2,22)+";--t3:"+L(c.t3,22)+";--t1x:#1b1b1b;--t2x:#1b1b1b;--t3x:#1b1b1b",dk="--ac:"+L(c.ac,55)+";--acbg:"+D(c.ac,35)+";--ac-soft:"+D(c.ac,35)+";--t1:"+D(c.t1,26)+";--t2:"+D(c.t2,26)+";--t3:"+D(c.t3,26)+";--t1x:#f0f0f0;--t2x:#f0f0f0;--t3x:#f0f0f0";return ":root:not([data-palette]){"+li+"}@media (prefers-color-scheme:dark){:root:not([data-theme=\"light\"]):not([data-palette]){"+dk+"}}:root[data-theme=\"dark\"]:not([data-palette]){"+dk+"}";}
+function kbBuntApply(){var c=null;try{c=JSON.parse(localStorage.getItem("kb-bunt")||"null");}catch(e){}var el=document.getElementById("kbBunt");if(!el){el=document.createElement("style");el.id="kbBunt";document.head.appendChild(el);}el.textContent=kbBuntCss(c);}
+kbBuntApply();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <style>
 /* Übungsseite für Kinder: kein Login. Der Schlüssel steht nur im Link (#…), der Server sieht nur verschlüsselte Daten. */
-:root{--bg:#ffffff;--soft:#f3f6f9;--card:#ffffff;--tx:#13212e;--tx2:#4c5b69;--bd:#e3e9ef;--bd2:#cfd8e1;
---ac:#1d5a8f;--ac-ink:#ffffff;--t1:#d7ecdf;--t1x:#173d27;--t2:#fde3c8;--t2x:#5a2f08;--t3:#dbe7fb;--t3x:#13325f;--da:#b3261e;
---font:Aptos,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
-@media (prefers-color-scheme:dark){:root{--bg:#121212;--soft:#1d1d1d;--card:#1b1b1b;--tx:#f0f0f0;--tx2:#b8b8b8;--bd:#2c2c2c;--bd2:#3a3a3a;
---ac:#8dbbe8;--ac-ink:#10202f;--t1:#1f3a2a;--t1x:#d4f0de;--t2:#45301b;--t2x:#fde3c8;--t3:#1d2c45;--t3x:#dbe7fb;--da:#f09a9a;color-scheme:dark}}
+:root{--bg:#ffffff;--soft:#f3f6f9;--card:#ffffff;--tx:#13212e;--tx2:#4c5b69;--tx3:#7a8794;--bd:#e3e9ef;--bd2:#cfd8e1;
+--ac:#1d5a8f;--ac-ink:#ffffff;--ac-soft:#e9f0f7;
+--t1:#d7ecdf;--t1x:#173d27;--t2:#fde3c8;--t2x:#5a2f08;--t3:#dbe7fb;--t3x:#13325f;
+--good:#5f9e2f;--maybe:#e3ad4f;
+--font:Aptos,"Hanken Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+color-scheme:light}
+:root[data-palette="warm"]{--ac:#b4401f;--good:#4a3524;--ac-ink:#ffffff;--ac-soft:#fbe9e1;--t1:#fdefb9;--t1x:#4d3a05;--t2:#fdd9bd;--t2x:#5a2a08;--t3:#f8d2cc;--t3x:#5c1a14}
+:root[data-palette="kuehl"]{--ac:#17607a;--maybe:#8f9cf0;--ac-ink:#ffffff;--ac-soft:#e2f0f4;--t1:#d4ece4;--t1x:#0f3d33;--t2:#d3eaf2;--t2x:#0d3a4a;--t3:#dbe4fb;--t3x:#172f66}
+@media (prefers-color-scheme:dark){
+:root:not([data-theme="light"]){--bg:#0e0e0e;--soft:#1b1b1b;--card:#161616;--tx:#ededed;--tx2:#b3b3b3;--tx3:#828282;--bd:#2c2c2c;--bd2:#3d3d3d;
+--ac:#8dbbe8;--ac-ink:#0d2236;--ac-soft:#1a3047;--t1:#1c3828;--t1x:#bfe5cc;--t2:#432f1b;--t2x:#fbd3a8;--t3:#1d2f4d;--t3x:#c4d8fa;--good:#6fae3c;--maybe:#d9a447;color-scheme:dark}
+:root:not([data-theme="light"])[data-palette="warm"]{--ac:#f2a27c;--good:#f2f2f2;--ac-ink:#2a1206;--ac-soft:#3a2219;--t1:#3b3210;--t1x:#f6e39a;--t2:#45291a;--t2x:#fbc9a3;--t3:#47201d;--t3x:#f5b8af}
+:root:not([data-theme="light"])[data-palette="kuehl"]{--ac:#79c6cf;--maybe:#7f8ef0;--ac-ink:#062628;--ac-soft:#12343a;--t1:#163a32;--t1x:#a9e3d3;--t2:#133847;--t2x:#a9dbea;--t3:#1c2c52;--t3x:#c0d0fa}}
+:root[data-theme="dark"]{--bg:#0e0e0e;--soft:#1b1b1b;--card:#161616;--tx:#ededed;--tx2:#b3b3b3;--tx3:#828282;--bd:#2c2c2c;--bd2:#3d3d3d;
+--ac:#8dbbe8;--ac-ink:#0d2236;--ac-soft:#1a3047;--t1:#1c3828;--t1x:#bfe5cc;--t2:#432f1b;--t2x:#fbd3a8;--t3:#1d2f4d;--t3x:#c4d8fa;--good:#6fae3c;--maybe:#d9a447;color-scheme:dark}
+:root[data-theme="dark"][data-palette="warm"]{--ac:#f2a27c;--good:#f2f2f2;--ac-ink:#2a1206;--ac-soft:#3a2219;--t1:#3b3210;--t1x:#f6e39a;--t2:#45291a;--t2x:#fbc9a3;--t3:#47201d;--t3x:#f5b8af}
+:root[data-theme="dark"][data-palette="kuehl"]{--ac:#79c6cf;--maybe:#7f8ef0;--ac-ink:#062628;--ac-soft:#12343a;--t1:#163a32;--t1x:#a9e3d3;--t2:#133847;--t2x:#a9dbea;--t3:#1c2c52;--t3x:#c0d0fa}
+:root{--da:#b3261e}:root[data-theme="dark"]{--da:#f09a9a}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--da:#f09a9a}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--tx);font:17px/1.5 var(--font);-webkit-text-size-adjust:100%}
 .wrap{max-width:640px;margin:auto;padding:max(18px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 60px max(16px,env(safe-area-inset-left,0px))}
@@ -29,20 +52,17 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .pill{background:var(--card);color:var(--tx);border:1px solid var(--bd2);border-radius:999px;padding:8px 16px;min-height:44px;font-size:16px}
 .pill[aria-pressed="true"]{background:var(--ac);color:var(--ac-ink);border-color:transparent}
 .steps{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:8px}
-.steps li{display:flex;gap:12px;align-items:baseline;background:rgba(255,255,255,.55);border-radius:14px;padding:10px 14px}
-@media (prefers-color-scheme:dark){.steps li{background:rgba(0,0,0,.22)}}
+.steps li{display:flex;gap:12px;align-items:baseline;background:color-mix(in srgb, var(--card) 55%, transparent);border-radius:14px;padding:10px 14px}
 .steps .m{font-weight:700;min-width:58px;font-variant-numeric:tabular-nums}
 .steps li.done{opacity:.5;text-decoration:line-through}.steps li.now{outline:3px solid currentColor}
 .timer{text-align:center}
 .timer .lbl{font-size:15px;opacity:.8;margin:0}
 .timer .task{font-size:26px;font-weight:700;line-height:1.2;margin:6px 0 10px;text-wrap:balance}
 .timer .clock{font-size:72px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;margin:6px 0 14px}
-.bar{height:12px;border-radius:999px;background:rgba(0,0,0,.1);overflow:hidden;margin:0 0 16px}
-@media (prefers-color-scheme:dark){.bar{background:rgba(255,255,255,.15)}}
+.bar{height:12px;border-radius:999px;background:color-mix(in srgb, currentColor 15%, transparent);overflow:hidden;margin:0 0 16px}
 .bar i{display:block;height:100%;background:currentColor;border-radius:999px;transition:width .3s linear}
 .acts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-.rec{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:center;background:rgba(255,255,255,.55);border-radius:18px;padding:12px 14px;margin:0 0 10px}
-@media (prefers-color-scheme:dark){.rec{background:rgba(0,0,0,.22)}}
+.rec{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:center;background:color-mix(in srgb, var(--card) 55%, transparent);border-radius:18px;padding:12px 14px;margin:0 0 10px}
 .play{width:58px;height:58px;border-radius:50%;border:0;background:var(--ac);color:var(--ac-ink);font-size:22px;grid-row:span 2;display:grid;place-items:center}
 .rec b{font-size:18px;min-width:0;overflow-wrap:anywhere}
 .rec .ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;grid-column:1/-1;margin-top:6px}
@@ -58,6 +78,10 @@ details{margin:14px 0}summary{cursor:pointer;font-weight:600;padding:6px 0}
 .week{font-size:26px;letter-spacing:2px;margin:6px 0 0}
 .err{color:var(--da)}
 :focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+.top{display:flex;justify-content:flex-end;margin:0 0 -6px}
+.look{display:grid;gap:12px}.look .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.look b{font-size:15px;min-width:64px}
+.cols{display:flex;flex-wrap:wrap;gap:10px}.cols label{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:13px}
+.cols input{width:52px;height:40px;border:1px solid var(--bd2);border-radius:12px;padding:2px;background:var(--card)}
 .foot{font-size:13px;color:var(--tx2);margin-top:30px;text-align:center}
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
 </style></head><body><main class="wrap" id="p"><p class="sub">Lädt …</p></main>
@@ -99,7 +123,7 @@ function view(){
   document.title = "Üben – " + doc.n;
   if (!cur){ p.innerHTML = `<h1>Hallo ${esc(doc.n)}! 👋</h1><p class="sub">Hier erscheinen bald deine Aufnahmen und dein Übungsplan.</p>`; return; }
   const older = L.slice(1).filter(x => x.r.length);
-  p.innerHTML = `<h1>Hallo ${esc(doc.n)}! 👋</h1><p class="sub">Deine Übung aus der Lektion vom ${dat(cur.d)}</p>
+  p.innerHTML = `${lookBtn()}<h1>Hallo ${esc(doc.n)}! 👋</h1><p class="sub">Deine Übung aus der Lektion vom ${dat(cur.d)}</p>
     ${cur.p.length ? `<section class="card c1" id="plan" aria-label="Übungsplan"></section>` : ""}
     ${cur.r.length ? `<section class="card c3"><h2>🎧 Zum Mitspielen</h2>${cur.r.map(recHtml).join("")}</section>` : ""}
     ${metHtml()}
@@ -108,6 +132,35 @@ function view(){
     <p class="foot">Lade diese Seite als Lesezeichen oder auf den Home-Bildschirm, dann findest du sie schnell wieder.</p>`;
   if (cur.p.length) planView();
 }
+
+/* --- Darstellung (wie im Klassenbuch, pro Gerät) --- */
+const BUNT_DEF = {t1: "#5fb37c", t2: "#f2a35e", t3: "#6f9be8", ac: "#1d5a8f"};
+let lookOpen = false;
+const pref = (k, d) => store.get(k) || d;
+function buntCfg(){ let c = {}; try { c = JSON.parse(store.get("kb-bunt") || "{}") || {}; } catch(e) {} return Object.assign({}, BUNT_DEF, c); }
+function lookBtn(){
+  const th = pref("kb-theme", "system"), pa = pref("kb-palette", "bunt"), own = pa === "bunt" && !!store.get("kb-bunt"), cur = own ? "eigen" : pa;
+  const b = (a, v, l, on) => `<button class="pill" data-a="${a}" data-v="${v}" aria-pressed="${on}">${l}</button>`;
+  return `<div class="top"><button class="pill" data-a="look" aria-expanded="${lookOpen}" aria-label="Farben und Darstellung">🎨 Farben</button></div>
+  ${lookOpen ? `<section class="card c0 look" aria-label="Darstellung">
+    <div class="row"><b>Modus</b>${[["light", "☀️ Hell"], ["dark", "🌙 Dunkel"], ["system", "Wie Gerät"]].map(([v, l]) => b("th", v, l, th === v)).join("")}</div>
+    <div class="row"><b>Farben</b>${[["bunt", "Bunt"], ["warm", "Warm"], ["kuehl", "Kühl"], ["eigen", "Eigene"]].map(([v, l]) => b("pa", v, l, cur === v)).join("")}</div>
+    ${cur === "eigen" ? `<div class="cols">${[["t1", "Fläche 1"], ["t2", "Fläche 2"], ["t3", "Fläche 3"], ["ac", "Knöpfe"]].map(([k, l]) => `<label><input type="color" data-bunt="${k}" value="${buntCfg()[k]}">${l}</label>`).join("")}</div>` : ""}
+    <div class="row"><button class="pill" data-a="look">Fertig</button></div></section>` : ""}`;
+}
+function setLook(a, v){
+  const r = document.documentElement;
+  if (a === "th"){ store.set("kb-theme", v); if (v === "system") r.removeAttribute("data-theme"); else r.setAttribute("data-theme", v); }
+  else {
+    const pa = v === "eigen" ? "bunt" : v; store.set("kb-palette", pa);
+    if (pa === "bunt") r.removeAttribute("data-palette"); else r.setAttribute("data-palette", pa);
+    if (v === "eigen"){ if (!store.get("kb-bunt")) store.set("kb-bunt", JSON.stringify(BUNT_DEF)); } else if (v === "bunt") { try { localStorage.removeItem("kb-bunt"); } catch(e) {} }
+    kbBuntApply();
+  }
+  lookPaint();
+}
+function lookPaint(){ const top = p.querySelector(".top"); if (!top) return; const nx = top.nextElementSibling; if (nx && nx.classList.contains("look")) nx.remove(); top.outerHTML = lookBtn(); }
+p.addEventListener("input", ev => { const i = ev.target; if (!i.dataset || !i.dataset.bunt) return; const c = buntCfg(); c[i.dataset.bunt] = i.value; store.set("kb-bunt", JSON.stringify(c)); kbBuntApply(); });
 
 /* --- Aufnahmen --- */
 const recs = {};
@@ -162,6 +215,8 @@ p.addEventListener("click", async ev => {
       return;
     }
   }
+  if (b.dataset.a === "look"){ lookOpen = !lookOpen; lookPaint(); return; }
+  if (b.dataset.a === "th" || b.dataset.a === "pa"){ setLook(b.dataset.a, b.dataset.v); return; }
   if (b.dataset.a in T) T[b.dataset.a]();
 });
 p.addEventListener("input", ev => { const s = ev.target; if (s.dataset.a !== "seek") return; const r = s.closest("[data-r]"), a = r && players[r.dataset.r]; if (a) a.currentTime = +s.value; });
