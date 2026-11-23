@@ -357,9 +357,11 @@ function ask(text, yes, fn, noFn, noLabel){
   try { d.showModal(); } catch(e) { d.setAttribute("open", ""); }
 }
 
-/* ---------- App-Speicher: Gerät (IndexedDB) + verschlüsselter Sync über adrianpopp.ch ---------- */
-const SYNC = "https://www.adrianpopp.ch/_functions/kb/";
-const FILES = "https://static.wixstatic.com/ugd/";
+/* ---------- App-Speicher: Gerät (IndexedDB) + verschlüsselter Sync über api.klassen-buch.ch (Infomaniak) ---------- */
+const SYNC = "https://api.klassen-buch.ch/kb/";   // setzt build.py (KB_API)
+// PDF-Stücke aus der Wix-Zeit: Fehlt eines auf dem neuen Server, wird es noch bei Wix gesucht (solange es Wix gibt)
+const FILES_OLD = "https://static.wixstatic.com/ugd/";
+const FILES = SYNC.includes("/_functions/") ? FILES_OLD : SYNC + "f/";
 const PART = 300000, BATCH = 380000, MAXITEMS = 60, CHUNK = 15 * 1048576;
 let db = {students:[], lessons:[], events:[], lastBackup:null};
 let mode = "loading";
@@ -564,6 +566,7 @@ async function sync(force){
     if (changed) remoteRender();
   } catch(e) {
     if (e.code === "abo"){ cfg.bis = e.bis || cfg.bis; await saveCfg(); aboStop = Date.now() + 3600000; syncErr = "Abo abgelaufen, der Sync ist pausiert."; setSync("Abo abgelaufen – Sync pausiert"); syncing = false; render(); return; }
+    if (e.code === "moved"){ syncErr = "Der Server zieht um. Bitte die App neu laden."; setSync("Server-Umzug – bitte App neu laden"); syncing = false; syncSoon(300000); return; }
     if (e.code === "rate"){ syncErr = ""; setSync("Server kurz ausgelastet – geht in einer Minute weiter"); syncing = false; syncSoon(65000); return; }
     syncErr = e.code === "auth" ? "Anmeldung abgelaufen oder Passwort geändert." : /fetch|network|load failed/i.test(e.message || "") ? "Server nicht erreichbar oder Zeitüberschreitung." : (e.message || "Fehler");
     setSync(e.code === "auth" ? "Sync: bitte neu anmelden" : "Sync fehlgeschlagen – neuer Versuch folgt");
@@ -660,7 +663,7 @@ async function pdfBytes(id){
   if (r && r.v && r.v.local && !(r.v.files || []).length) throw new Error(`Dieses PDF${r.v.name ? " («" + r.v.name + "»)" : ""} ist nur auf einem anderen Gerät gespeichert. Füge es hier unter Literatur mit «PDF hinzufügen» hinzu.`);
   if (!r || !r.v.files || !r.v.files.length) throw new Error("Dieses PDF ist noch nicht hochgeladen. Öffne es auf dem Gerät, auf dem du es hinzugefügt hast, oder füge es hier hinzu.");
   const parts = [];
-  for (const f of r.v.files){ const x = await fetch(FILES + f); if (!x.ok) throw new Error("http " + x.status); parts.push(new Uint8Array(await x.arrayBuffer())); }
+  for (const f of r.v.files){ let x = await fetch(FILES + f); if (x.status === 404 && FILES !== FILES_OLD) x = await fetch(FILES_OLD + f); if (!x.ok) throw new Error("http " + x.status); parts.push(new Uint8Array(await x.arrayBuffer())); }
   const all = new Uint8Array(parts.reduce((a, p) => a + p.length, 0)); let o = 0; parts.forEach(p => { all.set(p, o); o += p.length; });
   const u8 = await decBytes(all);
   try { await idbPut("pdf", id, u8); } catch(e) {}
@@ -929,7 +932,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.19-2205 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.23-1409 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;

@@ -42,7 +42,7 @@ a{color:var(--ac)}
 .lng{font:600 13px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;letter-spacing:.05em;color:var(--tx2);background:none;border:1px solid var(--bd2);border-radius:8px;padding:7px 10px;cursor:pointer;min-height:32px}
 </style></head><body><main class="wrap" id="p"><p class="s">…</p></main>
 <script>
-const API = "https://www.adrianpopp.ch/_functions/kb/";
+const API = "https://api.klassen-buch.ch/kb/";   // setzt build.py
 // Sprache: Wahl der Familie (kb-lang), sonst Browser. Texte der Lehrperson bleiben, wie sie sind.
 let EN = (() => { try { const s = localStorage.getItem("kb-lang"); if (s) return s === "en"; } catch(e) {} return !(navigator.languages || [navigator.language || ""]).some(l => /^de/i.test(l)); })();
 const L = (de, en) => EN ? en : de;
