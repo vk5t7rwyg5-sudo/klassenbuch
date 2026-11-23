@@ -49,6 +49,10 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .rec input[type=range]{grid-column:2;width:100%;accent-color:var(--ac)}
 .t{font-size:14px;opacity:.8;font-variant-numeric:tabular-nums}
 .hw{white-space:pre-wrap;margin:0}
+.seg{display:inline-flex;gap:4px;flex-wrap:wrap}.seg .pill{padding:8px 12px}
+.met{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 14px}.met .pill{min-width:48px;padding:8px 10px}
+.bpm{text-align:center;min-width:92px}.bpm b{display:block;font-size:44px;line-height:1;font-variant-numeric:tabular-nums}.bpm span{font-size:13px;color:var(--tx2)}
+.mdot{width:22px;height:22px;border-radius:50%;background:var(--bd2);align-self:center}.mdot.on{background:var(--ac)}
 details{margin:14px 0}summary{cursor:pointer;font-weight:600;padding:6px 0}
 .done-c{text-align:center}.done-c .star{font-size:64px;line-height:1}
 .week{font-size:26px;letter-spacing:2px;margin:6px 0 0}
@@ -98,6 +102,7 @@ function view(){
   p.innerHTML = `<h1>Hallo ${esc(doc.n)}! 👋</h1><p class="sub">Deine Übung aus der Lektion vom ${dat(cur.d)}</p>
     ${cur.p.length ? `<section class="card c1" id="plan" aria-label="Übungsplan"></section>` : ""}
     ${cur.r.length ? `<section class="card c3"><h2>🎧 Zum Mitspielen</h2>${cur.r.map(recHtml).join("")}</section>` : ""}
+    ${metHtml()}
     ${cur.a.trim() ? `<section class="card c2"><h2>📝 Deine Aufgaben</h2><p class="hw">${esc(cur.a)}</p></section>` : ""}
     ${older.length ? `<details class="card c0"><summary>Ältere Aufnahmen</summary>${older.map(x => `<h2 style="margin-top:14px">${dat(x.d)}</h2>${x.r.map(recHtml).join("")}`).join("")}</details>` : ""}
     <p class="foot">Lade diese Seite als Lesezeichen oder auf den Home-Bildschirm, dann findest du sie schnell wieder.</p>`;
@@ -106,13 +111,14 @@ function view(){
 
 /* --- Aufnahmen --- */
 const recs = {};
+const RATES = [[1, "Normal", "Normales Tempo"], [0.95, "🐢", "Etwas langsamer, 95 Prozent"], [0.85, "🐢🐢", "Langsamer, 85 Prozent"], [0.75, "🐢🐢🐢", "Viel langsamer, 75 Prozent"]];
 function recHtml(x){
   recs[x.id] = x;
   return `<div class="rec" data-r="${esc(x.id)}"><button class="play" data-a="play" aria-label="${esc(x.t)} abspielen">▶</button><b>${esc(x.t)}</b>
     <input type="range" min="0" max="${x.dur || 1}" step="0.1" value="0" data-a="seek" aria-label="Stelle in der Aufnahme">
     <div class="ctl"><span class="t" data-t>0:00 / ${mmss(x.dur || 0)}</span>
       <button class="pill" data-a="loop" aria-pressed="false">🔁 Wiederholen</button>
-      <button class="pill" data-a="slow" aria-pressed="false">🐢 Langsamer</button></div></div>`;
+      <span class="seg" role="group" aria-label="Tempo">${RATES.map(([v, l, n]) => `<button class="pill" data-a="rate" data-v="${v}" aria-pressed="${v === 1}" aria-label="${n}">${l}</button>`).join("")}</span></div></div>`;
 }
 const players = {};
 async function player(x){
@@ -145,10 +151,14 @@ p.addEventListener("click", async ev => {
       catch(e) { b.textContent = was; alert("Die Aufnahme lässt sich gerade nicht laden. Prüfe das Internet."); }
       return;
     }
-    if (b.dataset.a === "loop" || b.dataset.a === "slow"){
+    if (b.dataset.a === "loop"){
       const on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", on);
-      const a = await player(x).catch(() => null); if (!a) return;
-      if (b.dataset.a === "loop") a.loop = on; else a.playbackRate = on ? 0.75 : 1;
+      const a = await player(x).catch(() => null); if (a) a.loop = on;
+      return;
+    }
+    if (b.dataset.a === "rate"){
+      r.querySelectorAll("[data-a=rate]").forEach(y => y.setAttribute("aria-pressed", y === b));
+      const a = await player(x).catch(() => null); if (a) a.playbackRate = +b.dataset.v;
       return;
     }
   }
@@ -201,7 +211,33 @@ function weekStars(){
   const n = days.filter(d => new Date(d + "T12:00") >= mon).length;
   return n ? `<p class="week" aria-label="Diese Woche ${n}-mal geübt">${"⭐".repeat(n)}</p><p style="margin:0;font-size:15px">Diese Woche schon ${n}-mal geübt</p>` : "";
 }
+/* --- Metronom (Web Audio, genau getaktet) --- */
+const met = {on: false, bpm: Math.min(240, Math.max(30, +store.get("kb-ub-bpm") || 80)), next: 0, t: null};
+function metHtml(){
+  return `<section class="card c0" id="met" aria-label="Metronom"><h2>🥁 Metronom</h2>
+    <div class="met"><button class="pill" data-a="m5" aria-label="5 langsamer">−5</button><button class="pill" data-a="m1" aria-label="1 langsamer">−1</button>
+    <div class="bpm"><b id="bpm">${met.bpm}</b><span>pro Minute</span></div>
+    <button class="pill" data-a="p1" aria-label="1 schneller">+1</button><button class="pill" data-a="p5" aria-label="5 schneller">+5</button></div>
+    <div class="acts"><span class="mdot" id="mdot" aria-hidden="true"></span><button class="big" data-a="mgo" id="mgo">${met.on ? "■ Stopp" : "▶ Start"}</button></div></section>`;
+}
+function metSet(d){ met.bpm = Math.min(240, Math.max(30, met.bpm + d)); store.set("kb-ub-bpm", met.bpm); document.getElementById("bpm").textContent = met.bpm; }
+function metTick(){
+  while (met.next < ac.currentTime + 0.12){
+    const t = met.next, o = ac.createOscillator(), g = ac.createGain();
+    o.frequency.value = 1500; g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 0.06);
+    const ms = Math.max(0, (t - ac.currentTime) * 1000); setTimeout(() => { const d = document.getElementById("mdot"); if (d){ d.classList.add("on"); setTimeout(() => d.classList.remove("on"), 90); } }, ms);
+    met.next += 60 / met.bpm;
+  }
+}
+function metGo(){
+  audio(); met.on = !met.on;
+  if (met.on){ met.next = ac.currentTime + 0.05; metTick(); met.t = setInterval(metTick, 25); keepAwake(); }
+  else { clearInterval(met.t); if (!run || run.done) unlock(); }
+  document.getElementById("mgo").textContent = met.on ? "■ Stopp" : "▶ Start";
+}
 const T = {
+  m5(){ metSet(-5); }, m1(){ metSet(-1); }, p1(){ metSet(1); }, p5(){ metSet(5); }, mgo(){ metGo(); },
   start(){ audio(); keepAwake(); begin(0); tick = setInterval(paint, 250); },
   pause(){ if (run.paused){ run.end = Date.now() + run.rest * 1000; run.paused = false; keepAwake(); } else { run.rest = left(); run.paused = true; } planView(); },
   skip(){ next(false); },
@@ -219,7 +255,7 @@ function gong(end){
   if (navigator.vibrate) navigator.vibrate(end ? [200, 100, 200] : 200);
 }
 async function keepAwake(){ try { if ("wakeLock" in navigator && !lock) { lock = await navigator.wakeLock.request("screen"); lock.onrelease = () => lock = null; } } catch(e) {} }
-function unlock(){ try { if (lock) lock.release(); } catch(e) {} lock = null; }
+function unlock(){ if (met.on) return; try { if (lock) lock.release(); } catch(e) {} lock = null; }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && run && !run.done && !run.paused){ keepAwake(); paint(); } });
 window.addEventListener("hashchange", () => location.reload());
 load();
