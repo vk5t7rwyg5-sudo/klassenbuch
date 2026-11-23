@@ -604,6 +604,20 @@ async function setPdfSync(on){
   } else await pdfToLocal();
   syncSoon(500); render();
 }
+// Umzug Wix → Infomaniak: Die PDF-Stücke liessen sich bei Wix nicht auflisten. Jedes Gerät, das ein PDF lokal hat,
+// prüft einmal, ob die Stücke auf dem neuen Server liegen, und lädt das PDF sonst neu hoch (neue Stücke, Datensatz wird synchronisiert).
+async function pdfMove(){
+  if (!acc || cfg.pdfMoved || FILES === FILES_OLD) return;
+  const all = await idbAll("rec"); let n = 0;
+  for (const [k, r] of Object.entries(all)){
+    if (!k.startsWith("pdf:") || !r.v || r.v.pending || !(r.v.files || []).length) continue;
+    const id = k.slice(4); if (!pdfLocal.has(id)) continue;
+    let x; try { const ac = new AbortController(); x = await fetch(FILES + r.v.files[0], {signal: ac.signal}); ac.abort(); } catch(e) { if (!x) return; }
+    if (x.status !== 404) continue;
+    r.v.pending = true; r.v.local = false; await idbPut("rec", k, r); pdfNote(id, r.v); cfg.uploads.includes(id) || cfg.uploads.push(id); n++;
+  }
+  cfg.pdfMoved = true; await saveCfg(); if (n) syncSoon(500);
+}
 function pdfNameMap(){ const m = {}; for (const [id, x] of Object.entries(pdfMeta)) if (x.name && !pdfLocal.has(id)) m[x.name] = id; return m; }
 function pdfMissing(){ const ids = new Set(); for (const b of books) for (const t of b.teile || []) if (t.a && !pdfLocal.has(t.a) && !(pdfMeta[t.a] && pdfMeta[t.a].files)) ids.add(b.id); return ids.size; }
 function pdfMissingBanner(){
@@ -693,6 +707,7 @@ async function startApp(){
   setSync(acc ? "Bereit" : "Nur auf diesem Gerät");
   render();
   if (acc) syncSoon(200);
+  if (acc) setTimeout(() => pdfMove().catch(() => {}), 15000);
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").then(reg => {
     reg.addEventListener("updatefound", () => { const w = reg.installing; w && w.addEventListener("statechange", () => { if (w.state === "installed" && navigator.serviceWorker.controller) toast("Neue Version geladen. Beim nächsten Öffnen aktiv."); }); });
   }).catch(() => {});
@@ -932,7 +947,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.23-1409 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.23-1418 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
