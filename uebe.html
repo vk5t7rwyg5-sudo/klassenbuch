@@ -276,7 +276,7 @@ function weekStars(){
   const days = JSON.parse(store.get("kb-ub-days:" + tok) || "[]"), now = new Date(), mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7);
   const n = days.filter(d => new Date(d + "T12:00") >= mon).length, S = secs(), from = dayKey(mon), today = dayKey();
   const wk = Math.round(Object.keys(S).filter(d => d >= from).reduce((a, d) => a + S[d], 0) / 60), td = Math.round((S[today] || 0) / 60);
-  const mins = wk ? `<p class="mins"><b>${wk} Min.</b> geübt diese Woche${td && td !== wk ? ` · heute ${td} Min.` : ""}</p>` : "";
+  const mins = `<p class="mins"><b>${wk} Min.</b> geübt diese Woche${td && td !== wk ? ` · heute ${td} Min.` : ""}</p>`;   // immer sichtbar, auch 0
   return (n ? `<p class="week" aria-label="Diese Woche ${n}-mal geübt">${"⭐".repeat(n)}</p><p style="margin:0;font-size:15px">Diese Woche schon ${n}-mal geübt</p>` : "") + mins;
 }
 /* --- Metronom (Web Audio, genau getaktet) --- */
