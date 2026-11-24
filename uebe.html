@@ -122,10 +122,11 @@ async function load(){
 function view(){
   const L = doc.l || [], cur = L[0];
   document.title = "Üben – " + doc.n;
-  if (!cur){ p.innerHTML = `<h1>Hallo ${esc(doc.n)}! 👋</h1><p class="sub">Hier erscheinen bald deine Aufnahmen und dein Übungsplan.</p>`; return; }
+  if (!cur){ p.innerHTML = `${lookBtn()}<h1>Hallo ${esc(doc.n)}! 👋</h1><p class="sub">Hier erscheinen bald deine Aufnahmen und dein Übungsplan.</p>${freeHtml()}${metHtml()}`; return; }
   const older = L.slice(1).filter(x => x.r.length);
   p.innerHTML = `${lookBtn()}<h1>Hallo ${esc(doc.n)}! 👋</h1><p class="sub">Deine Übung aus der Lektion vom ${dat(cur.d)}</p>
     ${cur.p.length ? `<section class="card c1" id="plan" aria-label="Übungsplan"></section>` : ""}
+    ${freeHtml()}
     ${cur.r.length ? `<section class="card c3"><h2>🎧 Zum Mitspielen</h2>${cur.r.map(recHtml).join("")}</section>` : ""}
     ${metHtml()}
     ${cur.a.trim() ? `<section class="card c2"><h2>📝 Deine Aufgaben</h2><p class="hw">${esc(cur.a)}</p></section>` : ""}
@@ -218,6 +219,7 @@ p.addEventListener("click", async ev => {
   }
   if (b.dataset.a === "look"){ lookOpen = !lookOpen; lookPaint(); return; }
   if (b.dataset.a === "th" || b.dataset.a === "pa"){ setLook(b.dataset.a, b.dataset.v); return; }
+  if (b.dataset.a in T_free){ T_free[b.dataset.a](); return; }
   if (b.dataset.a in T) T[b.dataset.a]();
 });
 p.addEventListener("input", ev => { const s = ev.target; if (s.dataset.a !== "seek") return; const r = s.closest("[data-r]"), a = r && players[r.dataset.r]; if (a) a.currentTime = +s.value; });
@@ -257,9 +259,37 @@ function secs(){ try { return JSON.parse(store.get("kb-ub-sec:" + tok) || "{}") 
 function credit(){
   if (!run || run.done) return;
   const m = plan()[run.i].m * 60, s = Math.round(Math.min(m, Math.max(0, m - left()))); if (!s) return;
+  addSecs(s);
+}
+function addSecs(s){
+  if (!(s > 0)) return;
   const o = secs(), d = dayKey(); o[d] = (o[d] || 0) + s;
   const keep = Object.keys(o).sort().slice(-60), x = {}; keep.forEach(k => x[k] = o[k]); store.set("kb-ub-sec:" + tok, JSON.stringify(x));
 }
+function weekMin(){
+  const now = new Date(), from = dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7)), S = secs();
+  return {wk: Math.round(Object.keys(S).filter(d => d >= from).reduce((a, d) => a + S[d], 0) / 60), td: Math.round((S[dayKey()] || 0) / 60)};
+}
+
+/* --- Freies Spielen: Stoppuhr, die hochzählt. Die Zeit zählt zu den geübten Minuten. --- */
+const free = {on: false, t0: 0, sess: 0, iv: null};
+const freeNow = () => free.sess + (free.on ? (Date.now() - free.t0) / 1000 : 0);
+function freeHtml(){
+  const m = weekMin();
+  return `<section class="card c3" id="free" aria-label="Freies Spielen"><h2>🎵 Freies Spielen</h2>
+    <p style="margin:0 0 6px;font-size:15px">Spiel, was du magst. Die Uhr zählt mit.</p>
+    <div class="timer"><div class="clock" id="fclk">${mmss(Math.floor(freeNow()))}</div>
+    <div class="acts"><button class="big" data-a="fgo" id="fgo">${free.on ? "❚❚ Pause" : freeNow() >= 1 ? "▶ Weiter" : "▶ Start"}</button>${freeNow() >= 1 ? `<button class="pill" data-a="fend">Fertig</button>` : ""}</div></div>
+    <p class="mins" style="text-align:center"><b>${m.wk} Min.</b> geübt diese Woche${m.td && m.td !== m.wk ? ` · heute ${m.td} Min.` : ""}</p></section>`;
+}
+function freeBank(){ if (!free.on) return; const s = (Date.now() - free.t0) / 1000; addSecs(Math.round(s)); free.sess += s; free.t0 = Date.now(); }
+function freePaint(){ const el = document.getElementById("free"); if (el) el.outerHTML = freeHtml(); if (!run && document.getElementById("plan")) planView(); }
+const T_free = {
+  fgo(){ if (free.on){ freeBank(); free.on = false; clearInterval(free.iv); unlock(); } else { free.on = true; free.t0 = Date.now(); keepAwake(); free.iv = setInterval(() => { const c = document.getElementById("fclk"); if (c) c.textContent = mmss(Math.floor(freeNow())); }, 500); } freePaint(); },
+  fend(){ freeBank(); free.on = false; clearInterval(free.iv); unlock(); free.sess = 0; freePaint(); },
+};
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") freeBank(); });
+window.addEventListener("pagehide", freeBank);
 function next(sound){
   credit();
   if (sound) gong(run.i + 1 >= plan().length);
@@ -274,8 +304,7 @@ function finish(){
 }
 function weekStars(){
   const days = JSON.parse(store.get("kb-ub-days:" + tok) || "[]"), now = new Date(), mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7);
-  const n = days.filter(d => new Date(d + "T12:00") >= mon).length, S = secs(), from = dayKey(mon), today = dayKey();
-  const wk = Math.round(Object.keys(S).filter(d => d >= from).reduce((a, d) => a + S[d], 0) / 60), td = Math.round((S[today] || 0) / 60);
+  const n = days.filter(d => new Date(d + "T12:00") >= mon).length, {wk, td} = weekMin();
   const mins = `<p class="mins"><b>${wk} Min.</b> geübt diese Woche${td && td !== wk ? ` · heute ${td} Min.` : ""}</p>`;   // immer sichtbar, auch 0
   return (n ? `<p class="week" aria-label="Diese Woche ${n}-mal geübt">${"⭐".repeat(n)}</p><p style="margin:0;font-size:15px">Diese Woche schon ${n}-mal geübt</p>` : "") + mins;
 }
@@ -323,7 +352,7 @@ function gong(end){
   if (navigator.vibrate) navigator.vibrate(end ? [200, 100, 200] : 200);
 }
 async function keepAwake(){ try { if ("wakeLock" in navigator && !lock) { lock = await navigator.wakeLock.request("screen"); lock.onrelease = () => lock = null; } } catch(e) {} }
-function unlock(){ if (met.on) return; try { if (lock) lock.release(); } catch(e) {} lock = null; }
+function unlock(){ if (met.on || free.on || (run && !run.done)) return; try { if (lock) lock.release(); } catch(e) {} lock = null; }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && run && !run.done && !run.paused){ keepAwake(); paint(); } });
 window.addEventListener("hashchange", () => location.reload());
 load();
