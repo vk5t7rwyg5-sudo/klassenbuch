@@ -75,6 +75,7 @@ button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:tra
 .mdot{width:22px;height:22px;border-radius:50%;background:var(--bd2);align-self:center}.mdot.on{background:var(--ac)}
 details{margin:14px 0}summary{cursor:pointer;font-weight:600;padding:6px 0}
 .done-c{text-align:center}.done-c .star{font-size:64px;line-height:1}
+.mins{margin:6px 0 0;font-size:15px}.mins b{font-size:20px}
 .week{font-size:26px;letter-spacing:2px;margin:6px 0 0}
 .err{color:var(--da)}
 :focus-visible{outline:3px solid var(--ac);outline-offset:2px}
@@ -250,21 +251,33 @@ function paint(){
   if (!run.paused && l <= 0) next(true);
 }
 function begin(i, from){ run = {i, end: (from || Date.now()) + plan()[i].m * 60000, paused: false, rest: 0}; planView(); }
+// Geübte Zeit pro Tag (Sekunden) auf diesem Gerät: kb-ub-sec:<t> = {JJJJ-MM-TT: s}
+const dayKey = d => { d = d || new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+function secs(){ try { return JSON.parse(store.get("kb-ub-sec:" + tok) || "{}") || {}; } catch(e) { return {}; } }
+function credit(){
+  if (!run || run.done) return;
+  const m = plan()[run.i].m * 60, s = Math.round(Math.min(m, Math.max(0, m - left()))); if (!s) return;
+  const o = secs(), d = dayKey(); o[d] = (o[d] || 0) + s;
+  const keep = Object.keys(o).sort().slice(-60), x = {}; keep.forEach(k => x[k] = o[k]); store.set("kb-ub-sec:" + tok, JSON.stringify(x));
+}
 function next(sound){
+  credit();
   if (sound) gong(run.i + 1 >= plan().length);
   if (run.i + 1 >= plan().length){ finish(); return; }
   begin(run.i + 1, sound ? run.end : 0);   // nach Ablauf ohne Lücke weiter, auch wenn die Seite im Hintergrund war
 }
 function finish(){
   run = {done: true}; clearInterval(tick); tick = null; unlock();
-  const k = "kb-ub-days:" + tok, days = JSON.parse(store.get(k) || "[]"), d = new Date().toISOString().slice(0, 10);
+  const k = "kb-ub-days:" + tok, days = JSON.parse(store.get(k) || "[]"), d = dayKey();
   if (!days.includes(d)){ days.push(d); store.set(k, JSON.stringify(days.slice(-60))); }
   planView();
 }
 function weekStars(){
   const days = JSON.parse(store.get("kb-ub-days:" + tok) || "[]"), now = new Date(), mon = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (now.getDay() + 6) % 7);
-  const n = days.filter(d => new Date(d + "T12:00") >= mon).length;
-  return n ? `<p class="week" aria-label="Diese Woche ${n}-mal geübt">${"⭐".repeat(n)}</p><p style="margin:0;font-size:15px">Diese Woche schon ${n}-mal geübt</p>` : "";
+  const n = days.filter(d => new Date(d + "T12:00") >= mon).length, S = secs(), from = dayKey(mon), today = dayKey();
+  const wk = Math.round(Object.keys(S).filter(d => d >= from).reduce((a, d) => a + S[d], 0) / 60), td = Math.round((S[today] || 0) / 60);
+  const mins = wk ? `<p class="mins"><b>${wk} Min.</b> geübt diese Woche${td && td !== wk ? ` · heute ${td} Min.` : ""}</p>` : "";
+  return (n ? `<p class="week" aria-label="Diese Woche ${n}-mal geübt">${"⭐".repeat(n)}</p><p style="margin:0;font-size:15px">Diese Woche schon ${n}-mal geübt</p>` : "") + mins;
 }
 /* --- Metronom (Web Audio, genau getaktet) --- */
 const met = {on: false, bpm: Math.min(240, Math.max(30, +store.get("kb-ub-bpm") || 80)), next: 0, t: null};
@@ -296,7 +309,7 @@ const T = {
   start(){ audio(); keepAwake(); begin(0); tick = setInterval(paint, 250); },
   pause(){ if (run.paused){ run.end = Date.now() + run.rest * 1000; run.paused = false; keepAwake(); } else { run.rest = left(); run.paused = true; } planView(); },
   skip(){ next(false); },
-  stop(){ if (confirm("Übung beenden?")){ run = null; clearInterval(tick); tick = null; unlock(); planView(); } },
+  stop(){ if (confirm("Übung beenden?")){ credit(); run = null; clearInterval(tick); tick = null; unlock(); planView(); } },
   reset(){ run = null; planView(); },
 };
 // Gong beim Wechsel (Web Audio, kein Ton-File nötig)
