@@ -947,7 +947,7 @@ function vDatenApp(){
     return;
   }
   app.innerHTML = `<h2>Einstellungen</h2>${rkCard()}<div class="grid set-g">${groups.map(([k, t, ic, sum, warn]) => `<a class="card set-t" href="#daten-${k}"><span class="set-i">${svg(ic)}</span><span class="set-x"><b>${t}</b><span class="small">${esc(sum)}</span>${warn ? `<span class="badge b-wa">${esc(warn)}</span>` : ""}</span><span class="set-c" aria-hidden="true">›</span></a>`).join("")}</div>
-  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.24-0721 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
+  <p class="tiny" style="margin-top:20px">Klassenbuch · App-Version 2026.11.25-1552 · <a href="index.html#start">Startseite</a> · <a href="anleitung.html">Anleitung</a> · <a href="rechtliches.html" target="_blank" rel="noopener">Datenschutz und Nutzungsbedingungen</a></p>`;
 }
 function acErr(e){
   const c = e && e.code;
@@ -1557,7 +1557,7 @@ function ubEd(s, d, l){
     <div class="ub-h small">Link für ${vn}</div>
     ${ubLink === s.id && s.ub ? `<div class="ub-link"><div class="ub-qr">${ubQr(ubUrl(s))}</div><div style="min-width:0;flex:1">
         <input readonly value="${esc(ubUrl(s))}" onfocus="this.select()" aria-label="Link zur Übungsseite">
-        <div class="row" style="margin-top:8px"><button class="small" data-ub="copy">Kopieren</button>${navigator.share ? `<button class="small" data-ub="share">Teilen</button>` : ""}<a class="btn small ghost" href="${esc(ubUrl(s))}" target="_blank" rel="noopener">Ansehen</a><button class="ghost small" data-ub="new">Neuer Link</button><button class="ghost small del" data-ub="off">Seite löschen</button></div>
+        <div class="row" style="margin-top:8px"><button class="small" data-ub="copy">Kopieren</button>${navigator.share ? `<button class="small" data-ub="share">Teilen</button>` : ""}<button class="small" data-ub="print">Drucken (A4)</button><a class="btn small ghost" href="${esc(ubUrl(s))}" target="_blank" rel="noopener">Ansehen</a><button class="ghost small" data-ub="new">Neuer Link</button><button class="ghost small del" data-ub="off">Seite löschen</button></div>
         <p class="tiny" style="margin:8px 0 0">Ohne Login: Wer den Link kennt, sieht die Seite. Der Inhalt ist verschlüsselt, der Schlüssel steckt nur im Link. Die Seite zeigt den Vornamen, die Aufgaben, Übungspläne und Aufnahmen der letzten 12 Lektionen. ${esc(ubMsg)}</p></div></div>`
       : `<div class="row"><button class="small" data-ub="link">${s.ub ? "Link und QR-Code zeigen" : "Link erstellen"}</button>${s.ub ? "" : `<span class="tiny">Der Link entsteht auch mit der ersten Aufnahme oder dem ersten Block.</span>`}</div>`}
   </div></details>`;
@@ -1590,6 +1590,7 @@ document.addEventListener("click", ev => {
     case "link": ubEnsure(s); ubLink = s.id; render(); setTimeout(ubTick, 300); break;
     case "copy": navigator.clipboard.writeText(ubUrl(s)).then(() => toast("Link kopiert"), () => toast("Kopieren nicht möglich. Markiere den Link von Hand.")); break;
     case "share": navigator.share({title: "Übungsseite " + ubVn(s), text: "Hier ist die Übungsseite von " + ubVn(s) + " mit den Aufnahmen und dem Übungsplan:", url: ubUrl(s)}).catch(() => {}); break;
+    case "print": ubPrint(s); break;
     case "new": ask(`Neuen Link für ${ubVn(s)} erzeugen? Der alte Link funktioniert danach nicht mehr.`, "Neuer Link", async () => {
         const old = s.ub.k; s.ub = {k: ub64(crypto.getRandomValues(new Uint8Array(16)))}; save(); render();
         try { await api("udel", {ts: [await ubTok(old)]}); } catch(e) {} setTimeout(ubTick, 300); toast("Neuer Link erstellt"); });
@@ -1621,7 +1622,34 @@ document.addEventListener("change", ev => {
 .ub-live{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-radius:14px;background:var(--soft,var(--bg))}
 .ub-dot{width:12px;height:12px;border-radius:50%;background:var(--da);animation:ubb 1s infinite}@keyframes ubb{50%{opacity:.25}}
 .ub-link{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}.ub-qr{width:150px;flex:none;background:#fff;border-radius:10px;padding:6px}.ub-qr svg{display:block;width:100%;height:auto}
-@media (prefers-reduced-motion:reduce){.ub-dot{animation:none}}`; document.head.appendChild(st); })();
+@media (prefers-reduced-motion:reduce){.ub-dot{animation:none}}
+#prt .ub-a4{color:#000;background:#fff;font-family:"Hanken Grotesk",Aptos,system-ui,sans-serif;font-size:13pt;line-height:1.45;max-width:170mm;margin:0 auto;text-align:left}
+#prt .ub-a4 h1{font-size:30pt;margin:6mm 0 0;text-align:center}#prt .ub-a4-n{font-size:18pt;text-align:center;margin:1mm 0 6mm}
+#prt .ub-a4-qr{width:85mm;margin:0 auto 6mm}#prt .ub-a4-qr svg{display:block;width:100%;height:auto}
+#prt .ub-a4 h2{font-size:16pt;margin:5mm 0 2mm}#prt .ub-a4 ol,#prt .ub-a4 ul{margin:0;padding-left:7mm}#prt .ub-a4 li{margin:1.5mm 0}#prt .ub-a4 ul{list-style:none;padding-left:0}
+#prt .ub-a4-f{margin-top:8mm;padding-top:3mm;border-top:1px solid #999;font-size:10.5pt;color:#333}#prt .ub-a4-f span{font-family:ui-monospace,Menlo,monospace;font-size:8pt;word-break:break-all;color:#666}`; document.head.appendChild(st); })();
+
+/* --- A4-Blatt mit QR-Code und Anleitung für das Kind (über #prt wie pvPrint) --- */
+function ubPrint(s){
+  const vn = esc(ubVn(s)), url = ubUrl(s);
+  let box = $("prt"); if (!box){ box = document.createElement("div"); box.id = "prt"; document.body.appendChild(box); }
+  box.innerHTML = `<div class="ub-a4">
+    <h1>Deine Übungsseite</h1><p class="ub-a4-n">für ${vn}</p>
+    <div class="ub-a4-qr">${ubQr(url)}</div>
+    <h2>So geht's</h2>
+    <ol><li>Öffne die <b>Kamera</b> auf dem Handy oder Tablet und halte sie auf den QR-Code.</li>
+      <li>Tippe auf den Link, der erscheint. Deine Übungsseite geht auf.</li>
+      <li>Speichere die Seite auf dem <b>Home-Bildschirm</b> oder als Lesezeichen. Dann findest du sie immer wieder.</li></ol>
+    <h2>Das findest du dort</h2>
+    <ul><li>🎧 <b>Aufnahmen</b> aus dem Unterricht zum Mitspielen, auch in Schleife und langsamer 🐢</li>
+      <li>⏱ <b>Übungsplan</b> mit Timer und Gong: Drück auf «Los geht's» und spiel einfach mit.</li>
+      <li>🥁 <b>Metronom</b> und <b>Freies Spielen</b> mit Stoppuhr</li>
+      <li>⭐ Für jeden Übungstag bekommst du einen <b>Stern</b>.</li></ul>
+    <p class="ub-a4-f">Bewahre dieses Blatt gut auf. Der Link gehört nur dir, gib ihn nicht weiter.<br><span>${esc(url)}</span></p></div>`;
+  const done = () => { box.innerHTML = ""; window.removeEventListener("afterprint", done); };
+  window.addEventListener("afterprint", done);
+  setTimeout(() => window.print(), 50);
+}
 
 /* --- QR-Code (Byte-Modus, Fehlerkorrektur M, Version 1–10), als SVG --- */
 function ubQr(text){
